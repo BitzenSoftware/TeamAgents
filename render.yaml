@@ -24,6 +24,10 @@ services:
         sync: false
       - key: WEBHOOK_VERIFY_TOKEN
         sync: false
+      # CORS — depois do deploy do frontend, mete aqui o domínio do Vercel
+      # (ex: https://teamagents.vercel.app). Em dev pode ficar "*".
+      - key: ALLOWED_ORIGINS
+        sync: false
 
   # Cron do Agente 3 (Diretor de BI) — relatório semanal por tenant.
   # Render corre em UTC: "59 2 * * 1" = domingo 23:59 em São Paulo (UTC-3),
