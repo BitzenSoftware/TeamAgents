@@ -1,0 +1,32 @@
+{
+  "id": "sdr",
+  "name": "SDR (Sales Development Representative) Sênior",
+  "description": "Qualifica leads através de conversação natural e agenda reuniões com consultor humano se critérios forem atendidos.",
+  "version": "1.0.0",
+  "mode": "conversational",
+  "input_schema": {
+    "lead_message": "string",
+    "gatilho_principal": "string",
+    "dor_alvo": "string",
+    "palavra_chave_gatilho": "string",
+    "link_calendario": "string"
+  },
+  "output_schema": {
+    "response": "string",
+    "action": "CONTINUE | TRANSFER_TO_HUMAN | SCHEDULE_MEETING",
+    "qualification_status": "UNQUALIFIED | IN_PROGRESS | QUALIFIED",
+    "metadata": {
+      "pergunta_atual": "number (1-3)",
+      "respostas_coletadas": "object"
+    }
+  },
+  "qualification_criteria": {
+    "pergunta_1": "Nicho exato / tamanho da operação",
+    "pergunta_2": "Maior gargalo no processo atual",
+    "pergunta_3": "Poder de decisão / autonomia"
+  },
+  "tone": "human, direct, empathetic",
+  "max_response_length": 3,
+  "closing_benefit": "15-minute strategic conversation",
+  "fallback_action": "TRANSFER_TO_HUMAN"
+}
