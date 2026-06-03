@@ -118,6 +118,12 @@ def verify_webhook(token: str = Query(default="")) -> dict:
 
 
 # ===================== Listagens (frontend) — cliente vem do TOKEN =====================
+@app.get("/me/campanhas")
+def listar_campanhas(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Campanhas do tenant autenticado (mais recentes primeiro)."""
+    return flow.listar_campanhas(cliente_id)
+
+
 @app.get("/me/relatorios")
 def listar_relatorios(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
     """Relatórios de BI do tenant autenticado (mais recentes primeiro)."""

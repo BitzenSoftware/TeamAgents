@@ -272,6 +272,19 @@ def listar_clientes() -> list[dict]:
     return get_db().table("clientes").select("id, nome, created_at").order("nome").execute().data
 
 
+def listar_campanhas(cliente_id: str) -> list[dict]:
+    """Campanhas de um cliente, mais recentes primeiro."""
+    return (
+        get_db()
+        .table("campanhas")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+
+
 def listar_relatorios(cliente_id: str) -> list[dict]:
     """Relatórios de BI de um cliente, mais recentes primeiro."""
     return (

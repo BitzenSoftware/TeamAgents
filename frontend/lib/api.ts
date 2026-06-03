@@ -40,12 +40,14 @@ export type Conversa = {
 export type Campanha = {
   id: string;
   nome_campanha: string;
+  nicho: string;
   anuncio_dor: string;
   anuncio_beneficio: string;
   gatilho_principal: string;
   dor_alvo: string;
   desejo_alvo: string;
   palavra_chave_gatilho: string;
+  created_at: string;
 };
 
 export type Relatorio = {
@@ -131,6 +133,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   me: () => req<Cliente>("/me"),
+  campanhas: () => req<Campanha[]>("/me/campanhas"),
   leads: () => req<Lead[]>("/me/leads"),
   conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
