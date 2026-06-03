@@ -6,9 +6,9 @@ o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 """
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
-from . import flow
+from . import evolution, flow
 from .config import get_settings
-from .schemas import CopyRequest, InboundMessage
+from .schemas import CopyRequest
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
 
@@ -27,13 +27,15 @@ def criar_campanha(req: CopyRequest) -> dict:
 
 # ===================== Agente 2: webhook WhatsApp (async) =====================
 @app.post("/webhook/whatsapp")
-async def webhook_whatsapp(msg: InboundMessage, bg: BackgroundTasks) -> dict:
-    """Recebe a mensagem do lead, agenda o processamento e responde já.
+async def webhook_whatsapp(payload: dict, bg: BackgroundTasks) -> dict:
+    """Recebe o payload CRU da Evolution API, normaliza e agenda o processamento.
 
-    `InboundMessage` é o formato JÁ normalizado. Se o teu provider (Evolution/
-    Z-API) mandar outro shape, normaliza-o antes de chegar aqui (ou adapta este
-    endpoint para receber o payload cru e extrair número/texto).
+    Responde 200 OK imediatamente (o agente corre em background). Mensagens que
+    devem ser ignoradas (nossas, de grupos, sem texto) são descartadas no parser.
     """
+    msg = evolution.parse_webhook(payload)
+    if msg is None:
+        return {"status": "ignored"}  # 200 OK na mesma — não reenfileira
     bg.add_task(flow.processar_mensagem_lead, msg.whatsapp, msg.text, msg.nome)
     return {"status": "accepted"}  # 200 OK imediato
 

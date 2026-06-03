@@ -67,8 +67,35 @@ python test_flow.py
 
 Cria campanha fake → simula lead com a palavra-chave → SDR responde → gera relatório.
 
+## Webhook da Evolution API
+
+O endpoint `POST /webhook/whatsapp` recebe o **payload cru** da Evolution (evento `messages.upsert`) e normaliza-o em [app/evolution.py](app/evolution.py). Descarta automaticamente:
+
+- mensagens enviadas por nós (`fromMe: true`)
+- mensagens de grupos (`@g.us`)
+- mensagens sem texto (áudio, imagem, etc.)
+
+Configura na Evolution o webhook a apontar para `https://<teu-render>/webhook/whatsapp`, evento `messages.upsert`. Se mudares para Z-API/Z-PRO, cria um parser análogo (o shape é diferente).
+
+## Deploy no Render (Docker)
+
+[render.yaml](../render.yaml) (na raiz) é um blueprint pronto:
+
+1. Render Dashboard → **New → Blueprint** → aponta para este repo
+2. Preenche as env vars (todas `sync: false` — não vão no git): `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WHATSAPP_*`, `WEBHOOK_VERIFY_TOKEN`
+3. O build usa [Dockerfile](Dockerfile) com **contexto = raiz do repo** (precisa de `backend/` **e** `agents/`)
+
+O `healthCheckPath` é `/health`. O container escuta em `$PORT` (injetado pelo Render).
+
+### Build local do Docker (opcional)
+
+```bash
+# a partir da raiz do repo (o contexto tem de ser a raiz)
+docker build -f backend/Dockerfile -t teamagents-api .
+docker run --env-file backend/.env -p 8000:8000 teamagents-api
+```
+
 ## Notas
 
-- O `InboundMessage` no webhook assume um payload **já normalizado** (`whatsapp`, `text`, `nome`). Se o teu provider (Evolution/Z-API) mandar outro formato, normaliza antes — ou adapta o endpoint para receber o payload cru.
 - `whatsapp.send_text` traz o formato típico da Evolution API; ajusta ao provider escolhido.
 - Para volume alto, trocar `BackgroundTasks` por Redis/Celery (o desenho do `flow.py` já isola a lógica, a migração é direta).

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Secrets / local
+.env
+.env.*
+!.env.example
+
+# Git / docs
+# (NÃO ignorar *.md — agents/<id>/prompt.md são necessários em runtime)
+.git/
+.gitignore
+db/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

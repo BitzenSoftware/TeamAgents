@@ -16,8 +16,17 @@ import anthropic
 from .config import get_settings
 from .schemas import BiOutput, CopyOutput, SdrOutput
 
-# agents/<id>/prompt.md está na raiz do repo, dois níveis acima de app/
-_AGENTS_DIR = Path(__file__).resolve().parents[2] / "agents"
+def _find_agents_dir() -> Path:
+    """Localiza a pasta agents/ — funciona no repo (raiz) e no container (/app)."""
+    here = Path(__file__).resolve()
+    for base in (here.parents[2], here.parents[1], here.parent):
+        cand = base / "agents"
+        if cand.is_dir():
+            return cand
+    return here.parents[2] / "agents"  # fallback (layout do repo)
+
+
+_AGENTS_DIR = _find_agents_dir()
 
 
 @lru_cache

@@ -1,0 +1,26 @@
+# Blueprint do Render — backend TeamAgents (Docker).
+# Importa via: Render Dashboard → New → Blueprint → aponta para este repo.
+services:
+  - type: web
+    name: teamagents-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      # Secrets — preencher no dashboard do Render (sync: false = não vai no git)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: WHATSAPP_API_URL
+        sync: false
+      - key: WHATSAPP_API_KEY
+        sync: false
+      - key: WHATSAPP_INSTANCE
+        sync: false
+      - key: WEBHOOK_VERIFY_TOKEN
+        sync: false
