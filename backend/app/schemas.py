@@ -61,12 +61,13 @@ class BiOutput(BaseModel):
 
 # ===================== Onboarding (criar tenant) =====================
 class OnboardingPayload(BaseModel):
+    # Só o nome é obrigatório; o resto pode ser preenchido depois em Configurações.
     nome_empresa: str = Field(min_length=2)
-    whatsapp_instance_name: str
-    whatsapp_token: str
+    whatsapp_instance_name: str | None = None
+    whatsapp_token: str | None = None
     whatsapp_api_url: str | None = None
-    calendario_link: str
-    whatsapp_dono: str = Field(description="Número do dono em E.164, ex: +5511999999999")
+    calendario_link: str | None = None
+    whatsapp_dono: str | None = None
 
 
 # ===================== Editar config (Configurações) =====================

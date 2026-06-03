@@ -52,11 +52,12 @@ export default function OnboardingPage() {
           <p className="text-sm text-black/50">Liga o WhatsApp e a agenda para ativar os agentes.</p>
         </div>
         <Campo label="Nome da empresa" v={form.nome_empresa} on={set("nome_empresa")} ph="Empresa Exemplo LTDA" />
-        <Campo label="Instância do WhatsApp (Evolution)" v={form.whatsapp_instance_name} on={set("whatsapp_instance_name")} ph="instancia_prod_01" />
-        <Campo label="Token da instância" v={form.whatsapp_token} on={set("whatsapp_token")} ph="tok_..." />
-        <Campo label="URL da Evolution API (opcional)" v={form.whatsapp_api_url} on={set("whatsapp_api_url")} ph="https://api.evolution..." required={false} />
-        <Campo label="Link de calendário" v={form.calendario_link} on={set("calendario_link")} ph="https://calendly.com/empresa" />
-        <Campo label="WhatsApp do dono (recebe o relatório)" v={form.whatsapp_dono} on={set("whatsapp_dono")} ph="+5511999999999" />
+        <p className="pt-1 text-xs text-black/40">Os campos abaixo são opcionais — podes preenchê-los depois em Configurações.</p>
+        <Campo label="Instância do WhatsApp (Evolution)" v={form.whatsapp_instance_name} on={set("whatsapp_instance_name")} ph="instancia_prod_01" required={false} />
+        <Campo label="Token da instância" v={form.whatsapp_token} on={set("whatsapp_token")} ph="tok_..." required={false} />
+        <Campo label="URL da Evolution API" v={form.whatsapp_api_url} on={set("whatsapp_api_url")} ph="https://api.evolution..." required={false} />
+        <Campo label="Link de calendário" v={form.calendario_link} on={set("calendario_link")} ph="https://calendly.com/empresa" required={false} />
+        <Campo label="WhatsApp do dono (recebe o relatório)" v={form.whatsapp_dono} on={set("whatsapp_dono")} ph="+5511999999999" required={false} />
         <button
           type="submit"
           disabled={loading}

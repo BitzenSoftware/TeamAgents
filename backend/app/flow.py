@@ -25,16 +25,17 @@ def onboard_tenant(auth_user_id: str, payload: OnboardingPayload) -> dict:
     ter cliente -> unique_violation), tudo é revertido. O endpoint trata o
     23505 (distingue pela constraint na mensagem).
     """
+    _n = lambda v: v or None  # "" -> None (instância vazia fica NULL, não '')  # noqa: E731
     res = get_db().rpc(
         "onboard_tenant",
         {
             "p_auth_user_id": auth_user_id,
             "p_nome_empresa": payload.nome_empresa,
-            "p_whatsapp_instance_name": payload.whatsapp_instance_name,
-            "p_whatsapp_token": payload.whatsapp_token,
-            "p_whatsapp_api_url": payload.whatsapp_api_url,
-            "p_calendario_link": payload.calendario_link,
-            "p_whatsapp_dono": payload.whatsapp_dono,
+            "p_whatsapp_instance_name": _n(payload.whatsapp_instance_name),
+            "p_whatsapp_token": _n(payload.whatsapp_token),
+            "p_whatsapp_api_url": _n(payload.whatsapp_api_url),
+            "p_calendario_link": _n(payload.calendario_link),
+            "p_whatsapp_dono": _n(payload.whatsapp_dono),
         },
     ).execute()
     return res.data[0]  # {cliente_id, workspace_config_id}
