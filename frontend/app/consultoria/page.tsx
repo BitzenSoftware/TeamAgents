@@ -26,7 +26,7 @@ export default function ConsultoriaPage() {
       <header className="mb-6">
         <h1 className="text-xl font-semibold">Feed de Consultoria</h1>
         <p className="text-sm text-black/50">
-          Análise estratégica semanal do Diretor de BI (Opus 4.8)
+          Análise estratégica semanal do seu Diretor de BI
         </p>
       </header>
 

@@ -41,7 +41,7 @@ export default function CampanhasPage() {
       <header className="mb-5">
         <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
         <p className="text-sm text-black/50">
-          Gera anúncios de alta conversão com o Copywriter (Sonnet 4.6)
+          Gera anúncios de alta conversão para o seu tráfego pago
         </p>
       </header>
 

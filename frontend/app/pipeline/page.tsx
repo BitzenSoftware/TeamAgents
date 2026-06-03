@@ -37,7 +37,7 @@ export default function PipelinePage() {
       <header className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Pipeline Comercial</h1>
-          <p className="text-sm text-black/50">Leads qualificados pelo SDR (Haiku 4.5)</p>
+          <p className="text-sm text-black/50">Leads atendidos e qualificados automaticamente pelo seu SDR</p>
         </div>
         <button
           onClick={carregar}
