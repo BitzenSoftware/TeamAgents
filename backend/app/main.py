@@ -4,11 +4,11 @@ Fluxo crítico do WhatsApp (passo 3 do plano):
 o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 < 2s. O agente (que pode demorar) corre DEPOIS, fora da request.
 """
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
 
-from . import evolution, flow
+from . import auth, evolution, flow
 from .config import get_settings
 from .schemas import CopyRequest, OnboardingPayload
 
@@ -28,18 +28,32 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-# ===================== Onboarding (criar tenant) =====================
+# ===================== Identidade do tenant autenticado =====================
+@app.get("/me")
+def me(user_id: str = Depends(auth.verify_user)) -> dict:
+    """Devolve o cliente do utilizador autenticado, ou 404 se ainda não fez onboarding."""
+    cliente = auth.cliente_do_user(user_id)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Sem cliente — necessário onboarding.")
+    return cliente
+
+
+# ===================== Onboarding (criar tenant, autenticado) =====================
 @app.post("/api/v1/onboarding", status_code=201)
-def onboarding(payload: OnboardingPayload) -> dict:
-    """Cria cliente + workspace_config de forma atómica (função onboard_tenant)."""
+def onboarding(payload: OnboardingPayload, user_id: str = Depends(auth.verify_user)) -> dict:
+    """Cria cliente (ligado ao utilizador) + workspace_config de forma atómica."""
     try:
-        created = flow.onboard_tenant(payload)
+        created = flow.onboard_tenant(user_id, payload)
     except APIError as e:
-        if e.code == "23505":  # unique_violation -> instância já registada
-            raise HTTPException(
-                status_code=400,
-                detail="Esta instância do WhatsApp já está registada no sistema.",
-            )
+        if e.code == "23505":  # unique_violation — distinguir a constraint
+            msg = (e.message or "").lower()
+            if "auth_user" in msg:
+                raise HTTPException(status_code=409, detail="Este utilizador já tem um cliente.")
+            if "instance" in msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Esta instância do WhatsApp já está registada no sistema.",
+                )
         raise HTTPException(status_code=500, detail=f"Falha no onboarding: {e.message}")
     return {
         "message": "Onboarding concluído com sucesso!",
@@ -48,11 +62,11 @@ def onboarding(payload: OnboardingPayload) -> dict:
     }
 
 
-# ===================== Agente 1: criar campanha (síncrono) =====================
+# ===================== Agente 1: criar campanha (autenticado) =====================
 @app.post("/campanhas")
-def criar_campanha(req: CopyRequest) -> dict:
-    """Gera os 2 anúncios + metadata e persiste a campanha."""
-    return flow.criar_campanha(req)
+def criar_campanha(req: CopyRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Gera os 2 anúncios + metadata e persiste a campanha do tenant autenticado."""
+    return flow.criar_campanha(cliente_id, req)
 
 
 # ===================== Agente 2: webhook WhatsApp (async) =====================
@@ -79,28 +93,22 @@ def verify_webhook(token: str = Query(default="")) -> dict:
     return {"status": "verified"}
 
 
-# ===================== Listagens (frontend) — filtradas por cliente =====================
-@app.get("/clientes")
-def listar_clientes() -> list[dict]:
-    """Lista os tenants (seletor de cliente no MVP — sem auth ainda)."""
-    return flow.listar_clientes()
-
-
-@app.get("/clientes/{cliente_id}/relatorios")
-def listar_relatorios(cliente_id: str) -> list[dict]:
-    """Relatórios de BI do cliente (mais recentes primeiro)."""
+# ===================== Listagens (frontend) — cliente vem do TOKEN =====================
+@app.get("/me/relatorios")
+def listar_relatorios(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Relatórios de BI do tenant autenticado (mais recentes primeiro)."""
     return flow.listar_relatorios(cliente_id)
 
 
-@app.get("/clientes/{cliente_id}/leads")
-def listar_leads(cliente_id: str) -> list[dict]:
-    """Lista os leads de um cliente (sempre isolado por cliente_id)."""
+@app.get("/me/leads")
+def listar_leads(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Leads do tenant autenticado."""
     return flow.listar_leads(cliente_id)
 
 
-@app.get("/clientes/{cliente_id}/leads/{lead_id}/conversas")
-def listar_conversas(cliente_id: str, lead_id: str) -> list[dict]:
-    """Histórico de conversa de um lead — só devolve se o lead for do cliente."""
+@app.get("/me/leads/{lead_id}/conversas")
+def listar_conversas(lead_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Histórico de um lead — só devolve se o lead for do tenant autenticado."""
     return flow.listar_conversas(cliente_id, lead_id)
 
 

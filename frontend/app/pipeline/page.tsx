@@ -12,22 +12,21 @@ const COLUNAS: { status: StatusQualificacao; label: string; cor: string }[] = [
 ];
 
 export default function PipelinePage() {
-  const { clienteId } = useCliente();
+  const { cliente } = useCliente();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Lead | null>(null);
 
   const carregar = useCallback(() => {
-    if (!clienteId) return;
     setLoading(true);
     setErro(null);
     api
-      .leads(clienteId)
+      .leads()
       .then(setLeads)
       .catch((e) => setErro(e.message))
       .finally(() => setLoading(false));
-  }, [clienteId]);
+  }, []);
 
   useEffect(() => {
     carregar();
@@ -93,32 +92,22 @@ export default function PipelinePage() {
         })}
       </div>
 
-      {aberto && (
-        <ConversaDrawer clienteId={clienteId!} lead={aberto} onClose={() => setAberto(null)} />
-      )}
+      {aberto && <ConversaDrawer lead={aberto} onClose={() => setAberto(null)} />}
     </div>
   );
 }
 
-function ConversaDrawer({
-  clienteId,
-  lead,
-  onClose,
-}: {
-  clienteId: string;
-  lead: Lead;
-  onClose: () => void;
-}) {
+function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const [msgs, setMsgs] = useState<Conversa[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api
-      .conversas(clienteId, lead.id)
+      .conversas(lead.id)
       .then(setMsgs)
       .finally(() => setLoading(false));
-  }, [clienteId, lead.id]);
+  }, [lead.id]);
 
   return (
     <div className="fixed inset-0 z-20 flex justify-end bg-black/20" onClick={onClose}>

@@ -5,7 +5,7 @@ import { useCliente } from "@/components/cliente-context";
 import { api, type Campanha } from "@/lib/api";
 
 export default function CampanhasPage() {
-  const { clienteId, cliente } = useCliente();
+  const { cliente } = useCliente();
   const [nicho, setNicho] = useState("");
   const [dor, setDor] = useState("");
   const [nomeCampanha, setNomeCampanha] = useState("");
@@ -16,13 +16,12 @@ export default function CampanhasPage() {
 
   async function gerar(e: React.FormEvent) {
     e.preventDefault();
-    if (!clienteId || !cliente) return;
+    if (!cliente) return;
     setLoading(true);
     setErro(null);
     setResultado(null);
     try {
       const c = await api.criarCampanha({
-        cliente_id: clienteId,
         nome_cliente: cliente.nome,
         nicho,
         dor_latente: dor,
@@ -88,7 +87,7 @@ export default function CampanhasPage() {
           </Field>
           <button
             type="submit"
-            disabled={loading || !clienteId}
+            disabled={loading || !cliente}
             className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
           >
             {loading ? "A gerar com a IA…" : "Gerar anúncios"}

@@ -20,7 +20,7 @@ class CopyOutput(BaseModel):
 
 
 class CopyRequest(BaseModel):
-    cliente_id: str
+    # cliente_id NÃO vem do body — é derivado do token (ver auth.current_cliente_id)
     nicho: str
     dor_latente: str
     nome_cliente: str

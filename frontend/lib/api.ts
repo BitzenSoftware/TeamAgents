@@ -1,4 +1,5 @@
 // Cliente de API tipado para o backend FastAPI do TeamAgents.
+import { supabase } from "@/lib/supabase";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -62,7 +63,6 @@ export type Relatorio = {
 };
 
 export type CampanhaInput = {
-  cliente_id: string;
   nicho: string;
   dor_latente: string;
   nome_cliente: string;
@@ -70,9 +70,29 @@ export type CampanhaInput = {
   link_calendario?: string;
 };
 
+export type OnboardingInput = {
+  nome_empresa: string;
+  whatsapp_instance_name: string;
+  whatsapp_token: string;
+  whatsapp_api_url?: string;
+  calendario_link: string;
+  whatsapp_dono: string;
+};
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     cache: "no-store",
     ...init,
   });
@@ -84,18 +104,21 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(detail);
+    throw new ApiError(res.status, detail);
   }
   return res.json() as Promise<T>;
 }
 
 export const api = {
-  clientes: () => req<Cliente[]>("/clientes"),
-  leads: (clienteId: string) => req<Lead[]>(`/clientes/${clienteId}/leads`),
-  conversas: (clienteId: string, leadId: string) =>
-    req<Conversa[]>(`/clientes/${clienteId}/leads/${leadId}/conversas`),
-  relatorios: (clienteId: string) =>
-    req<Relatorio[]>(`/clientes/${clienteId}/relatorios`),
+  me: () => req<Cliente>("/me"),
+  leads: () => req<Lead[]>("/me/leads"),
+  conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
+  relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),
+  onboarding: (body: OnboardingInput) =>
+    req<{ cliente_id: string; workspace_config_id: string }>("/api/v1/onboarding", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

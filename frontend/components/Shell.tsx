@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
 
 const NAV = [
@@ -12,14 +13,15 @@ const NAV = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { clientes, clienteId, setClienteId, loading } = useCliente();
+  const { session, signOut } = useAuth();
+  const { cliente } = useCliente();
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-60 shrink-0 border-r border-black/10 bg-white/60 p-5 flex flex-col gap-6">
+    <div className="flex min-h-screen">
+      <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-black/10 bg-white/60 p-5">
         <div>
           <div className="text-lg font-semibold tracking-tight">TeamAgents</div>
-          <div className="text-xs text-black/50">Painel do cliente</div>
+          <div className="text-xs text-black/50">{cliente?.nome ?? "Painel"}</div>
         </div>
         <nav className="flex flex-col gap-1">
           {NAV.map((item) => {
@@ -40,21 +42,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="mt-auto">
-          <label className="text-xs text-black/50">Cliente (tenant)</label>
-          <select
-            className="mt-1 w-full rounded-lg border border-black/15 bg-white px-2 py-1.5 text-sm"
-            value={clienteId ?? ""}
-            onChange={(e) => setClienteId(e.target.value)}
-            disabled={loading || clientes.length === 0}
+        <div className="mt-auto text-xs text-black/50">
+          <div className="truncate">{session?.user.email}</div>
+          <button
+            type="button"
+            onClick={signOut}
+            className="mt-1 rounded-lg border border-black/15 px-3 py-1.5 text-sm text-ink hover:bg-black/5"
           >
-            {clientes.length === 0 && <option>— sem clientes —</option>}
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
+            Terminar sessão
+          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>

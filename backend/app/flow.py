@@ -18,16 +18,17 @@ _STATUS_DB = {
 
 
 # ===================== Onboarding (criar tenant, atómico) =====================
-def onboard_tenant(payload: OnboardingPayload) -> dict:
-    """Cria cliente + workspace_config numa única transação (função onboard_tenant).
+def onboard_tenant(auth_user_id: str, payload: OnboardingPayload) -> dict:
+    """Cria cliente (ligado ao utilizador) + workspace_config numa transação.
 
-    Atomicidade garantida no Postgres: se a config falhar (ex.: instância
-    duplicada -> unique_violation), o cliente é revertido automaticamente.
-    Deixa o erro do PostgREST propagar (o endpoint trata o 23505 -> 400).
+    Atomicidade no Postgres: se algo falhar (instância duplicada, ou o user já
+    ter cliente -> unique_violation), tudo é revertido. O endpoint trata o
+    23505 (distingue pela constraint na mensagem).
     """
     res = get_db().rpc(
         "onboard_tenant",
         {
+            "p_auth_user_id": auth_user_id,
             "p_nome_empresa": payload.nome_empresa,
             "p_whatsapp_instance_name": payload.whatsapp_instance_name,
             "p_whatsapp_token": payload.whatsapp_token,
@@ -67,12 +68,12 @@ def get_config_by_cliente(cliente_id: str) -> dict | None:
 
 
 # ===================== Agente 1: criar campanha =====================
-def criar_campanha(req: CopyRequest) -> dict:
-    """Gera os anúncios e persiste a campanha. Síncrono (chamado pela UI do SaaS)."""
+def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
+    """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""
     out: CopyOutput = llm.gerar_anuncios(req.nicho, req.dor_latente)
     db = get_db()
     row = {
-        "cliente_id": req.cliente_id,
+        "cliente_id": cliente_id,
         "nome_cliente": req.nome_cliente,
         "nome_campanha": req.nome_campanha,
         "nicho": req.nicho,

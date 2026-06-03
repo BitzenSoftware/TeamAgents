@@ -1,25 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCliente } from "@/components/cliente-context";
 import { api, type Relatorio } from "@/lib/api";
 
 export default function ConsultoriaPage() {
-  const { clienteId } = useCliente();
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!clienteId) return;
     setLoading(true);
     setErro(null);
     api
-      .relatorios(clienteId)
+      .relatorios()
       .then(setRelatorios)
       .catch((e) => setErro(e.message))
       .finally(() => setLoading(false));
-  }, [clienteId]);
+  }, []);
 
   const ultimo = relatorios[0];
   const anteriores = relatorios.slice(1);

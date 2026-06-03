@@ -1,56 +1,53 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { api, type Cliente } from "@/lib/api";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { ApiError, api, type Cliente } from "@/lib/api";
+import { useAuth } from "@/components/auth-context";
 
 type Ctx = {
-  clientes: Cliente[];
-  clienteId: string | null;
   cliente: Cliente | null;
-  setClienteId: (id: string) => void;
+  needsOnboarding: boolean;
   loading: boolean;
-  error: string | null;
+  refresh: () => void;
 };
 
 const ClienteCtx = createContext<Ctx | null>(null);
-const STORAGE_KEY = "teamagents.clienteId";
 
 export function ClienteProvider({ children }: { children: ReactNode }) {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [clienteId, setClienteIdState] = useState<string | null>(null);
+  const { session, loading: authLoading } = useAuth();
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    if (!session) {
+      setCliente(null);
+      setNeedsOnboarding(false);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     api
-      .clientes()
-      .then((cs) => {
-        setClientes(cs);
-        const saved = localStorage.getItem(STORAGE_KEY);
-        const initial = saved && cs.some((c) => c.id === saved) ? saved : cs[0]?.id ?? null;
-        setClienteIdState(initial);
+      .me()
+      .then((c) => {
+        setCliente(c);
+        setNeedsOnboarding(false);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        // 404 = sem cliente -> precisa de onboarding
+        if (e instanceof ApiError && e.status === 404) setNeedsOnboarding(true);
+        setCliente(null);
+      })
       .finally(() => setLoading(false));
-  }, []);
-
-  const setClienteId = (id: string) => {
-    setClienteIdState(id);
-    localStorage.setItem(STORAGE_KEY, id);
   };
 
-  const cliente = clientes.find((c) => c.id === clienteId) ?? null;
+  useEffect(() => {
+    if (!authLoading) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, session?.access_token]);
 
   return (
-    <ClienteCtx.Provider
-      value={{ clientes, clienteId, cliente, setClienteId, loading, error }}
-    >
+    <ClienteCtx.Provider value={{ cliente, needsOnboarding, loading, refresh: load }}>
       {children}
     </ClienteCtx.Provider>
   );
