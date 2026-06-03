@@ -20,6 +20,7 @@ class CopyOutput(BaseModel):
 
 
 class CopyRequest(BaseModel):
+    cliente_id: str
     nicho: str
     dor_latente: str
     nome_cliente: str
@@ -61,6 +62,7 @@ class BiOutput(BaseModel):
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""
+    instance: str = Field(description="Nome da instância (roteia para o cliente dono)")
     whatsapp: str = Field(description="Número do lead em E.164, ex: +5511999999999")
     text: str
     nome: str | None = None

@@ -36,7 +36,7 @@ async def webhook_whatsapp(payload: dict, bg: BackgroundTasks) -> dict:
     msg = evolution.parse_webhook(payload)
     if msg is None:
         return {"status": "ignored"}  # 200 OK na mesma — não reenfileira
-    bg.add_task(flow.processar_mensagem_lead, msg.whatsapp, msg.text, msg.nome)
+    bg.add_task(flow.processar_mensagem_lead, msg.instance, msg.whatsapp, msg.text, msg.nome)
     return {"status": "accepted"}  # 200 OK imediato
 
 
@@ -47,6 +47,19 @@ def verify_webhook(token: str = Query(default="")) -> dict:
     if s.webhook_verify_token and token != s.webhook_verify_token:
         raise HTTPException(status_code=403, detail="invalid verify token")
     return {"status": "verified"}
+
+
+# ===================== Listagens (frontend) — filtradas por cliente =====================
+@app.get("/clientes/{cliente_id}/leads")
+def listar_leads(cliente_id: str) -> list[dict]:
+    """Lista os leads de um cliente (sempre isolado por cliente_id)."""
+    return flow.listar_leads(cliente_id)
+
+
+@app.get("/clientes/{cliente_id}/leads/{lead_id}/conversas")
+def listar_conversas(cliente_id: str, lead_id: str) -> list[dict]:
+    """Histórico de conversa de um lead — só devolve se o lead for do cliente."""
+    return flow.listar_conversas(cliente_id, lead_id)
 
 
 # ===================== Agente 3: relatório semanal =====================

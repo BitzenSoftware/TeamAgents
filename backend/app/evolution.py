@@ -47,6 +47,10 @@ def parse_webhook(payload: dict) -> InboundMessage | None:
     if payload.get("event") != "messages.upsert":
         return None
 
+    instance = payload.get("instance")
+    if not instance:
+        return None  # sem instância não sabemos a que cliente pertence
+
     data = payload.get("data") or {}
     key = data.get("key") or {}
 
@@ -62,6 +66,7 @@ def parse_webhook(payload: dict) -> InboundMessage | None:
         return None  # sem texto (áudio/imagem/etc.)
 
     return InboundMessage(
+        instance=instance,
         whatsapp=_jid_to_e164(remote_jid),
         text=text,
         nome=data.get("pushName"),
