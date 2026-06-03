@@ -1,0 +1,29 @@
+{
+  "id": "bi-director",
+  "name": "Diretor de BI e Estratégia Comercial",
+  "description": "Analisa o desempenho semanal da tríade de agentes e gera relatório executivo estratégico para WhatsApp do cliente.",
+  "version": "1.0.0",
+  "mode": "report",
+  "schedule": "weekly",
+  "input_schema": {
+    "nome_cliente": "string",
+    "nome_campanha": "string",
+    "leads_totais": "number",
+    "leads_respondidos": "number",
+    "reunioes_agendadas": "number",
+    "investimento_anuncios": "number"
+  },
+  "output_schema": {
+    "relatorio_whatsapp": "string",
+    "metricas": {
+      "taxa_conversao_lead_agendamento": "number",
+      "custo_por_agendamento": "number"
+    }
+  },
+  "calculated_metrics": {
+    "taxa_conversao_lead_agendamento": "reunioes_agendadas / leads_totais * 100",
+    "custo_por_agendamento": "investimento_anuncios / reunioes_agendadas"
+  },
+  "tone": "business-to-business, ROI-focused, analytical, motivational",
+  "output_channel": "WhatsApp"
+}
