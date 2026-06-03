@@ -95,6 +95,16 @@ docker build -f backend/Dockerfile -t teamagents-api .
 docker run --env-file backend/.env -p 8000:8000 teamagents-api
 ```
 
+## Cron de BI (Agente 3, semanal)
+
+[cron_bi_reports.py](cron_bi_reports.py) gera o relatório semanal **por tenant** e envia ao WhatsApp do dono. Corre em lote (nunca por clique — o Opus é pesado/caro).
+
+- Varre `clientes` → agrega métricas dos últimos 7 dias → (se houve leads) chama o Opus → persiste em `relatorios` (`campanha_id` NULL, consolidado) → envia para `workspace_configs.whatsapp_dono` via a instância do tenant.
+- **Guarda anti-desperdício:** clientes sem leads na semana são saltados (não chamam o Opus).
+- Agendado no [render.yaml](../render.yaml) como serviço `cron` — `59 2 * * 1` UTC = domingo 23:59 em São Paulo.
+- Correr local: `python cron_bi_reports.py`.
+- Escala: com muitos tenants, migrar para a Batches API da Anthropic (50% do custo).
+
 ## Notas
 
 - `whatsapp.send_text` traz o formato típico da Evolution API; ajusta ao provider escolhido.

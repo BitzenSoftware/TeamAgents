@@ -2,6 +2,8 @@
 
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
+from datetime import datetime, timedelta, timezone
+
 from . import llm, whatsapp
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, SdrAction, SdrStatus
@@ -23,6 +25,19 @@ def get_config_by_instance(instance_name: str) -> dict | None:
         .table("workspace_configs")
         .select("*")
         .eq("whatsapp_instance_name", instance_name)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def get_config_by_cliente(cliente_id: str) -> dict | None:
+    """Resolve a workspace_config a partir do cliente (usado pelo cron de BI)."""
+    res = (
+        get_db()
+        .table("workspace_configs")
+        .select("*")
+        .eq("cliente_id", cliente_id)
         .limit(1)
         .execute()
     )
@@ -248,3 +263,77 @@ def listar_conversas(cliente_id: str, lead_id: str) -> list[dict]:
         .execute()
         .data
     )
+
+
+# ===================== Agente 3: relatório SEMANAL por tenant (Cron) =====================
+def _metricas_semana(cliente_id: str, dias: int) -> dict:
+    """Agrega as métricas dos últimos `dias` dias para um cliente."""
+    db = get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    def _count(q) -> int:
+        return q.execute().count or 0
+
+    base = lambda: db.table("leads").select("id", count="exact").eq("cliente_id", cliente_id).gte("created_at", cutoff)  # noqa: E731
+
+    leads_totais = _count(base())
+    leads_respondidos = _count(base().neq("status_qualificacao", "FRIO"))
+    reunioes = _count(base().eq("reuniao_agendada", True))
+
+    camps = (
+        db.table("campanhas")
+        .select("investimento_anuncios")
+        .eq("cliente_id", cliente_id)
+        .execute()
+        .data
+    )
+    investimento = sum(float(c.get("investimento_anuncios") or 0) for c in camps)
+
+    return {
+        "leads_totais": leads_totais,
+        "leads_respondidos": leads_respondidos,
+        "reunioes": reunioes,
+        "investimento": investimento,
+    }
+
+
+def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None:
+    """Gera e persiste o relatório semanal consolidado de um cliente.
+
+    Devolve a linha de `relatorios` criada, ou **None** se o cliente não teve
+    leads na janela (guarda anti-desperdício: não chama o Opus à toa).
+    """
+    m = _metricas_semana(cliente["id"], dias)
+    if m["leads_totais"] == 0:
+        return None  # sem atividade — não gasta token de Opus
+
+    taxa = m["reunioes"] / m["leads_totais"] * 100 if m["leads_totais"] else 0.0
+    cpag = m["investimento"] / m["reunioes"] if m["reunioes"] else 0.0
+
+    out = llm.gerar_relatorio(
+        nome_cliente=cliente["nome"],
+        nome_campanha="Resumo Semanal (todas as campanhas)",
+        leads_totais=m["leads_totais"],
+        leads_respondidos=m["leads_respondidos"],
+        reunioes_agendadas=m["reunioes"],
+        investimento_anuncios=m["investimento"],
+        taxa_conversao=taxa,
+        custo_por_agendamento=cpag,
+    )
+
+    fim = datetime.now(timezone.utc).date()
+    inicio = fim - timedelta(days=dias)
+    row = {
+        "cliente_id": cliente["id"],
+        "campanha_id": None,  # consolidado — não atado a uma campanha
+        "periodo_inicio": inicio.isoformat(),
+        "periodo_fim": fim.isoformat(),
+        "leads_totais": m["leads_totais"],
+        "leads_respondidos": m["leads_respondidos"],
+        "reunioes_agendadas": m["reunioes"],
+        "investimento_anuncios": m["investimento"],
+        "taxa_conversao_lead_agendamento": round(taxa, 2),
+        "custo_por_agendamento": round(cpag, 2),
+        "relatorio_whatsapp": out.relatorio_whatsapp,
+    }
+    return get_db().table("relatorios").insert(row).execute().data[0]
