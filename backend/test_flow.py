@@ -9,12 +9,34 @@ Correr a partir de backend/:
   python test_flow.py
 """
 import asyncio
+import sys
+
+# Garante UTF-8 no stdout (a consola do Windows usa cp1252 e rebenta com emojis).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 from app import flow
 from app.schemas import CopyRequest
 
 
+_NOME_CLIENTE = "Diego"
+_NOME_CAMPANHA = "Contabilidade Sem Burocracia"
+
+
+def _limpar_dados_teste() -> None:
+    """Apaga a campanha de teste anterior (cascata remove leads + histórico),
+    para o teste poder correr vezes sem fim sem bater no índice único."""
+    from app.db import get_db
+
+    get_db().table("campanhas").delete().eq("nome_cliente", _NOME_CLIENTE).eq(
+        "nome_campanha", _NOME_CAMPANHA
+    ).execute()
+
+
 async def main() -> None:
+    print("0) A limpar dados de teste anteriores...")
+    _limpar_dados_teste()
+
     print("1) A criar campanha (Agente 1 — Sonnet 4.6)...")
     campanha = flow.criar_campanha(
         CopyRequest(

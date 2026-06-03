@@ -6,6 +6,14 @@ from . import llm, whatsapp
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, SdrAction, SdrStatus
 
+# O SDR responde em enum legível (inglês); a BD usa o enum status_qualificacao
+# em português. Mapeamos na fronteira BD.
+_STATUS_DB = {
+    SdrStatus.UNQUALIFIED: "DESQUALIFICADO",
+    SdrStatus.IN_PROGRESS: "EM_ANDAMENTO",
+    SdrStatus.QUALIFIED: "QUALIFICADO",
+}
+
 
 # ===================== Agente 1: criar campanha =====================
 def criar_campanha(req: CopyRequest) -> dict:
@@ -111,11 +119,11 @@ async def processar_mensagem_lead(whatsapp_num: str, text: str, nome: str | None
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
 
-    # Atualiza estado do lead
-    updates: dict = {"status_qualificacao": out.qualification_status.value}
+    # Atualiza estado do lead (mapeando o enum do SDR -> enum da BD)
+    updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status]}
     if out.action == SdrAction.SCHEDULE_MEETING:
         updates["reuniao_agendada"] = True
-        updates["status_qualificacao"] = SdrStatus.QUALIFIED.value
+        updates["status_qualificacao"] = "QUALIFICADO"
     elif out.action == SdrAction.TRANSFER_TO_HUMAN:
         updates["transferido_humano"] = True
     db.table("leads").update(updates).eq("id", lead["id"]).execute()
