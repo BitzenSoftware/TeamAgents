@@ -7,15 +7,27 @@ export default function LoginPage() {
   const [modo, setModo] = useState<"entrar" | "criar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmar, setConfirmar] = useState("");
+  const [mostrar, setMostrar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setErro(null);
     setInfo(null);
+    if (modo === "criar") {
+      if (password.length < 6) {
+        setErro("A palavra-passe deve ter pelo menos 6 caracteres.");
+        return;
+      }
+      if (password !== confirmar) {
+        setErro("As palavras-passe não coincidem.");
+        return;
+      }
+    }
+    setLoading(true);
     try {
       if (modo === "entrar") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -51,14 +63,33 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm"
           />
-          <input
-            type="password"
-            required
-            placeholder="Palavra-passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm"
-          />
+          <div className="relative">
+            <input
+              type={mostrar ? "text" : "password"}
+              required
+              placeholder="Palavra-passe"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2 pr-16 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setMostrar(!mostrar)}
+              className="absolute inset-y-0 right-2 my-auto h-fit text-xs text-black/40 hover:text-ink"
+            >
+              {mostrar ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+          {modo === "criar" && (
+            <input
+              type={mostrar ? "text" : "password"}
+              required
+              placeholder="Confirmar palavra-passe"
+              value={confirmar}
+              onChange={(e) => setConfirmar(e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm"
+            />
+          )}
           <button
             type="submit"
             disabled={loading}

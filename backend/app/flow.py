@@ -67,6 +67,20 @@ def get_config_by_cliente(cliente_id: str) -> dict | None:
     return res.data[0] if res.data else None
 
 
+def update_config(cliente_id: str, fields: dict) -> dict | None:
+    """Atualiza a workspace_config do cliente (Configurações). Só campos fornecidos."""
+    if not fields:
+        return get_config_by_cliente(cliente_id)
+    res = (
+        get_db()
+        .table("workspace_configs")
+        .update(fields)
+        .eq("cliente_id", cliente_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
 # ===================== Agente 1: criar campanha =====================
 def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""

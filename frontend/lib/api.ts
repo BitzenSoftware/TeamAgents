@@ -79,6 +79,26 @@ export type OnboardingInput = {
   whatsapp_dono: string;
 };
 
+export type Config = {
+  id: string;
+  cliente_id: string;
+  whatsapp_instance_name: string;
+  whatsapp_token: string;
+  whatsapp_api_url: string | null;
+  calendario_link: string;
+  whatsapp_dono: string | null;
+  limite_mensal_leads: number;
+};
+
+export type ConfigUpdate = Partial<{
+  whatsapp_instance_name: string;
+  whatsapp_token: string;
+  whatsapp_api_url: string;
+  calendario_link: string;
+  whatsapp_dono: string;
+  limite_mensal_leads: number;
+}>;
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -121,4 +141,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  getConfig: () => req<Config>("/me/config"),
+  updateConfig: (body: ConfigUpdate) =>
+    req<Config>("/me/config", { method: "PATCH", body: JSON.stringify(body) }),
 };

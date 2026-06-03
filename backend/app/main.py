@@ -10,7 +10,7 @@ from postgrest.exceptions import APIError
 
 from . import auth, evolution, flow
 from .config import get_settings
-from .schemas import CopyRequest, OnboardingPayload
+from .schemas import ConfigUpdate, CopyRequest, OnboardingPayload
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
 
@@ -36,6 +36,30 @@ def me(user_id: str = Depends(auth.verify_user)) -> dict:
     if not cliente:
         raise HTTPException(status_code=404, detail="Sem cliente — necessário onboarding.")
     return cliente
+
+
+# ===================== Configurações (ler/editar config do tenant) =====================
+@app.get("/me/config")
+def get_config(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Config do tenant autenticado."""
+    cfg = flow.get_config_by_cliente(cliente_id)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Sem configuração.")
+    return cfg
+
+
+@app.patch("/me/config")
+def update_config(payload: ConfigUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Atualiza a config do tenant (só os campos enviados)."""
+    try:
+        updated = flow.update_config(cliente_id, payload.model_dump(exclude_none=True))
+    except APIError as e:
+        if e.code == "23505":  # instância em uso por outro cliente
+            raise HTTPException(status_code=400, detail="Esta instância do WhatsApp já está em uso.")
+        raise HTTPException(status_code=500, detail=f"Falha ao atualizar: {e.message}")
+    if not updated:
+        raise HTTPException(status_code=404, detail="Sem configuração para atualizar.")
+    return updated
 
 
 # ===================== Onboarding (criar tenant, autenticado) =====================
