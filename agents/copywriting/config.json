@@ -1,0 +1,23 @@
+{
+  "id": "copywriting",
+  "name": "Especialista em Conteúdo e Copywriting de Alta Conversão",
+  "description": "Gera variações de anúncios de tráfego pago (Meta Ads/Google Ads) com CTA para WhatsApp, com análise de gatilhos psicológicos.",
+  "version": "1.0.0",
+  "input_schema": {
+    "nicho": "string",
+    "dor_latente": "string"
+  },
+  "output_schema": {
+    "anuncio_dor": "string",
+    "anuncio_beneficio": "string",
+    "metadata": {
+      "gatilho_principal": "string",
+      "dor_alvo": "string",
+      "desejo_alvo": "string",
+      "palavra_chave_gatilho": "string"
+    }
+  },
+  "frameworks": ["AIDA", "PAS"],
+  "channel": "Meta Ads / Google Ads",
+  "cta_destination": "WhatsApp"
+}
