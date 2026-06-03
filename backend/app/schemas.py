@@ -1,0 +1,66 @@
+"""Modelos Pydantic — saídas estruturadas dos agentes e payloads da API."""
+from enum import Enum
+
+from pydantic import BaseModel, Field
+
+
+# ===================== Agente 1: Copywriting =====================
+class CopyMetadata(BaseModel):
+    gatilho_principal: str
+    dor_alvo: str
+    desejo_alvo: str
+    palavra_chave_gatilho: str
+
+
+class CopyOutput(BaseModel):
+    """Saída estruturada do agente de copywriting."""
+    anuncio_dor: str = Field(description="Opção 1 — anúncio focado na dor, com emojis e CTA WhatsApp")
+    anuncio_beneficio: str = Field(description="Opção 2 — anúncio focado no benefício/desejo")
+    metadata: CopyMetadata
+
+
+class CopyRequest(BaseModel):
+    nicho: str
+    dor_latente: str
+    nome_cliente: str
+    nome_campanha: str
+    link_calendario: str | None = None
+
+
+# ===================== Agente 2: SDR =====================
+class SdrAction(str, Enum):
+    CONTINUE = "CONTINUE"
+    SCHEDULE_MEETING = "SCHEDULE_MEETING"
+    TRANSFER_TO_HUMAN = "TRANSFER_TO_HUMAN"
+
+
+class SdrStatus(str, Enum):
+    UNQUALIFIED = "UNQUALIFIED"
+    IN_PROGRESS = "IN_PROGRESS"
+    QUALIFIED = "QUALIFIED"
+
+
+class SdrOutput(BaseModel):
+    """Saída estruturada do SDR — sempre devolve resposta + estado."""
+    response: str = Field(description="Texto curto (máx 3 frases) a enviar ao lead no WhatsApp")
+    action: SdrAction
+    qualification_status: SdrStatus
+
+
+# ===================== Agente 3: Diretor de BI =====================
+class BiMetrics(BaseModel):
+    taxa_conversao_lead_agendamento: float
+    custo_por_agendamento: float
+
+
+class BiOutput(BaseModel):
+    """Saída estruturada do relatório de BI."""
+    relatorio_whatsapp: str = Field(description="Mensagem formatada pronta a enviar no WhatsApp do cliente")
+
+
+# ===================== Webhook do WhatsApp =====================
+class InboundMessage(BaseModel):
+    """Mensagem normalizada vinda do provider de WhatsApp."""
+    whatsapp: str = Field(description="Número do lead em E.164, ex: +5511999999999")
+    text: str
+    nome: str | None = None
