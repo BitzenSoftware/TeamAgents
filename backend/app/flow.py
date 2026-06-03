@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from . import llm, whatsapp
 from .db import get_db
-from .schemas import CopyRequest, CopyOutput, SdrAction, SdrStatus
+from .schemas import CopyRequest, CopyOutput, OnboardingPayload, SdrAction, SdrStatus
 
 # O SDR responde em enum legível (inglês); a BD usa o enum status_qualificacao
 # em português. Mapeamos na fronteira BD.
@@ -15,6 +15,28 @@ _STATUS_DB = {
     SdrStatus.IN_PROGRESS: "EM_ANDAMENTO",
     SdrStatus.QUALIFIED: "QUALIFICADO",
 }
+
+
+# ===================== Onboarding (criar tenant, atómico) =====================
+def onboard_tenant(payload: OnboardingPayload) -> dict:
+    """Cria cliente + workspace_config numa única transação (função onboard_tenant).
+
+    Atomicidade garantida no Postgres: se a config falhar (ex.: instância
+    duplicada -> unique_violation), o cliente é revertido automaticamente.
+    Deixa o erro do PostgREST propagar (o endpoint trata o 23505 -> 400).
+    """
+    res = get_db().rpc(
+        "onboard_tenant",
+        {
+            "p_nome_empresa": payload.nome_empresa,
+            "p_whatsapp_instance_name": payload.whatsapp_instance_name,
+            "p_whatsapp_token": payload.whatsapp_token,
+            "p_whatsapp_api_url": payload.whatsapp_api_url,
+            "p_calendario_link": payload.calendario_link,
+            "p_whatsapp_dono": payload.whatsapp_dono,
+        },
+    ).execute()
+    return res.data[0]  # {cliente_id, workspace_config_id}
 
 
 # ===================== Resolução de tenant =====================

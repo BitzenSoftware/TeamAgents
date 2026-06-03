@@ -51,6 +51,7 @@ uvicorn app.main:app --reload
 
 | Método | Rota | Agente | Notas |
 |--------|------|--------|-------|
+| `POST` | `/api/v1/onboarding` | — | Cria tenant (cliente + workspace_config) de forma **atómica** via função `onboard_tenant`; instância duplicada → 400 |
 | `POST` | `/campanhas` | 1 — Copywriting | Gera anúncios + metadata, cria campanha (síncrono) |
 | `POST` | `/webhook/whatsapp` | 2 — SDR | Recebe lead, **responde 200 OK já**, processa em background |
 | `GET`  | `/webhook/whatsapp` | — | Handshake de verificação do provider |

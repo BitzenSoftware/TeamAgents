@@ -59,6 +59,16 @@ class BiOutput(BaseModel):
     relatorio_whatsapp: str = Field(description="Mensagem formatada pronta a enviar no WhatsApp do cliente")
 
 
+# ===================== Onboarding (criar tenant) =====================
+class OnboardingPayload(BaseModel):
+    nome_empresa: str = Field(min_length=2)
+    whatsapp_instance_name: str
+    whatsapp_token: str
+    whatsapp_api_url: str | None = None
+    calendario_link: str
+    whatsapp_dono: str = Field(description="Número do dono em E.164, ex: +5511999999999")
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

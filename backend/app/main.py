@@ -5,10 +5,11 @@ o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 < 2s. O agente (que pode demorar) corre DEPOIS, fora da request.
 """
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from postgrest.exceptions import APIError
 
 from . import evolution, flow
 from .config import get_settings
-from .schemas import CopyRequest
+from .schemas import CopyRequest, OnboardingPayload
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
 
@@ -16,6 +17,26 @@ app = FastAPI(title="TeamAgents API", version="0.1.0")
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+# ===================== Onboarding (criar tenant) =====================
+@app.post("/api/v1/onboarding", status_code=201)
+def onboarding(payload: OnboardingPayload) -> dict:
+    """Cria cliente + workspace_config de forma atómica (função onboard_tenant)."""
+    try:
+        created = flow.onboard_tenant(payload)
+    except APIError as e:
+        if e.code == "23505":  # unique_violation -> instância já registada
+            raise HTTPException(
+                status_code=400,
+                detail="Esta instância do WhatsApp já está registada no sistema.",
+            )
+        raise HTTPException(status_code=500, detail=f"Falha no onboarding: {e.message}")
+    return {
+        "message": "Onboarding concluído com sucesso!",
+        "cliente_id": created["cliente_id"],
+        "workspace_config_id": created["workspace_config_id"],
+    }
 
 
 # ===================== Agente 1: criar campanha (síncrono) =====================
