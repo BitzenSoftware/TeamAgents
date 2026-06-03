@@ -5,6 +5,7 @@ o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 < 2s. O agente (que pode demorar) corre DEPOIS, fora da request.
 """
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
 
 from . import evolution, flow
@@ -12,6 +13,14 @@ from .config import get_settings
 from .schemas import CopyRequest, OnboardingPayload
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
+
+_origins = [o.strip() for o in get_settings().allowed_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins or ["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -71,6 +80,18 @@ def verify_webhook(token: str = Query(default="")) -> dict:
 
 
 # ===================== Listagens (frontend) — filtradas por cliente =====================
+@app.get("/clientes")
+def listar_clientes() -> list[dict]:
+    """Lista os tenants (seletor de cliente no MVP — sem auth ainda)."""
+    return flow.listar_clientes()
+
+
+@app.get("/clientes/{cliente_id}/relatorios")
+def listar_relatorios(cliente_id: str) -> list[dict]:
+    """Relatórios de BI do cliente (mais recentes primeiro)."""
+    return flow.listar_relatorios(cliente_id)
+
+
 @app.get("/clientes/{cliente_id}/leads")
 def listar_leads(cliente_id: str) -> list[dict]:
     """Lista os leads de um cliente (sempre isolado por cliente_id)."""

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
 
     # App
     webhook_verify_token: str = ""
+    # Origens permitidas para CORS (separadas por vírgula). "*" só em dev.
+    allowed_origins: str = "*"
 
     # Model IDs (exatos — não acrescentar sufixos de data)
     model_copywriting: str = "claude-sonnet-4-6"
