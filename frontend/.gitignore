@@ -7,4 +7,6 @@ next-env.d.ts
 *.tsbuildinfo
 .vercel
 
-.vercel
+# .env.production só tem valores NEXT_PUBLIC_ (públicos) — re-incluir
+# (o .gitignore raiz exclui .env.* ; isto anula isso só para este ficheiro)
+!.env.production
