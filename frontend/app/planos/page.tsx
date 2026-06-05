@@ -73,6 +73,7 @@ function PlanoCard({ plano, onChanged }: { plano: Plano; onChanged: () => void }
   const [p, setP] = useState<Plano>(plano);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
+  const [showPid, setShowPid] = useState(false);
 
   useEffect(() => setP(plano), [plano]);
 
@@ -122,7 +123,22 @@ function PlanoCard({ plano, onChanged }: { plano: Plano; onChanged: () => void }
         </Campo>
         <div className="sm:col-span-2">
           <Campo label="Stripe price_id">
-            <input className="ip font-mono" value={p.stripe_price_id ?? ""} onChange={(e) => set("stripe_price_id", e.target.value)} placeholder="price_..." />
+            <div className="relative">
+              <input
+                className="ip font-mono pr-16"
+                type={showPid ? "text" : "password"}
+                value={p.stripe_price_id ?? ""}
+                onChange={(e) => set("stripe_price_id", e.target.value)}
+                placeholder="price_..."
+              />
+              <button
+                type="button"
+                onClick={() => setShowPid((v) => !v)}
+                className="absolute inset-y-0 right-2 my-auto h-fit text-xs text-black/40 hover:text-ink"
+              >
+                {showPid ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </Campo>
         </div>
       </div>
