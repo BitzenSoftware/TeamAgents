@@ -10,6 +10,7 @@ const NAV = [
   { href: "/campanhas", label: "Campanhas", hint: "Fábrica / Copy" },
   { href: "/consultoria", label: "Consultoria", hint: "Diretor de BI" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
+  { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
