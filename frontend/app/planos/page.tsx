@@ -69,11 +69,20 @@ export default function PlanosPage() {
   );
 }
 
-function PlanoCard({ plano, onChanged }: { plano: Plano; onChanged: () => void }) {
+function PlanoCard({
+  plano,
+  onChanged,
+  aberta,
+}: {
+  plano: Plano;
+  onChanged: () => void;
+  aberta?: boolean;
+}) {
   const [p, setP] = useState<Plano>(plano);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
   const [showPid, setShowPid] = useState(false);
+  const [aberto, setAberto] = useState(!!aberta);
 
   useEffect(() => setP(plano), [plano]);
 
@@ -107,7 +116,35 @@ function PlanoCard({ plano, onChanged }: { plano: Plano; onChanged: () => void }
   }
 
   return (
-    <div className={`rounded-xl border border-black/10 bg-white p-4 ${p.ativo ? "" : "opacity-60"}`}>
+    <div className={`overflow-hidden rounded-xl border border-black/10 bg-white ${p.ativo ? "" : "opacity-60"}`}>
+      {/* Cabeçalho-resumo (clicável) */}
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center gap-3 p-4 text-left hover:bg-black/[0.02]"
+      >
+        <span className={`text-black/30 transition ${aberto ? "rotate-90" : ""}`}>▸</span>
+        <span className="font-semibold">{p.nome}</span>
+        <span className="text-sm text-black/50">
+          {p.creditos_mensais.toLocaleString("pt-BR")} créditos/mês · R$ {Number(p.preco).toFixed(2)}
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          {p.stripe_price_id && (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] text-violet-700">Stripe ✓</span>
+          )}
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              p.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {p.ativo ? "Ativo" : "Inativo"}
+          </span>
+        </span>
+      </button>
+
+      {/* Editor (expandido) */}
+      {aberto && (
+        <div className="border-t border-black/10 p-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Campo label="Nome">
           <input className="ip" value={p.nome} onChange={(e) => set("nome", e.target.value)} />
@@ -159,7 +196,9 @@ function PlanoCard({ plano, onChanged }: { plano: Plano; onChanged: () => void }
         </div>
       </div>
 
-      <style>{`.ip{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.4rem .6rem;font-size:.875rem;background:#fff}`}</style>
+          <style>{`.ip{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.4rem .6rem;font-size:.875rem;background:#fff}`}</style>
+        </div>
+      )}
     </div>
   );
 }
