@@ -47,4 +47,23 @@ Backend no **Render** (Docker), frontend na **Vercel**. Ordem: Render primeiro (
 
 Abre o domínio Vercel → cria conta → onboarding → painel. Tudo a falar com o backend no Render. ✅
 
-Ambos re-deploiam automaticamente a cada `git push` para `main`.
+## 5. Cold-start do plano Free (e upgrade quando precisares)
+
+O backend no plano **Free** adormece após ~15 min sem tráfego. O frontend já faz **retry automático** durante o arranque (não rebenta), mas para uso real:
+
+### Fase de testes/demo — manter acordado (grátis)
+[uptimerobot.com](https://uptimerobot.com) → New Monitor → HTTP(s) → `https://teamagents-api.onrender.com/health` → intervalo **5 min**. O backend deixa de adormecer.
+
+### Antes de clientes reais — Starter (~$7/mês)
+Upgrade **in-place, sem impacto** (mesmo URL, mesmos dados/env vars, sem re-deploy):
+
+- **Dashboard:** Render → serviço `teamagents-api` → Settings → Instance Type → **Starter**.
+- **Ou por comando** (a key fica fora do repo):
+  ```bash
+  RENDER_API_KEY=rnd_xxx ./scripts/render_plan.sh starter   # upgrade
+  RENDER_API_KEY=rnd_xxx ./scripts/render_plan.sh free      # voltar atrás
+  ```
+
+> Multi-tenant: um único serviço Starter serve **todos** os teus clientes.
+
+Ambos (Render via API/dashboard, Vercel) re-deploiam a cada `git push` para `main` se ligares o auto-deploy ao repo.
