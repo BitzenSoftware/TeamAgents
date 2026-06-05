@@ -107,28 +107,53 @@ export class ApiError extends Error {
   }
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Delays entre tentativas (~53s) — cobre o cold-start do plano free do Render.
+const RETRY_DELAYS = [3000, 5000, 8000, 10000, 12000, 15000];
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  const res = await fetch(`${BASE}${path}`, {
+  const opts: RequestInit = {
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
     ...init,
-  });
-  if (!res.ok) {
-    let detail = res.statusText;
+  };
+
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
     try {
-      const body = await res.json();
-      detail = body.detail ?? detail;
-    } catch {
-      /* ignore */
+      res = await fetch(`${BASE}${path}`, opts);
+    } catch (e) {
+      // Erro de rede (inclui o servidor a acordar) — tenta de novo.
+      if (attempt < RETRY_DELAYS.length) {
+        await sleep(RETRY_DELAYS[attempt]);
+        continue;
+      }
+      throw new ApiError(0, "Não foi possível ligar ao servidor. Tente novamente em instantes.");
     }
-    throw new ApiError(res.status, detail);
+
+    // 502/503/504 acontecem enquanto o backend free arranca — tenta de novo.
+    if ([502, 503, 504].includes(res.status) && attempt < RETRY_DELAYS.length) {
+      await sleep(RETRY_DELAYS[attempt]);
+      continue;
+    }
+
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        const body = await res.json();
+        detail = body.detail ?? detail;
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(res.status, detail);
+    }
+    return res.json() as Promise<T>;
   }
-  return res.json() as Promise<T>;
 }
 
 export const api = {
