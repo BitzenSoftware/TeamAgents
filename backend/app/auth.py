@@ -11,8 +11,8 @@ from .config import get_settings
 from .db import get_db
 
 
-def verify_user(authorization: str | None = Header(default=None)) -> str:
-    """Valida o Bearer token no GoTrue e devolve o auth user id."""
+def _fetch_user(authorization: str | None) -> dict:
+    """Valida o Bearer token no GoTrue e devolve o utilizador (id + email)."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Token de autenticação em falta.")
     token = authorization.split(" ", 1)[1]
@@ -30,10 +30,23 @@ def verify_user(authorization: str | None = Header(default=None)) -> str:
         raise HTTPException(status_code=503, detail="Serviço de autenticação indisponível.")
     if r.status_code != 200:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado.")
-    user_id = r.json().get("id")
-    if not user_id:
+    u = r.json()
+    if not u.get("id"):
         raise HTTPException(status_code=401, detail="Token sem utilizador.")
-    return user_id
+    return u
+
+
+def verify_user(authorization: str | None = Header(default=None)) -> str:
+    """Dependência: devolve o auth user id."""
+    return _fetch_user(authorization)["id"]
+
+
+def require_superadmin(authorization: str | None = Header(default=None)) -> str:
+    """Dependência: garante que o utilizador é o superadmin. Devolve o email."""
+    u = _fetch_user(authorization)
+    if (u.get("email") or "").lower() != get_settings().superadmin_email.lower():
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador.")
+    return u["email"]
 
 
 def cliente_do_user(user_id: str) -> dict | None:

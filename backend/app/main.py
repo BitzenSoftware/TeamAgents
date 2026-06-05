@@ -16,6 +16,8 @@ from .schemas import (
     HabilidadeCreate,
     HabilidadeUpdate,
     OnboardingPayload,
+    PlanoCreate,
+    PlanoUpdate,
 )
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
@@ -66,6 +68,30 @@ def update_config(payload: ConfigUpdate, cliente_id: str = Depends(auth.current_
     if not updated:
         raise HTTPException(status_code=404, detail="Sem configuração para atualizar.")
     return updated
+
+
+# ===================== Planos (apenas superadmin) =====================
+@app.get("/admin/planos")
+def listar_planos(_: str = Depends(auth.require_superadmin)) -> list[dict]:
+    return flow.listar_planos()
+
+
+@app.post("/admin/planos", status_code=201)
+def criar_plano(payload: PlanoCreate, _: str = Depends(auth.require_superadmin)) -> dict:
+    return flow.criar_plano(payload.model_dump())
+
+
+@app.patch("/admin/planos/{pid}")
+def atualizar_plano(pid: str, payload: PlanoUpdate, _: str = Depends(auth.require_superadmin)) -> dict:
+    updated = flow.atualizar_plano(pid, payload.model_dump(exclude_none=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Plano não encontrado.")
+    return updated
+
+
+@app.delete("/admin/planos/{pid}", status_code=204)
+def apagar_plano(pid: str, _: str = Depends(auth.require_superadmin)) -> None:
+    flow.apagar_plano(pid)
 
 
 # ===================== Onboarding (criar tenant, autenticado) =====================

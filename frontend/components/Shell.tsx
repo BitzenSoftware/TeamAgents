@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
+import { SUPERADMIN_EMAIL } from "@/lib/api";
 
 const NAV = [
   { href: "/pipeline", label: "Pipeline", hint: "Comercial / SDR" },
@@ -14,10 +15,14 @@ const NAV = [
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];
 
+const NAV_ADMIN = [{ href: "/planos", label: "Planos", hint: "Admin / Stripe" }];
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { session, signOut } = useAuth();
   const { cliente } = useCliente();
+  const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+  const nav = isAdmin ? [...NAV, ...NAV_ADMIN] : NAV;
 
   return (
     <div className="flex min-h-screen">
@@ -27,7 +32,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="text-xs text-black/50">{cliente?.nome ?? "Painel"}</div>
         </div>
         <nav className="flex flex-col gap-1">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link

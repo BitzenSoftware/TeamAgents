@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     webhook_verify_token: str = ""
     # Origens permitidas para CORS (separadas por vírgula). "*" só em dev.
     allowed_origins: str = "*"
+    # Email do superadmin (gere os planos)
+    superadmin_email: str = "bitzensoftware@bitzen.app"
 
     # Model IDs (exatos — não acrescentar sufixos de data)
     model_copywriting: str = "claude-sonnet-4-6"

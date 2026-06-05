@@ -82,6 +82,24 @@ def update_config(cliente_id: str, fields: dict) -> dict | None:
     return res.data[0] if res.data else None
 
 
+# ===================== Planos (superadmin) =====================
+def listar_planos() -> list[dict]:
+    return get_db().table("planos").select("*").order("ordem").execute().data
+
+
+def criar_plano(fields: dict) -> dict:
+    return get_db().table("planos").insert(fields).execute().data[0]
+
+
+def atualizar_plano(pid: str, fields: dict) -> dict | None:
+    res = get_db().table("planos").update(fields).eq("id", pid).execute()
+    return res.data[0] if res.data else None
+
+
+def apagar_plano(pid: str) -> None:
+    get_db().table("planos").delete().eq("id", pid).execute()
+
+
 # ===================== Habilidades (base de conhecimento) =====================
 def listar_habilidades(cliente_id: str) -> list[dict]:
     return (

@@ -92,6 +92,25 @@ class HabilidadeUpdate(BaseModel):
     ativo: bool | None = None
 
 
+# ===================== Planos (superadmin) =====================
+class PlanoCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    creditos_mensais: int = 0
+    preco: float = 0
+    stripe_price_id: str | None = None
+    ativo: bool = True
+    ordem: int = 0
+
+
+class PlanoUpdate(BaseModel):
+    nome: str | None = None
+    creditos_mensais: int | None = None
+    preco: float | None = None
+    stripe_price_id: str | None = None
+    ativo: bool | None = None
+    ordem: int | None = None
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

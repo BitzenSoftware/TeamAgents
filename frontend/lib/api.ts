@@ -3,6 +3,9 @@ import { supabase } from "@/lib/supabase";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Email do superadmin (vê o menu Planos). O backend valida de verdade.
+export const SUPERADMIN_EMAIL = "bitzensoftware@bitzen.app";
+
 export type StatusQualificacao =
   | "FRIO"
   | "EM_ANDAMENTO"
@@ -90,6 +93,16 @@ export type Config = {
   calendario_link: string;
   whatsapp_dono: string | null;
   limite_mensal_leads: number;
+};
+
+export type Plano = {
+  id: string;
+  nome: string;
+  creditos_mensais: number;
+  preco: number;
+  stripe_price_id: string | null;
+  ativo: boolean;
+  ordem: number;
 };
 
 export type Habilidade = {
@@ -192,4 +205,12 @@ export const api = {
     req<Habilidade>(`/me/habilidades/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarHabilidade: (id: string) =>
     req<void>(`/me/habilidades/${id}`, { method: "DELETE" }),
+
+  // --- Admin (superadmin) ---
+  planos: () => req<Plano[]>("/admin/planos"),
+  criarPlano: (body: Partial<Plano>) =>
+    req<Plano>("/admin/planos", { method: "POST", body: JSON.stringify(body) }),
+  atualizarPlano: (id: string, body: Partial<Plano>) =>
+    req<Plano>(`/admin/planos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarPlano: (id: string) => req<void>(`/admin/planos/${id}`, { method: "DELETE" }),
 };
