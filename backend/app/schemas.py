@@ -80,6 +80,18 @@ class ConfigUpdate(BaseModel):
     limite_mensal_leads: int | None = None
 
 
+# ===================== Habilidades (base de conhecimento) =====================
+class HabilidadeCreate(BaseModel):
+    titulo: str = Field(min_length=1)
+    conteudo: str = Field(min_length=1)
+
+
+class HabilidadeUpdate(BaseModel):
+    titulo: str | None = None
+    conteudo: str | None = None
+    ativo: bool | None = None
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

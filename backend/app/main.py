@@ -10,7 +10,13 @@ from postgrest.exceptions import APIError
 
 from . import auth, evolution, flow
 from .config import get_settings
-from .schemas import ConfigUpdate, CopyRequest, OnboardingPayload
+from .schemas import (
+    ConfigUpdate,
+    CopyRequest,
+    HabilidadeCreate,
+    HabilidadeUpdate,
+    OnboardingPayload,
+)
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
 
@@ -84,6 +90,32 @@ def onboarding(payload: OnboardingPayload, user_id: str = Depends(auth.verify_us
         "cliente_id": created["cliente_id"],
         "workspace_config_id": created["workspace_config_id"],
     }
+
+
+# ===================== Habilidades (base de conhecimento) =====================
+@app.get("/me/habilidades")
+def listar_habilidades(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.listar_habilidades(cliente_id)
+
+
+@app.post("/me/habilidades", status_code=201)
+def criar_habilidade(payload: HabilidadeCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.criar_habilidade(cliente_id, payload.titulo, payload.conteudo)
+
+
+@app.patch("/me/habilidades/{hid}")
+def atualizar_habilidade(
+    hid: str, payload: HabilidadeUpdate, cliente_id: str = Depends(auth.current_cliente_id)
+) -> dict:
+    updated = flow.atualizar_habilidade(cliente_id, hid, payload.model_dump(exclude_none=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Habilidade não encontrada.")
+    return updated
+
+
+@app.delete("/me/habilidades/{hid}", status_code=204)
+def apagar_habilidade(hid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.apagar_habilidade(cliente_id, hid)
 
 
 # ===================== Agente 1: criar campanha (autenticado) =====================

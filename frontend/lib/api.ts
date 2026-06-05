@@ -92,6 +92,15 @@ export type Config = {
   limite_mensal_leads: number;
 };
 
+export type Habilidade = {
+  id: string;
+  cliente_id: string;
+  titulo: string;
+  conteudo: string;
+  ativo: boolean;
+  created_at: string;
+};
+
 export type ConfigUpdate = Partial<{
   whatsapp_instance_name: string;
   whatsapp_token: string;
@@ -152,6 +161,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       }
       throw new ApiError(res.status, detail);
     }
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   }
 }
@@ -172,4 +182,14 @@ export const api = {
   getConfig: () => req<Config>("/me/config"),
   updateConfig: (body: ConfigUpdate) =>
     req<Config>("/me/config", { method: "PATCH", body: JSON.stringify(body) }),
+  habilidades: () => req<Habilidade[]>("/me/habilidades"),
+  criarHabilidade: (titulo: string, conteudo: string) =>
+    req<Habilidade>("/me/habilidades", {
+      method: "POST",
+      body: JSON.stringify({ titulo, conteudo }),
+    }),
+  atualizarHabilidade: (id: string, body: Partial<Pick<Habilidade, "titulo" | "conteudo" | "ativo">>) =>
+    req<Habilidade>(`/me/habilidades/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarHabilidade: (id: string) =>
+    req<void>(`/me/habilidades/${id}`, { method: "DELETE" }),
 };

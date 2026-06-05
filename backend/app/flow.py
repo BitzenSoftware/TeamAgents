@@ -82,10 +82,73 @@ def update_config(cliente_id: str, fields: dict) -> dict | None:
     return res.data[0] if res.data else None
 
 
+# ===================== Habilidades (base de conhecimento) =====================
+def listar_habilidades(cliente_id: str) -> list[dict]:
+    return (
+        get_db()
+        .table("habilidades")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+
+
+def criar_habilidade(cliente_id: str, titulo: str, conteudo: str) -> dict:
+    return (
+        get_db()
+        .table("habilidades")
+        .insert({"cliente_id": cliente_id, "titulo": titulo, "conteudo": conteudo})
+        .execute()
+        .data[0]
+    )
+
+
+def atualizar_habilidade(cliente_id: str, hid: str, fields: dict) -> dict | None:
+    res = (
+        get_db()
+        .table("habilidades")
+        .update(fields)
+        .eq("id", hid)
+        .eq("cliente_id", cliente_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def apagar_habilidade(cliente_id: str, hid: str) -> None:
+    get_db().table("habilidades").delete().eq("id", hid).eq("cliente_id", cliente_id).execute()
+
+
+def _habilidades_texto(cliente_id: str) -> str:
+    """Texto das habilidades ATIVAS do cliente, para injetar no prompt do agente."""
+    rows = (
+        get_db()
+        .table("habilidades")
+        .select("titulo, conteudo")
+        .eq("cliente_id", cliente_id)
+        .eq("ativo", True)
+        .order("created_at")
+        .execute()
+        .data
+    )
+    if not rows:
+        return ""
+    linhas = "\n".join(f"- {r['titulo']}: {r['conteudo']}" for r in rows)
+    return (
+        "## Conhecimento específico desta empresa (Habilidades)\n"
+        "Tem isto em conta ao gerar conteúdo e ao conversar — é a fonte de verdade "
+        "sobre a oferta, o tom de voz e os argumentos da empresa:\n" + linhas
+    )
+
+
 # ===================== Agente 1: criar campanha =====================
 def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""
-    out: CopyOutput = llm.gerar_anuncios(req.nicho, req.dor_latente)
+    out: CopyOutput = llm.gerar_anuncios(
+        req.nicho, req.dor_latente, habilidades=_habilidades_texto(cliente_id)
+    )
     db = get_db()
     row = {
         "cliente_id": cliente_id,
@@ -201,6 +264,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
         dor_alvo=campanha.get("dor_alvo") or "",
         palavra_chave_gatilho=campanha.get("palavra_chave_gatilho") or "",
         link_calendario=link_calendario,
+        habilidades=_habilidades_texto(cliente_id),
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")

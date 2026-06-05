@@ -8,6 +8,7 @@ import { useCliente } from "@/components/cliente-context";
 const NAV = [
   { href: "/pipeline", label: "Pipeline", hint: "Comercial / SDR" },
   { href: "/campanhas", label: "Campanhas", hint: "Fábrica / Copy" },
+  { href: "/habilidades", label: "Habilidades", hint: "Conhecimento da empresa" },
   { href: "/consultoria", label: "Consultoria", hint: "Diretor de BI" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },

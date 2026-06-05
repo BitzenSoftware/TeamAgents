@@ -58,12 +58,12 @@ def _system_blocks(agent_id: str, extra: str = "") -> list[dict]:
 
 
 # ===================== Agente 1: Copywriting (Sonnet 4.6) =====================
-def gerar_anuncios(nicho: str, dor_latente: str) -> CopyOutput:
+def gerar_anuncios(nicho: str, dor_latente: str, habilidades: str = "") -> CopyOutput:
     s = get_settings()
     resp = _client().messages.parse(
         model=s.model_copywriting,
         max_tokens=2000,
-        system=_system_blocks("copywriting"),
+        system=_system_blocks("copywriting", extra=habilidades),
         messages=[
             {
                 "role": "user",
@@ -84,6 +84,7 @@ def responder_sdr(
     dor_alvo: str,
     palavra_chave_gatilho: str,
     link_calendario: str,
+    habilidades: str = "",
 ) -> SdrOutput:
     """Gera a resposta do SDR.
 
@@ -98,6 +99,8 @@ def responder_sdr(
         f"- palavra_chave_gatilho: {palavra_chave_gatilho}\n"
         f"- link_calendario: {link_calendario}\n"
     )
+    if habilidades:
+        contexto += "\n" + habilidades
     messages = [*historico, {"role": "user", "content": lead_message}]
     resp = _client().messages.parse(
         model=s.model_sdr,
