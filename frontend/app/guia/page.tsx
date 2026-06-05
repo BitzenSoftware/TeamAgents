@@ -1,14 +1,58 @@
+"use client";
+
+import { useState } from "react";
+
+const TABS = [
+  { id: "geral", label: "Visão Geral" },
+  { id: "campanhas", label: "📣 Campanhas" },
+  { id: "pipeline", label: "📊 Pipeline" },
+  { id: "consultoria", label: "🧠 Consultoria" },
+  { id: "configuracoes", label: "⚙️ Configurações" },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
 export default function GuiaPage() {
+  const [tab, setTab] = useState<TabId>("geral");
+
   return (
     <div className="mx-auto max-w-3xl p-6 pb-16">
-      <header className="mb-8">
+      <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tight">Guia do Utilizador</h1>
         <p className="mt-1 text-sm text-black/50">
           Como o TeamAgents trabalha por si — em linguagem simples.
         </p>
       </header>
 
-      {/* A ideia grande */}
+      {/* Abas */}
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-black/10 pb-3">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`rounded-lg px-3 py-1.5 text-sm transition ${
+              tab === t.id ? "bg-ink text-white" : "text-black/60 hover:bg-black/5"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "geral" && <Geral />}
+      {tab === "campanhas" && <Campanhas />}
+      {tab === "pipeline" && <Pipeline />}
+      {tab === "consultoria" && <Consultoria />}
+      {tab === "configuracoes" && <Configuracoes />}
+    </div>
+  );
+}
+
+/* ---------------- Visão Geral ---------------- */
+function Geral() {
+  return (
+    <div className="space-y-8">
       <Section title="A ideia em uma frase">
         <p className="text-[15px] leading-relaxed">
           O TeamAgents é uma <strong>equipa comercial virtual</strong> que trabalha 24h por dia: cria
@@ -17,7 +61,6 @@ export default function GuiaPage() {
         </p>
       </Section>
 
-      {/* A jornada */}
       <Section title="A jornada de um cliente">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           {[
@@ -37,62 +80,6 @@ export default function GuiaPage() {
         </div>
       </Section>
 
-      {/* Os menus */}
-      <Section title="Os menus do painel">
-        <div className="space-y-3">
-          <ModuleCard
-            icon="📣"
-            title="Campanhas"
-            subtitle="A fábrica de anúncios"
-            tag="O seu redator publicitário"
-          >
-            Escreve o <strong>nicho</strong> do cliente e a <strong>dor</strong> que ele tem. Em
-            segundos, o sistema gera <strong>2 versões de anúncio</strong> para Meta/Google Ads — uma
-            focada na dor, outra no benefício — e uma <strong>palavra-chave</strong> que liga esse
-            anúncio às conversas futuras. As campanhas ficam guardadas no histórico.
-          </ModuleCard>
-
-          <ModuleCard
-            icon="📊"
-            title="Pipeline"
-            subtitle="O funil de vendas"
-            tag="O seu painel comercial em tempo real"
-          >
-            O quadro com todas as pessoas que responderam, organizadas por fase. Clique em qualquer
-            uma para ler a conversa completa.
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Pill className="bg-slate-100 text-slate-700">Frio — acabou de chegar</Pill>
-              <Pill className="bg-amber-100 text-amber-800">Em andamento — a qualificar</Pill>
-              <Pill className="bg-emerald-100 text-emerald-800">Qualificado — reunião proposta</Pill>
-              <Pill className="bg-rose-100 text-rose-700">Desqualificado — fora do perfil</Pill>
-            </div>
-          </ModuleCard>
-
-          <ModuleCard
-            icon="🧠"
-            title="Consultoria"
-            subtitle="O relatório do diretor"
-            tag="O seu consultor de negócio"
-          >
-            Todas as semanas o sistema analisa os resultados e envia-lhe um relatório no WhatsApp (e
-            mostra-o aqui): quantos leads entraram, quantos viraram reunião, o custo por reunião e uma{" "}
-            <strong>análise estratégica</strong> do que está a funcionar e o que ajustar.
-          </ModuleCard>
-
-          <ModuleCard
-            icon="⚙️"
-            title="Configurações"
-            subtitle="A ligação ao seu WhatsApp"
-            tag="A tomada que liga tudo à corrente"
-          >
-            Ligue o sistema ao seu <strong>número de WhatsApp</strong>, ao seu <strong>link de
-            agenda</strong> e defina onde quer receber o relatório. É o que faz tudo funcionar com o
-            seu negócio real.
-          </ModuleCard>
-        </div>
-      </Section>
-
-      {/* Como se liga */}
       <Section title="Como tudo se liga — o segredo">
         <div className="rounded-xl border border-black/10 bg-paper p-5">
           <p className="mb-3 text-[15px] leading-relaxed">
@@ -119,7 +106,6 @@ export default function GuiaPage() {
         </div>
       </Section>
 
-      {/* Privacidade */}
       <Section title="Os seus dados são só seus">
         <p className="text-[15px] leading-relaxed">
           Cada empresa vê apenas os <strong>seus próprios</strong> leads, campanhas e relatórios —
@@ -127,7 +113,6 @@ export default function GuiaPage() {
         </p>
       </Section>
 
-      {/* Primeiros passos */}
       <Section title="Primeiros passos">
         <ol className="space-y-2 text-sm">
           {[
@@ -150,16 +135,98 @@ export default function GuiaPage() {
   );
 }
 
+/* ---------------- Campanhas ---------------- */
+function Campanhas() {
+  return (
+    <ModuleTab icon="📣" title="Campanhas" subtitle="A fábrica de anúncios" tag="O seu redator publicitário">
+      <p>
+        Escreve o <strong>nicho</strong> do seu cliente e a <strong>dor</strong> que ele tem. Em
+        segundos, o sistema gera <strong>2 versões de anúncio</strong> prontas para o Meta/Google Ads.
+      </p>
+      <Lista
+        itens={[
+          "Versão focada na dor — toca no problema que tira o sono do cliente",
+          "Versão focada no benefício — mostra o resultado desejado",
+          "Uma palavra-chave única (ex: DESBUROCRATIZAR) que liga este anúncio às conversas futuras",
+          "A estratégia por trás: gatilho, dor-alvo e desejo-alvo identificados pela IA",
+        ]}
+      />
+      <Nota>Todas as campanhas geradas ficam guardadas no histórico, sempre acessíveis.</Nota>
+    </ModuleTab>
+  );
+}
+
+/* ---------------- Pipeline ---------------- */
+function Pipeline() {
+  return (
+    <ModuleTab icon="📊" title="Pipeline" subtitle="O funil de vendas" tag="O seu painel comercial em tempo real">
+      <p>
+        O quadro com <strong>todas as pessoas que responderam</strong>, organizadas por fase. Clique
+        em qualquer uma para ler a <strong>conversa completa</strong> que o vendedor teve com ela.
+      </p>
+      <div className="mt-4 space-y-2">
+        <Fase cor="bg-slate-100 text-slate-700" nome="Frio" desc="acabou de chegar, ainda não interagiu" />
+        <Fase cor="bg-amber-100 text-amber-800" nome="Em andamento" desc="o vendedor está a conversar e a qualificar" />
+        <Fase cor="bg-emerald-100 text-emerald-800" nome="Qualificado" desc="tem perfil, reunião proposta/agendada" />
+        <Fase cor="bg-rose-100 text-rose-700" nome="Desqualificado" desc="não tem perfil para a sua oferta" />
+      </div>
+      <Nota>Os leads movem-se entre as colunas sozinhos, à medida que o vendedor avança a conversa.</Nota>
+    </ModuleTab>
+  );
+}
+
+/* ---------------- Consultoria ---------------- */
+function Consultoria() {
+  return (
+    <ModuleTab icon="🧠" title="Consultoria" subtitle="O relatório do diretor" tag="O seu consultor de negócio">
+      <p>
+        Todas as semanas o sistema analisa os resultados e <strong>envia-lhe um relatório no
+        WhatsApp</strong> (e mostra-o aqui no painel). Cada relatório traz:
+      </p>
+      <Lista
+        itens={[
+          "Quantos leads entraram na semana",
+          "Quantos foram engajados e quantos viraram reunião",
+          "Quanto custou cada reunião agendada",
+          "Uma análise estratégica: o que está a funcionar e o que ajustar na próxima semana",
+        ]}
+      />
+      <Nota>Você acorda na segunda-feira com a consultoria pronta — sem mexer um dedo.</Nota>
+    </ModuleTab>
+  );
+}
+
+/* ---------------- Configurações ---------------- */
+function Configuracoes() {
+  return (
+    <ModuleTab icon="⚙️" title="Configurações" subtitle="A ligação ao seu WhatsApp" tag="A tomada que liga tudo à corrente">
+      <p>É aqui que liga o sistema ao seu negócio real. Precisa de configurar:</p>
+      <Lista
+        itens={[
+          "O número de WhatsApp da empresa (via Evolution API) — por onde o vendedor atende",
+          "O link de agenda (Calendly) — que o vendedor envia para marcar reunião",
+          "O número do dono — onde recebe o relatório semanal",
+        ]}
+      />
+      <Nota>
+        Pode preencher isto a qualquer momento. Enquanto não ligar o WhatsApp, o sistema funciona em
+        modo de demonstração.
+      </Nota>
+    </ModuleTab>
+  );
+}
+
+/* ---------------- Componentes auxiliares ---------------- */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-8">
+    <section>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-black/40">{title}</h2>
       {children}
     </section>
   );
 }
 
-function ModuleCard({
+function ModuleTab({
   icon,
   title,
   subtitle,
@@ -173,22 +240,40 @@ function ModuleCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-5">
-      <div className="mb-2 flex items-baseline gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="font-semibold">{title}</span>
+    <div className="rounded-xl border border-black/10 bg-white p-6">
+      <div className="mb-4 flex items-baseline gap-2">
+        <span className="text-2xl">{icon}</span>
+        <span className="text-lg font-semibold">{title}</span>
         <span className="text-sm text-black/40">— {subtitle}</span>
       </div>
-      <div className="text-[15px] leading-relaxed text-black/80">{children}</div>
-      <div className="mt-3 text-xs italic text-black/45">{tag}</div>
+      <div className="space-y-3 text-[15px] leading-relaxed text-black/80">{children}</div>
+      <div className="mt-5 border-t border-black/5 pt-3 text-xs italic text-black/45">{tag}</div>
     </div>
   );
 }
 
-function Pill({ children, className }: { children: React.ReactNode; className?: string }) {
+function Lista({ itens }: { itens: string[] }) {
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${className ?? ""}`}>
-      {children}
-    </span>
+    <ul className="space-y-1.5">
+      {itens.map((t, i) => (
+        <li key={i} className="flex gap-2">
+          <span className="text-emerald-600">✓</span>
+          <span>{t}</span>
+        </li>
+      ))}
+    </ul>
   );
+}
+
+function Fase({ cor, nome, desc }: { cor: string; nome: string; desc: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${cor}`}>{nome}</span>
+      <span className="text-sm text-black/60">{desc}</span>
+    </div>
+  );
+}
+
+function Nota({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-lg bg-paper p-3 text-sm text-black/70">{children}</p>;
 }
