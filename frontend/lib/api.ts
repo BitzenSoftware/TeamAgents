@@ -226,7 +226,7 @@ export const api = {
   updateSocialConfig: (body: SocialConfigUpdate) =>
     req<SocialConfig>("/me/social-config", { method: "PATCH", body: JSON.stringify(body) }),
   testarDiscord: () => req<{ ok: boolean }>("/me/social-config/test/discord", { method: "POST" }),
-  verificarFacebook: () => req<{ id: string; name: string; followers_count?: number }>("/me/social-config/test/facebook", { method: "POST" }),
+  verificarFacebook: () => req<{ id: string; name: string }>("/me/social-config/test/facebook", { method: "POST" }),
   verificarInstagram: () => req<{ id: string; name: string; username: string; followers_count?: number }>("/me/social-config/test/instagram", { method: "POST" }),
 
   // --- Admin (superadmin) ---

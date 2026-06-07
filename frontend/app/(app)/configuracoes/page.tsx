@@ -220,7 +220,7 @@ function AbaFacebook() {
   const [verificando, setVerificando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
-  const [paginaInfo, setPaginaInfo] = useState<{ name: string; followers_count?: number } | null>(null);
+  const [paginaInfo, setPaginaInfo] = useState<{ name: string } | null>(null);
   const [erroVerif, setErroVerif] = useState<string | null>(null);
 
   useEffect(() => {
@@ -272,9 +272,11 @@ function AbaFacebook() {
         {erro && <Erro msg={erro} />}
         <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
           <Campo label="Facebook Page ID">
-            <input className="campo" value={cfg?.facebook_page_id ?? ""}
-              onChange={(e) => set("facebook_page_id", e.target.value)}
-              placeholder="123456789012345" />
+            <CampoSecreto
+              value={cfg?.facebook_page_id ?? ""}
+              onChange={(v) => set("facebook_page_id", v)}
+              placeholder="123456789012345"
+            />
           </Campo>
           <Campo label="Page Access Token">
             <CampoSecreto
@@ -294,8 +296,7 @@ function AbaFacebook() {
           </div>
           {paginaInfo && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              ✓ Ligado a <strong>{paginaInfo.name}</strong>
-              {paginaInfo.followers_count !== undefined && ` · ${paginaInfo.followers_count.toLocaleString("pt-PT")} seguidores`}
+              ✓ Ligado à página <strong>{paginaInfo.name}</strong>
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
