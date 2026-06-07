@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
 import { Shell } from "@/components/Shell";
 
-const PUBLIC = ["/login"];
+const PUBLIC = ["/", "/login"];
 
 export function Guard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
