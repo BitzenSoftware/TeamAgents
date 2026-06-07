@@ -218,10 +218,13 @@ function AbaFacebook() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verificando, setVerificando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [paginaInfo, setPaginaInfo] = useState<{ name: string } | null>(null);
   const [erroVerif, setErroVerif] = useState<string | null>(null);
+  const [publicacaoOk, setPublicacaoOk] = useState(false);
+  const [erroPublicacao, setErroPublicacao] = useState<string | null>(null);
 
   useEffect(() => {
     api.getSocialConfig().then(setCfg).catch((e) => setErro(e.message)).finally(() => setLoading(false));
@@ -256,6 +259,16 @@ function AbaFacebook() {
     } finally { setVerificando(false); }
   }
 
+  async function publicarTeste() {
+    setPublicando(true); setErroPublicacao(null); setPublicacaoOk(false);
+    try {
+      await api.postarFacebook("🤖 TeamAgents conectado com sucesso! Esta é uma publicação de teste automática.");
+      setPublicacaoOk(true);
+    } catch (err) {
+      setErroPublicacao(err instanceof Error ? err.message : "Erro ao publicar");
+    } finally { setPublicando(false); }
+  }
+
   if (loading) return <Carregando />;
 
   return (
@@ -286,12 +299,17 @@ function AbaFacebook() {
             />
             <p className="mt-1 text-xs text-black/40">Token de longa duração (60 dias). Renova antes do prazo expirar.</p>
           </Campo>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <BotaoGuardar saving={saving} ok={ok} />
             <button type="button" onClick={verificar}
               disabled={verificando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
               {verificando ? "A verificar…" : "Verificar credenciais"}
+            </button>
+            <button type="button" onClick={publicarTeste}
+              disabled={publicando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
+              {publicando ? "A publicar…" : "Publicação de teste"}
             </button>
           </div>
           {paginaInfo && (
@@ -300,6 +318,12 @@ function AbaFacebook() {
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
+          {publicacaoOk && (
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              ✓ Publicação de teste criada na página! Verifica o teu Facebook.
+            </div>
+          )}
+          {erroPublicacao && <Erro msg={erroPublicacao} />}
         </form>
       </div>
     </div>

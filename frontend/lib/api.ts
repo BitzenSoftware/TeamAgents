@@ -228,6 +228,8 @@ export const api = {
   testarDiscord: () => req<{ ok: boolean }>("/me/social-config/test/discord", { method: "POST" }),
   verificarFacebook: () => req<{ id: string; name: string }>("/me/social-config/test/facebook", { method: "POST" }),
   verificarInstagram: () => req<{ id: string; name: string; username: string; followers_count?: number }>("/me/social-config/test/instagram", { method: "POST" }),
+  postarFacebook: (mensagem: string) =>
+    req<{ id: string }>("/me/social-config/post/facebook", { method: "POST", body: JSON.stringify({ mensagem }) }),
 
   // --- Admin (superadmin) ---
   planos: () => req<Plano[]>("/admin/planos"),
