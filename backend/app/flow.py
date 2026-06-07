@@ -373,8 +373,10 @@ def update_social_config(cliente_id: str, fields: dict) -> dict:
 
 async def testar_discord(webhook_url: str) -> dict:
     """Envia uma mensagem de teste ao webhook do Discord."""
-    async with httpx.AsyncClient() as client:
-        r = await client.post(webhook_url, json={
+    # Normaliza para discord.com (discordapp.com é domínio legado)
+    url = webhook_url.replace("discordapp.com", "discord.com")
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        r = await client.post(url, json={
             "content": "✅ **TeamAgents** conectado com sucesso! As notificações do Diretor de BI serão enviadas aqui.",
             "username": "TeamAgents BI"
         })
