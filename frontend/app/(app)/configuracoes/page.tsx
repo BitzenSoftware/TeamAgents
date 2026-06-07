@@ -16,7 +16,7 @@ export default function ConfiguracoesPage() {
   const [aba, setAba] = useState<Aba>("whatsapp");
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="p-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold">Configurações</h1>
         <p className="text-sm text-black/50">Integrações e credenciais da tua empresa</p>
@@ -408,22 +408,43 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
   placeholder?: string;
 }) {
   const [visivel, setVisivel] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  function copiar() {
+    if (!value) return;
+    navigator.clipboard.writeText(value);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
   return (
     <div className="relative">
       <input
         type={visivel ? "text" : "password"}
-        className="campo pr-16"
+        className="campo pr-28"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
       />
-      <button
-        type="button"
-        onClick={() => setVisivel((v) => !v)}
-        className="absolute inset-y-0 right-0 flex items-center px-3 text-xs text-black/40 hover:text-ink transition-colors"
-      >
-        {visivel ? "Ocultar" : "Mostrar"}
-      </button>
+      <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
+        <button
+          type="button"
+          onClick={copiar}
+          disabled={!value}
+          className="rounded px-2 py-1 text-xs text-black/40 hover:bg-black/5 hover:text-ink disabled:opacity-30 transition-colors"
+          title="Copiar"
+        >
+          {copiado ? "✓" : "Copiar"}
+        </button>
+        <span className="text-black/15">|</span>
+        <button
+          type="button"
+          onClick={() => setVisivel((v) => !v)}
+          className="rounded px-2 py-1 text-xs text-black/40 hover:bg-black/5 hover:text-ink transition-colors"
+        >
+          {visivel ? "Ocultar" : "Mostrar"}
+        </button>
+      </div>
     </div>
   );
 }
