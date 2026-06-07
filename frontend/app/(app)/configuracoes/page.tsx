@@ -90,9 +90,16 @@ function AbaWhatsApp() {
 
   return (
     <>
+      <Instrucoes steps={[
+        "Instala a Evolution API no teu servidor (VPS ou Railway)",
+        "Cria uma instância e copia o nome e o token gerado",
+        "Liga o WhatsApp lendo o QR Code na interface da Evolution API",
+        "Cola o Webhook URL do TeamAgents nas definições da instância",
+        "Preenche o teu número de WhatsApp para receber os relatórios de BI",
+      ]} />
       {erro && <Erro msg={erro} />}
       {cfg && (
-        <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+        <form onSubmit={salvar} className="mt-4 space-y-4 rounded-xl border border-black/10 bg-white p-5">
           <Campo label="Instância do WhatsApp (Evolution)">
             <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
               onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
