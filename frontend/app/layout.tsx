@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-context";
 import { ClienteProvider } from "@/components/cliente-context";
-import { Guard } from "@/components/Guard";
 
 export const metadata: Metadata = {
-  title: "TeamAgents — Painel",
-  description: "Pipeline, campanhas e consultoria de BI da sua equipe de IA.",
+  title: "TeamAgents",
+  description: "Tríade de agentes de IA para captação, qualificação e análise de leads.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AuthProvider>
           <ClienteProvider>
-            <Guard>{children}</Guard>
+            {children}
           </ClienteProvider>
         </AuthProvider>
       </body>
