@@ -428,7 +428,7 @@ async def verificar_facebook(page_id: str, token: str) -> dict:
     async with httpx.AsyncClient() as client:
         r = await client.get(
             f"https://graph.facebook.com/v22.0/{page_id}",
-            params={"access_token": token, "fields": "id,name,fan_count"}
+            params={"access_token": token, "fields": "id,name,followers_count"}
         )
         if not r.is_success:
             body = r.json()

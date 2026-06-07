@@ -220,7 +220,7 @@ function AbaFacebook() {
   const [verificando, setVerificando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
-  const [paginaInfo, setPaginaInfo] = useState<{ name: string; fan_count?: number } | null>(null);
+  const [paginaInfo, setPaginaInfo] = useState<{ name: string; followers_count?: number } | null>(null);
   const [erroVerif, setErroVerif] = useState<string | null>(null);
 
   useEffect(() => {
@@ -295,7 +295,7 @@ function AbaFacebook() {
           {paginaInfo && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
               ✓ Ligado a <strong>{paginaInfo.name}</strong>
-              {paginaInfo.fan_count !== undefined && ` · ${paginaInfo.fan_count.toLocaleString("pt-PT")} seguidores`}
+              {paginaInfo.followers_count !== undefined && ` · ${paginaInfo.followers_count.toLocaleString("pt-PT")} seguidores`}
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
