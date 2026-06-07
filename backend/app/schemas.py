@@ -111,6 +111,18 @@ class PlanoUpdate(BaseModel):
     ordem: int | None = None
 
 
+# ===================== Social Config =====================
+class SocialConfigUpdate(BaseModel):
+    discord_webhook_url: str | None = None
+    facebook_page_id: str | None = None
+    facebook_page_access_token: str | None = None
+    instagram_business_account_id: str | None = None
+
+
+class SocialPostRequest(BaseModel):
+    mensagem: str = Field(min_length=1)
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

@@ -114,6 +114,22 @@ export type Habilidade = {
   created_at: string;
 };
 
+export type SocialConfig = {
+  id: string;
+  cliente_id: string;
+  discord_webhook_url: string | null;
+  facebook_page_id: string | null;
+  facebook_page_access_token: string | null;
+  instagram_business_account_id: string | null;
+};
+
+export type SocialConfigUpdate = Partial<{
+  discord_webhook_url: string;
+  facebook_page_id: string;
+  facebook_page_access_token: string;
+  instagram_business_account_id: string;
+}>;
+
 export type ConfigUpdate = Partial<{
   whatsapp_instance_name: string;
   whatsapp_token: string;
@@ -205,6 +221,13 @@ export const api = {
     req<Habilidade>(`/me/habilidades/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarHabilidade: (id: string) =>
     req<void>(`/me/habilidades/${id}`, { method: "DELETE" }),
+
+  getSocialConfig: () => req<SocialConfig>("/me/social-config"),
+  updateSocialConfig: (body: SocialConfigUpdate) =>
+    req<SocialConfig>("/me/social-config", { method: "PATCH", body: JSON.stringify(body) }),
+  testarDiscord: () => req<{ ok: boolean }>("/me/social-config/test/discord", { method: "POST" }),
+  verificarFacebook: () => req<{ id: string; name: string; fan_count?: number }>("/me/social-config/test/facebook", { method: "POST" }),
+  verificarInstagram: () => req<{ id: string; name: string; username: string; followers_count?: number }>("/me/social-config/test/instagram", { method: "POST" }),
 
   // --- Admin (superadmin) ---
   planos: () => req<Plano[]>("/admin/planos"),

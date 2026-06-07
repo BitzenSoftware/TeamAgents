@@ -18,6 +18,8 @@ from .schemas import (
     OnboardingPayload,
     PlanoCreate,
     PlanoUpdate,
+    SocialConfigUpdate,
+    SocialPostRequest,
 )
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
@@ -198,6 +200,80 @@ def listar_leads(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dic
 def listar_conversas(lead_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
     """Histórico de um lead — só devolve se o lead for do tenant autenticado."""
     return flow.listar_conversas(cliente_id, lead_id)
+
+
+# ===================== Social Config =====================
+@app.get("/me/social-config")
+def get_social_config(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.get_social_config(cliente_id)
+
+
+@app.patch("/me/social-config")
+def update_social_config(payload: SocialConfigUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.update_social_config(cliente_id, payload.model_dump(exclude_none=True))
+
+
+@app.post("/me/social-config/test/discord")
+async def testar_discord(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    url = cfg.get("discord_webhook_url")
+    if not url:
+        raise HTTPException(status_code=400, detail="Webhook URL do Discord não configurado.")
+    try:
+        return await flow.testar_discord(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/social-config/test/facebook")
+async def verificar_facebook(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    page_id = cfg.get("facebook_page_id")
+    token = cfg.get("facebook_page_access_token")
+    if not page_id or not token:
+        raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
+    try:
+        return await flow.verificar_facebook(page_id, token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/social-config/test/instagram")
+async def verificar_instagram(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    ig_id = cfg.get("instagram_business_account_id")
+    token = cfg.get("facebook_page_access_token")
+    if not ig_id or not token:
+        raise HTTPException(status_code=400, detail="Instagram Business ID e Access Token são obrigatórios.")
+    try:
+        return await flow.verificar_instagram(ig_id, token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/social-config/post/discord")
+async def postar_discord(req: SocialPostRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    url = cfg.get("discord_webhook_url")
+    if not url:
+        raise HTTPException(status_code=400, detail="Webhook URL do Discord não configurado.")
+    try:
+        return await flow.testar_discord(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/social-config/post/facebook")
+async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    page_id = cfg.get("facebook_page_id")
+    token = cfg.get("facebook_page_access_token")
+    if not page_id or not token:
+        raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
+    try:
+        return await flow.postar_facebook(page_id, token, req.mensagem)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ===================== Agente 3: relatório semanal =====================

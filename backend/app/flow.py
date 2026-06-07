@@ -2,6 +2,7 @@
 
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
+import httpx
 from datetime import datetime, timedelta, timezone
 
 from . import llm, whatsapp
@@ -346,6 +347,104 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
         "relatorio_whatsapp": out.relatorio_whatsapp,
     }
     return db.table("relatorios").insert(row).execute().data[0]
+
+
+# ===================== Social Config =====================
+def get_social_config(cliente_id: str) -> dict:
+    """Devolve a social_config do cliente, criando um registo vazio se não existir."""
+    db = get_db()
+    res = db.table("social_config").select("*").eq("cliente_id", cliente_id).limit(1).execute()
+    if res.data:
+        return res.data[0]
+    row = db.table("social_config").insert({"cliente_id": cliente_id}).execute()
+    return row.data[0]
+
+
+def update_social_config(cliente_id: str, fields: dict) -> dict:
+    """Atualiza (ou cria) a social_config do cliente."""
+    db = get_db()
+    existing = db.table("social_config").select("id").eq("cliente_id", cliente_id).limit(1).execute()
+    if existing.data:
+        res = db.table("social_config").update(fields).eq("cliente_id", cliente_id).execute()
+    else:
+        res = db.table("social_config").insert({**fields, "cliente_id": cliente_id}).execute()
+    return res.data[0]
+
+
+async def testar_discord(webhook_url: str) -> dict:
+    """Envia uma mensagem de teste ao webhook do Discord."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(webhook_url, json={
+            "content": "✅ **TeamAgents** conectado com sucesso! As notificações do Diretor de BI serão enviadas aqui.",
+            "username": "TeamAgents BI"
+        })
+        if r.status_code not in (200, 204):
+            raise ValueError(f"Discord devolveu {r.status_code}: {r.text}")
+    return {"ok": True}
+
+
+async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
+    """Publica uma mensagem na Facebook Page."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            f"https://graph.facebook.com/v22.0/{page_id}/feed",
+            params={"access_token": token},
+            json={"message": mensagem}
+        )
+        if not r.is_success:
+            body = r.json()
+            raise ValueError(body.get("error", {}).get("message", r.text))
+        return r.json()
+
+
+async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str) -> dict:
+    """Publica uma imagem com legenda no Instagram Business Account (duas etapas)."""
+    async with httpx.AsyncClient() as client:
+        # Etapa 1: criar container
+        r1 = await client.post(
+            f"https://graph.facebook.com/v22.0/{ig_id}/media",
+            params={"access_token": token},
+            json={"image_url": image_url, "caption": mensagem}
+        )
+        if not r1.is_success:
+            raise ValueError(r1.json().get("error", {}).get("message", r1.text))
+        creation_id = r1.json()["id"]
+
+        # Etapa 2: publicar
+        r2 = await client.post(
+            f"https://graph.facebook.com/v22.0/{ig_id}/media_publish",
+            params={"access_token": token},
+            json={"creation_id": creation_id}
+        )
+        if not r2.is_success:
+            raise ValueError(r2.json().get("error", {}).get("message", r2.text))
+        return r2.json()
+
+
+async def verificar_facebook(page_id: str, token: str) -> dict:
+    """Verifica se o token da Page é válido."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"https://graph.facebook.com/v22.0/{page_id}",
+            params={"access_token": token, "fields": "id,name,fan_count"}
+        )
+        if not r.is_success:
+            body = r.json()
+            raise ValueError(body.get("error", {}).get("message", r.text))
+        return r.json()
+
+
+async def verificar_instagram(ig_id: str, token: str) -> dict:
+    """Verifica se o Instagram Business Account é acessível."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"https://graph.facebook.com/v22.0/{ig_id}",
+            params={"access_token": token, "fields": "id,name,username,followers_count"}
+        )
+        if not r.is_success:
+            body = r.json()
+            raise ValueError(body.get("error", {}).get("message", r.text))
+        return r.json()
 
 
 # ===================== Listagens (frontend) — sempre por cliente =====================
