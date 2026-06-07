@@ -6,17 +6,17 @@ import { api, type Config, type SocialConfig } from "@/lib/api";
 type Aba = "whatsapp" | "discord" | "facebook" | "instagram";
 
 const ABAS: { id: Aba; label: string; sub: string }[] = [
-  { id: "whatsapp", label: "WhatsApp", sub: "Evolution API / Agenda" },
-  { id: "discord",  label: "Discord",  sub: "Relatórios de BI" },
-  { id: "facebook", label: "Facebook", sub: "Publicação em Pages" },
-  { id: "instagram",label: "Instagram",sub: "Conta Business" },
+  { id: "whatsapp",  label: "WhatsApp",  sub: "Evolution API / Agenda" },
+  { id: "discord",   label: "Discord",   sub: "Relatórios de BI" },
+  { id: "facebook",  label: "Facebook",  sub: "Publicação em Pages" },
+  { id: "instagram", label: "Instagram", sub: "Conta Business" },
 ];
 
 export default function ConfiguracoesPage() {
   const [aba, setAba] = useState<Aba>("whatsapp");
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="mx-auto max-w-4xl p-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold">Configurações</h1>
         <p className="text-sm text-black/50">Integrações e credenciais da tua empresa</p>
@@ -28,7 +28,7 @@ export default function ConfiguracoesPage() {
           <button
             key={a.id}
             onClick={() => setAba(a.id)}
-            className={`flex-1 rounded-lg px-3 py-2 text-center transition-all ${
+            className={`flex-1 rounded-lg px-3 py-2.5 text-center transition-all ${
               aba === a.id
                 ? "bg-white shadow-sm font-medium text-ink"
                 : "text-black/50 hover:text-ink"
@@ -81,56 +81,60 @@ function AbaWhatsApp() {
       setOk(true);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao guardar");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
-  if (loading) return <p className="text-sm text-black/40">A carregar…</p>;
+  if (loading) return <Carregando />;
 
   return (
-    <>
-      <Instrucoes steps={[
-        "Instala a Evolution API no teu servidor (VPS ou Railway)",
-        "Cria uma instância e copia o nome e o token gerado",
-        "Liga o WhatsApp lendo o QR Code na interface da Evolution API",
-        "Cola o Webhook URL do TeamAgents nas definições da instância",
-        "Preenche o teu número de WhatsApp para receber os relatórios de BI",
-      ]} />
-      {erro && <Erro msg={erro} />}
-      {cfg && (
-        <form onSubmit={salvar} className="mt-4 space-y-4 rounded-xl border border-black/10 bg-white p-5">
-          <Campo label="Instância do WhatsApp (Evolution)">
-            <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
-              onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
-          </Campo>
-          <Campo label="Token da instância">
-            <input className="campo" value={cfg.whatsapp_token ?? ""}
-              onChange={(e) => set("whatsapp_token", e.target.value)} />
-          </Campo>
-          <Campo label="URL da Evolution API (opcional)">
-            <input className="campo" value={cfg.whatsapp_api_url ?? ""}
-              onChange={(e) => set("whatsapp_api_url", e.target.value)}
-              placeholder="https://api.evolution..." />
-          </Campo>
-          <Campo label="Link de calendário">
-            <input className="campo" value={cfg.calendario_link ?? ""}
-              onChange={(e) => set("calendario_link", e.target.value)}
-              placeholder="https://cal.com/voce/15min" />
-          </Campo>
-          <Campo label="WhatsApp do dono (recebe relatórios)">
-            <input className="campo" value={cfg.whatsapp_dono ?? ""}
-              onChange={(e) => set("whatsapp_dono", e.target.value)}
-              placeholder="+5511999999999" />
-          </Campo>
-          <Campo label="Limite mensal de leads">
-            <input type="number" className="campo" value={cfg.limite_mensal_leads}
-              onChange={(e) => set("limite_mensal_leads", Number(e.target.value))} />
-          </Campo>
-          <BotaoGuardar saving={saving} ok={ok} />
-        </form>
-      )}
-    </>
+    <div className="grid grid-cols-5 gap-6">
+      <div className="col-span-2">
+        <Instrucoes steps={[
+          "Instala a Evolution API no teu servidor (VPS ou Railway)",
+          "Cria uma instância e copia o nome e o token gerado",
+          "Liga o WhatsApp lendo o QR Code na interface da Evolution API",
+          "Cola o Webhook URL do TeamAgents nas definições da instância",
+          "Preenche o teu número de WhatsApp para receber os relatórios de BI",
+        ]} />
+      </div>
+      <div className="col-span-3">
+        {erro && <Erro msg={erro} />}
+        {cfg && (
+          <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+            <div className="grid grid-cols-2 gap-4">
+              <Campo label="Instância do WhatsApp (Evolution)">
+                <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
+                  onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
+              </Campo>
+              <Campo label="Token da instância">
+                <CampoSecreto value={cfg.whatsapp_token ?? ""}
+                  onChange={(v) => set("whatsapp_token", v)} />
+              </Campo>
+              <Campo label="URL da Evolution API (opcional)" className="col-span-2">
+                <CampoSecreto value={cfg.whatsapp_api_url ?? ""}
+                  onChange={(v) => set("whatsapp_api_url", v)}
+                  placeholder="https://api.evolution..." />
+              </Campo>
+              <Campo label="Link de calendário" className="col-span-2">
+                <input className="campo" value={cfg.calendario_link ?? ""}
+                  onChange={(e) => set("calendario_link", e.target.value)}
+                  placeholder="https://cal.com/voce/15min" />
+              </Campo>
+              <Campo label="WhatsApp do dono (recebe relatórios)">
+                <input className="campo" value={cfg.whatsapp_dono ?? ""}
+                  onChange={(e) => set("whatsapp_dono", e.target.value)}
+                  placeholder="+5511999999999" />
+              </Campo>
+              <Campo label="Limite mensal de leads">
+                <input type="number" className="campo" value={cfg.limite_mensal_leads}
+                  onChange={(e) => set("limite_mensal_leads", Number(e.target.value))} />
+              </Campo>
+            </div>
+            <BotaoGuardar saving={saving} ok={ok} />
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -171,37 +175,40 @@ function AbaDiscord() {
     } finally { setTestando(false); }
   }
 
-  if (loading) return <p className="text-sm text-black/40">A carregar…</p>;
+  if (loading) return <Carregando />;
 
   return (
-    <>
-      <Instrucoes steps={[
-        "Abre o teu servidor Discord",
-        "Vai a Definições do Canal → Integrações → Webhooks",
-        "Clica em 'Novo Webhook' e copia o URL",
-        "Cola o URL abaixo e guarda",
-      ]} />
-      {erro && <Erro msg={erro} />}
-      <form onSubmit={salvar} className="mt-4 space-y-4 rounded-xl border border-black/10 bg-white p-5">
-        <Campo label="Webhook URL do Discord">
-          <input
-            className="campo"
-            value={cfg?.discord_webhook_url ?? ""}
-            onChange={(e) => setCfg((c) => c ? { ...c, discord_webhook_url: e.target.value } : c)}
-            placeholder="https://discord.com/api/webhooks/..."
-          />
-        </Campo>
-        <div className="flex items-center gap-3">
-          <BotaoGuardar saving={saving} ok={ok} />
-          <button type="button" onClick={testar} disabled={testando || !cfg?.discord_webhook_url}
-            className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-            {testando ? "A testar…" : "Testar ligação"}
-          </button>
-        </div>
-        {testeOk && <p className="text-sm text-emerald-700">✓ Mensagem de teste enviada ao canal!</p>}
-        {erroTeste && <Erro msg={erroTeste} />}
-      </form>
-    </>
+    <div className="grid grid-cols-5 gap-6">
+      <div className="col-span-2">
+        <Instrucoes steps={[
+          "Abre o teu servidor Discord",
+          "Vai a Definições do Canal → Integrações → Webhooks",
+          "Clica em 'Novo Webhook' e copia o URL",
+          "Cola o URL abaixo e guarda",
+        ]} />
+      </div>
+      <div className="col-span-3">
+        {erro && <Erro msg={erro} />}
+        <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+          <Campo label="Webhook URL do Discord">
+            <CampoSecreto
+              value={cfg?.discord_webhook_url ?? ""}
+              onChange={(v) => setCfg((c) => c ? { ...c, discord_webhook_url: v } : c)}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+          </Campo>
+          <div className="flex items-center gap-3">
+            <BotaoGuardar saving={saving} ok={ok} />
+            <button type="button" onClick={testar} disabled={testando || !cfg?.discord_webhook_url}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
+              {testando ? "A testar…" : "Testar ligação"}
+            </button>
+          </div>
+          {testeOk && <p className="text-sm text-emerald-700">✓ Mensagem de teste enviada ao canal!</p>}
+          {erroTeste && <Erro msg={erroTeste} />}
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -243,55 +250,58 @@ function AbaFacebook() {
   async function verificar() {
     setVerificando(true); setErroVerif(null); setPaginaInfo(null);
     try {
-      const info = await api.verificarFacebook();
-      setPaginaInfo(info);
+      setPaginaInfo(await api.verificarFacebook());
     } catch (err) {
       setErroVerif(err instanceof Error ? err.message : "Token inválido ou Page ID incorreto");
     } finally { setVerificando(false); }
   }
 
-  if (loading) return <p className="text-sm text-black/40">A carregar…</p>;
+  if (loading) return <Carregando />;
 
   return (
-    <>
-      <Instrucoes steps={[
-        "Acede a developers.facebook.com e cria uma App (tipo: Business)",
-        "Em Graph API Explorer, gera um User Token com permissão pages_manage_posts",
-        "Troca o User Token por um Page Token de longa duração",
-        "Copia o Page ID (visível nas definições da Página) e o Page Access Token",
-      ]} />
-      {erro && <Erro msg={erro} />}
-      <form onSubmit={salvar} className="mt-4 space-y-4 rounded-xl border border-black/10 bg-white p-5">
-        <Campo label="Facebook Page ID">
-          <input className="campo" value={cfg?.facebook_page_id ?? ""}
-            onChange={(e) => set("facebook_page_id", e.target.value)}
-            placeholder="123456789012345" />
-        </Campo>
-        <Campo label="Page Access Token">
-          <input className="campo" value={cfg?.facebook_page_access_token ?? ""}
-            onChange={(e) => set("facebook_page_access_token", e.target.value)}
-            placeholder="EAAb..." type="password" />
-          <p className="mt-1 text-xs text-black/40">
-            Usa um token de longa duração (60 dias). Renova antes do prazo expirar.
-          </p>
-        </Campo>
-        <div className="flex items-center gap-3">
-          <BotaoGuardar saving={saving} ok={ok} />
-          <button type="button" onClick={verificar}
-            disabled={verificando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
-            className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-            {verificando ? "A verificar…" : "Verificar credenciais"}
-          </button>
-        </div>
-        {paginaInfo && (
-          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-            ✓ Ligado a <strong>{paginaInfo.name}</strong>
-            {paginaInfo.fan_count !== undefined && ` · ${paginaInfo.fan_count.toLocaleString("pt-PT")} seguidores`}
+    <div className="grid grid-cols-5 gap-6">
+      <div className="col-span-2">
+        <Instrucoes steps={[
+          "Acede a developers.facebook.com e cria uma App (tipo: Business)",
+          "Em Graph API Explorer, gera um User Token com permissão pages_manage_posts",
+          "Troca o User Token por um Page Token de longa duração",
+          "Copia o Page ID (visível nas definições da Página) e o Page Access Token",
+        ]} />
+      </div>
+      <div className="col-span-3">
+        {erro && <Erro msg={erro} />}
+        <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+          <Campo label="Facebook Page ID">
+            <input className="campo" value={cfg?.facebook_page_id ?? ""}
+              onChange={(e) => set("facebook_page_id", e.target.value)}
+              placeholder="123456789012345" />
+          </Campo>
+          <Campo label="Page Access Token">
+            <CampoSecreto
+              value={cfg?.facebook_page_access_token ?? ""}
+              onChange={(v) => set("facebook_page_access_token", v)}
+              placeholder="EAAb..."
+            />
+            <p className="mt-1 text-xs text-black/40">Token de longa duração (60 dias). Renova antes do prazo expirar.</p>
+          </Campo>
+          <div className="flex items-center gap-3">
+            <BotaoGuardar saving={saving} ok={ok} />
+            <button type="button" onClick={verificar}
+              disabled={verificando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
+              {verificando ? "A verificar…" : "Verificar credenciais"}
+            </button>
           </div>
-        )}
-        {erroVerif && <Erro msg={erroVerif} />}
-      </form>
-    </>
+          {paginaInfo && (
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              ✓ Ligado a <strong>{paginaInfo.name}</strong>
+              {paginaInfo.fan_count !== undefined && ` · ${paginaInfo.fan_count.toLocaleString("pt-PT")} seguidores`}
+            </div>
+          )}
+          {erroVerif && <Erro msg={erroVerif} />}
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -333,62 +343,88 @@ function AbaInstagram() {
     } finally { setVerificando(false); }
   }
 
-  if (loading) return <p className="text-sm text-black/40">A carregar…</p>;
+  if (loading) return <Carregando />;
 
   const temFbToken = !!cfg?.facebook_page_access_token;
 
   return (
-    <>
-      <Instrucoes steps={[
-        "Garante que tens a aba Facebook configurada (partilham o mesmo token)",
-        "Na tua Facebook Page → Definições → Instagram → Liga a conta",
-        "Em Graph API Explorer: GET /{facebook-page-id}?fields=instagram_business_account",
-        "Copia o 'id' devolvido — esse é o teu Instagram Business Account ID",
-      ]} />
-
-      {!temFbToken && (
-        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-          ⚠️ Configura primeiro o <strong>Facebook Page Access Token</strong> — o Instagram usa o mesmo token.
-        </div>
-      )}
-
-      {erro && <Erro msg={erro} />}
-      <form onSubmit={salvar} className="mt-4 space-y-4 rounded-xl border border-black/10 bg-white p-5">
-        <Campo label="Instagram Business Account ID">
-          <input className="campo" value={cfg?.instagram_business_account_id ?? ""}
-            onChange={(e) => setCfg((c) => c ? { ...c, instagram_business_account_id: e.target.value } : c)}
-            placeholder="17841400000000000" />
-          <p className="mt-1 text-xs text-black/40">
-            Requer conta Instagram Business ligada a uma Facebook Page.
-          </p>
-        </Campo>
-        <div className="flex items-center gap-3">
-          <BotaoGuardar saving={saving} ok={ok} />
-          <button type="button" onClick={verificar}
-            disabled={verificando || !cfg?.instagram_business_account_id || !temFbToken}
-            className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-            {verificando ? "A verificar…" : "Verificar conta"}
-          </button>
-        </div>
-        {igInfo && (
-          <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-            ✓ Ligado a <strong>@{igInfo.username}</strong> · {igInfo.name}
-            {igInfo.followers_count !== undefined && ` · ${igInfo.followers_count.toLocaleString("pt-PT")} seguidores`}
+    <div className="grid grid-cols-5 gap-6">
+      <div className="col-span-2">
+        <Instrucoes steps={[
+          "Garante que tens a aba Facebook configurada (partilham o mesmo token)",
+          "Na tua Facebook Page → Definições → Instagram → Liga a conta",
+          "Em Graph API Explorer: GET /{facebook-page-id}?fields=instagram_business_account",
+          "Copia o 'id' devolvido — esse é o teu Instagram Business Account ID",
+        ]} />
+      </div>
+      <div className="col-span-3">
+        {!temFbToken && (
+          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+            ⚠️ Configura primeiro o <strong>Facebook Page Access Token</strong> — o Instagram usa o mesmo token.
           </div>
         )}
-        {erroVerif && <Erro msg={erroVerif} />}
-      </form>
-    </>
+        {erro && <Erro msg={erro} />}
+        <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+          <Campo label="Instagram Business Account ID">
+            <input className="campo" value={cfg?.instagram_business_account_id ?? ""}
+              onChange={(e) => setCfg((c) => c ? { ...c, instagram_business_account_id: e.target.value } : c)}
+              placeholder="17841400000000000" />
+            <p className="mt-1 text-xs text-black/40">Requer conta Instagram Business ligada a uma Facebook Page.</p>
+          </Campo>
+          <div className="flex items-center gap-3">
+            <BotaoGuardar saving={saving} ok={ok} />
+            <button type="button" onClick={verificar}
+              disabled={verificando || !cfg?.instagram_business_account_id || !temFbToken}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
+              {verificando ? "A verificar…" : "Verificar conta"}
+            </button>
+          </div>
+          {igInfo && (
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              ✓ Ligado a <strong>@{igInfo.username}</strong> · {igInfo.name}
+              {igInfo.followers_count !== undefined && ` · ${igInfo.followers_count.toLocaleString("pt-PT")} seguidores`}
+            </div>
+          )}
+          {erroVerif && <Erro msg={erroVerif} />}
+        </form>
+      </div>
+    </div>
   );
 }
 
 /* ─── Componentes partilhados ──────────────────────────────────────── */
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+function Campo({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className="block">
+    <label className={`block ${className}`}>
       <span className="mb-1 block text-xs font-medium text-black/60">{label}</span>
       {children}
     </label>
+  );
+}
+
+function CampoSecreto({ value, onChange, placeholder = "" }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visivel ? "text" : "password"}
+        className="campo pr-16"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        onClick={() => setVisivel((v) => !v)}
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-xs text-black/40 hover:text-ink transition-colors"
+      >
+        {visivel ? "Ocultar" : "Mostrar"}
+      </button>
+    </div>
   );
 }
 
@@ -408,14 +444,20 @@ function Erro({ msg }: { msg: string }) {
   return <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{msg}</p>;
 }
 
+function Carregando() {
+  return <p className="text-sm text-black/40">A carregar…</p>;
+}
+
 function Instrucoes({ steps }: { steps: string[] }) {
   return (
     <div className="rounded-xl border border-black/8 bg-black/2 p-4">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/40">Como configurar</p>
-      <ol className="space-y-1">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">Como configurar</p>
+      <ol className="space-y-2">
         {steps.map((s, i) => (
-          <li key={i} className="flex gap-2 text-xs text-black/60">
-            <span className="shrink-0 font-bold text-black/30">{i + 1}.</span>
+          <li key={i} className="flex gap-2.5 text-xs text-black/60 leading-relaxed">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black/8 text-[10px] font-bold text-black/40">
+              {i + 1}
+            </span>
             {s}
           </li>
         ))}
@@ -423,4 +465,3 @@ function Instrucoes({ steps }: { steps: string[] }) {
     </div>
   );
 }
-
