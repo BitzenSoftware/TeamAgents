@@ -6,6 +6,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 
 from . import llm, whatsapp
+from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, OnboardingPayload, SdrAction, SdrStatus
 
@@ -414,6 +415,41 @@ async def testar_discord(webhook_url: str) -> dict:
     return {"ok": True}
 
 
+async def _diagnosticar_token_facebook(client: httpx.AsyncClient, token: str) -> str | None:
+    """Inspeciona o token via debug_token e devolve uma dica acionável, ou None.
+
+    Identifica os dois erros mais comuns do (#200): token é de Utilizador em vez
+    de Página, ou falta a permissão pages_manage_posts.
+    """
+    settings = get_settings()
+    if not settings.facebook_app_id or not settings.facebook_app_secret:
+        return None
+    try:
+        r = await client.get(
+            "https://graph.facebook.com/debug_token",
+            params={
+                "input_token": token,
+                "access_token": f"{settings.facebook_app_id}|{settings.facebook_app_secret}",
+            },
+        )
+        data = r.json().get("data", {})
+    except Exception:
+        return None
+
+    tipo = (data.get("type") or "").upper()
+    scopes = data.get("scopes") or []
+    if tipo == "USER":
+        return ("O token guardado é um token de Utilizador, não de Página. "
+                "Usa o botão \"Ligar com Facebook\" para obter o Page Token correto, "
+                "ou cola o User Token no campo \"Renovar token\" para o converter.")
+    em_falta = [p for p in ("pages_manage_posts", "pages_read_engagement") if p not in scopes]
+    if em_falta:
+        return (f"Faltam permissões no token: {', '.join(em_falta)}. "
+                "Reconecta via \"Ligar com Facebook\" e autoriza TODAS as permissões pedidas. "
+                "Se a app está em modo Desenvolvimento, confirma que és Admin/Tester dela.")
+    return None
+
+
 async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
     """Publica uma mensagem na Facebook Page."""
     async with httpx.AsyncClient() as client:
@@ -423,7 +459,14 @@ async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
         )
         if not r.is_success:
             body = r.json()
-            raise ValueError(body.get("error", {}).get("message", r.text))
+            erro = body.get("error", {})
+            msg = erro.get("message", r.text)
+            # Erro de permissões (#200): tenta dar uma dica concreta.
+            if erro.get("code") == 200:
+                dica = await _diagnosticar_token_facebook(client, token)
+                if dica:
+                    msg = dica
+            raise ValueError(msg)
         return r.json()
 
 
