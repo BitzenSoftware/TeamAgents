@@ -16,7 +16,7 @@ export default function GuiaPage() {
   const [tab, setTab] = useState<TabId>("geral");
 
   return (
-    <div className="mx-auto max-w-3xl p-6 pb-16">
+    <div className="max-w-5xl p-6 pb-16">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tight">Guia do Utilizador</h1>
         <p className="mt-1 text-sm text-black/50">
