@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # Email do superadmin (gere os planos)
     superadmin_email: str = "bitzensoftware@bitzen.app"
 
+    # Facebook App (para troca de token de longa duração)
+    facebook_app_id: str = ""
+    facebook_app_secret: str = ""
+
     # Model IDs (exatos — não acrescentar sufixos de data)
     model_copywriting: str = "claude-sonnet-4-6"
     model_sdr: str = "claude-haiku-4-5"

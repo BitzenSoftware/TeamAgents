@@ -124,6 +124,10 @@ class SocialPostRequest(BaseModel):
     image_url: str | None = None
 
 
+class TokenExchangeRequest(BaseModel):
+    user_access_token: str = Field(min_length=1)
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

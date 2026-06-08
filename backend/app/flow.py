@@ -424,6 +424,41 @@ async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str
         return r2.json()
 
 
+async def trocar_token_longa_duracao(user_token: str, page_id: str) -> dict:
+    """Troca user token curto por token de longa duração e obtém Page Token permanente."""
+    settings = get_settings()
+    if not settings.facebook_app_id or not settings.facebook_app_secret:
+        raise ValueError("FACEBOOK_APP_ID e FACEBOOK_APP_SECRET não estão configurados no servidor.")
+    async with httpx.AsyncClient() as client:
+        # Etapa 1: trocar user token por longa duração (60 dias)
+        r = await client.get(
+            "https://graph.facebook.com/oauth/access_token",
+            params={
+                "grant_type": "fb_exchange_token",
+                "client_id": settings.facebook_app_id,
+                "client_secret": settings.facebook_app_secret,
+                "fb_exchange_token": user_token,
+            }
+        )
+        if not r.is_success:
+            raise ValueError(r.json().get("error", {}).get("message", r.text))
+        long_user_token = r.json()["access_token"]
+
+        # Etapa 2: obter Page Access Token permanente (não expira)
+        r2 = await client.get(
+            "https://graph.facebook.com/me/accounts",
+            params={"access_token": long_user_token}
+        )
+        if not r2.is_success:
+            raise ValueError(r2.json().get("error", {}).get("message", r2.text))
+
+        pages = r2.json().get("data", [])
+        page = next((p for p in pages if p["id"] == page_id), None)
+        if not page:
+            raise ValueError(f"Página {page_id} não encontrada. Confirma o Facebook Page ID.")
+        return {"access_token": page["access_token"], "name": page["name"]}
+
+
 async def verificar_facebook(page_id: str, token: str) -> dict:
     """Verifica se o token da Page é válido."""
     async with httpx.AsyncClient() as client:

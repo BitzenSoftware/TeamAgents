@@ -20,6 +20,7 @@ from .schemas import (
     PlanoUpdate,
     SocialConfigUpdate,
     SocialPostRequest,
+    TokenExchangeRequest,
 )
 
 app = FastAPI(title="TeamAgents API", version="0.1.0")
@@ -272,6 +273,20 @@ async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth
         raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
     try:
         return await flow.postar_facebook(page_id, token, req.mensagem)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/social-config/exchange-token")
+async def exchange_facebook_token(req: TokenExchangeRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    page_id = cfg.get("facebook_page_id")
+    if not page_id:
+        raise HTTPException(status_code=400, detail="Guarda o Facebook Page ID primeiro antes de trocar o token.")
+    try:
+        result = await flow.trocar_token_longa_duracao(req.user_access_token, page_id)
+        flow.update_social_config(cliente_id, {"facebook_page_access_token": result["access_token"]})
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -222,6 +222,11 @@ export const api = {
   apagarHabilidade: (id: string) =>
     req<void>(`/me/habilidades/${id}`, { method: "DELETE" }),
 
+  trocarTokenFacebook: (user_access_token: string) =>
+    req<{ access_token: string; name: string }>("/me/social-config/exchange-token", {
+      method: "POST",
+      body: JSON.stringify({ user_access_token }),
+    }),
   getSocialConfig: () => req<SocialConfig>("/me/social-config"),
   updateSocialConfig: (body: SocialConfigUpdate) =>
     req<SocialConfig>("/me/social-config", { method: "PATCH", body: JSON.stringify(body) }),
