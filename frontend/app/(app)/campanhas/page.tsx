@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha, type Habilidade, type SocialConfig } from "@/lib/api";
+import { api, type Campanha, type Habilidade, type SocialConfig, type Consumo } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
@@ -20,6 +20,11 @@ export default function CampanhasPage() {
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [social, setSocial] = useState<SocialConfig | null>(null);
+  const [consumo, setConsumo] = useState<Consumo | null>(null);
+
+  const carregarConsumo = useCallback(() => {
+    api.consumo().then(setConsumo).catch(() => {});
+  }, []);
 
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
@@ -32,7 +37,8 @@ export default function CampanhasPage() {
   useEffect(() => {
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
     api.getSocialConfig().then(setSocial).catch(() => {});
-  }, []);
+    carregarConsumo();
+  }, [carregarConsumo]);
 
   function toggleHabilidade(id: string) {
     setSelecionadas((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -59,6 +65,7 @@ export default function CampanhasPage() {
       setLink("");
       setSelecionadas([]);
       carregar();
+      carregarConsumo();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao gerar campanha");
     } finally {
@@ -72,6 +79,8 @@ export default function CampanhasPage() {
         <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
         <p className="text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
       </header>
+
+      {consumo && <CardsConsumo c={consumo} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <form onSubmit={gerar} className="space-y-4 rounded-xl border border-black/10 bg-white/60 p-5">
@@ -395,6 +404,44 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function CardsConsumo({ c }: { c: Consumo }) {
+  // Cor consoante o uso: verde < 70%, âmbar 70-89%, vermelho >= 90%.
+  const cor =
+    c.percent >= 90 ? "bg-rose-500" : c.percent >= 70 ? "bg-amber-500" : "bg-brand";
+  const texto =
+    c.percent >= 90 ? "text-rose-600" : c.percent >= 70 ? "text-amber-600" : "text-brand";
+
+  return (
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <div className="text-xs font-medium text-black/40">Créditos usados (mês)</div>
+        <div className="mt-1 text-2xl font-semibold">
+          {c.usados}
+          <span className="text-base font-normal text-black/40"> / {c.total}</span>
+        </div>
+      </div>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <div className="text-xs font-medium text-black/40">Disponíveis</div>
+        <div className="mt-1 text-2xl font-semibold">{c.restantes}</div>
+      </div>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-black/40">Uso do plano</span>
+          <span className={`text-sm font-semibold ${texto}`}>{c.percent}%</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
+          <div className={`h-full rounded-full transition-all ${cor}`} style={{ width: `${c.percent}%` }} />
+        </div>
+        {c.percent >= 90 && (
+          <p className="mt-2 text-[11px] text-rose-600">
+            Limite quase atingido — faz upgrade para não parar as gerações.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

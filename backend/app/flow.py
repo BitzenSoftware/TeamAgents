@@ -169,6 +169,7 @@ def _habilidades_texto(cliente_id: str, ids: list[str] | None = None) -> str:
 # ===================== Agente 1: criar campanha =====================
 def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""
+    verificar_limite(cliente_id, CREDITOS_CAMPANHA)  # bloqueia ANTES de gastar API
     # Lista explícita: omitido/[] => nenhuma habilidade (poupa tokens); nunca cai no "todas".
     out: CopyOutput = llm.gerar_anuncios(
         req.nicho, req.dor_latente, habilidades=_habilidades_texto(cliente_id, req.habilidade_ids or [])
@@ -190,6 +191,7 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
         "status": "ATIVA",
     }
     res = db.table("campanhas").insert(row).execute()
+    consumir_creditos(cliente_id, CREDITOS_CAMPANHA)  # só desconta após êxito
     return res.data[0]
 
 
@@ -273,6 +275,12 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     lead = _get_or_create_lead(cliente_id, campanha["id"], whatsapp_num, nome)
     _save_msg(lead["id"], "LEAD", text)
 
+    # Regra de plano: sem créditos, o SDR não responde (a mensagem do lead fica gravada).
+    try:
+        verificar_limite(cliente_id, CREDITOS_SDR)
+    except LimiteCreditosError:
+        return
+
     historico = _historico(lead["id"])
     # remove a última (acabámos de gravar a mensagem atual; passamo-la à parte)
     historico = historico[:-1] if historico else []
@@ -292,6 +300,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
+    consumir_creditos(cliente_id, CREDITOS_SDR)
 
     # Atualiza estado do lead (mapeando o enum do SDR -> enum da BD)
     updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status]}
@@ -317,6 +326,9 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
     """Agrega métricas da semana, gera o relatório e persiste em `relatorios`."""
     db = get_db()
     campanha = db.table("campanhas").select("*").eq("id", campanha_id).single().execute().data
+    cliente_id = campanha.get("cliente_id")
+    if cliente_id:
+        verificar_limite(cliente_id, CREDITOS_BI)  # bloqueia ANTES de gastar API (Opus)
     leads = db.table("leads").select("*").eq("campanha_id", campanha_id).execute().data
 
     leads_totais = len(leads)
@@ -351,7 +363,10 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
         "custo_por_agendamento": round(cpag, 2),
         "relatorio_whatsapp": out.relatorio_whatsapp,
     }
-    return db.table("relatorios").insert(row).execute().data[0]
+    rel = db.table("relatorios").insert(row).execute().data[0]
+    if cliente_id:
+        consumir_creditos(cliente_id, CREDITOS_BI)
+    return rel
 
 
 # ===================== Social Config =====================
@@ -673,6 +688,108 @@ def apagar_campanha(cliente_id: str, cid: str) -> None:
     get_db().table("campanhas").delete().eq("id", cid).eq("cliente_id", cliente_id).execute()
 
 
+# ===================== Créditos / consumo por plano =====================
+# Pesos por ação, alinhados com o custo real dos modelos (Haiku < Sonnet < Opus).
+CREDITOS_CAMPANHA = 6   # Fábrica de Campanhas (Sonnet)
+CREDITOS_SDR = 1        # resposta do SDR no WhatsApp (Haiku)
+CREDITOS_BI = 12        # relatório do Diretor de BI (Opus)
+
+_CREDITOS_FALLBACK = 500  # se não houver plano Starter na BD
+
+
+class LimiteCreditosError(Exception):
+    """Plano sem créditos suficientes para a ação pretendida."""
+
+
+def _periodo_atual() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def creditos_do_plano(cliente_id: str) -> int:
+    """Créditos mensais do plano do cliente (NULL/sem plano => Starter)."""
+    db = get_db()
+    row = db.table("clientes").select("plano_id").eq("id", cliente_id).limit(1).execute().data
+    plano_id = row[0]["plano_id"] if row else None
+    if plano_id:
+        p = db.table("planos").select("creditos_mensais").eq("id", plano_id).limit(1).execute().data
+        if p:
+            return p[0]["creditos_mensais"]
+    s = db.table("planos").select("creditos_mensais").eq("nome", "Starter").order("ordem").limit(1).execute().data
+    return s[0]["creditos_mensais"] if s else _CREDITOS_FALLBACK
+
+
+def consumo_atual(cliente_id: str) -> int:
+    """Créditos já gastos pelo cliente no período (mês) atual."""
+    row = (
+        get_db()
+        .table("consumo_mensal")
+        .select("creditos_usados")
+        .eq("cliente_id", cliente_id)
+        .eq("periodo", _periodo_atual())
+        .limit(1)
+        .execute()
+        .data
+    )
+    return row[0]["creditos_usados"] if row else 0
+
+
+def get_consumo(cliente_id: str) -> dict:
+    """Resumo de consumo para os cards do frontend."""
+    try:
+        total = creditos_do_plano(cliente_id)
+        usados = consumo_atual(cliente_id)
+    except Exception:
+        # Schema de consumo ainda não migrado — devolve um estado neutro.
+        return {"usados": 0, "total": _CREDITOS_FALLBACK, "restantes": _CREDITOS_FALLBACK, "percent": 0}
+    percent = round(usados / total * 100) if total else 0
+    return {
+        "usados": usados,
+        "total": total,
+        "restantes": max(total - usados, 0),
+        "percent": min(percent, 100),
+    }
+
+
+def verificar_limite(cliente_id: str, qtd: int) -> None:
+    """Levanta LimiteCreditosError se a ação exceder o plano. NÃO consome.
+
+    Se o schema de consumo ainda não foi migrado, NÃO bloqueia (degrada com segurança).
+    """
+    try:
+        total = creditos_do_plano(cliente_id)
+        usados = consumo_atual(cliente_id)
+    except Exception:
+        return  # migração 011 ainda não aplicada — não impõe limite
+    if usados + qtd > total:
+        raise LimiteCreditosError(
+            f"Limite do plano atingido ({usados}/{total} créditos este mês). "
+            "Faz upgrade do plano para continuar."
+        )
+
+
+def consumir_creditos(cliente_id: str, qtd: int) -> None:
+    """Incrementa o consumo do período atual (upsert). Chamar após a ação ter êxito."""
+    try:
+        db = get_db()
+        periodo = _periodo_atual()
+        existing = (
+            db.table("consumo_mensal")
+            .select("creditos_usados")
+            .eq("cliente_id", cliente_id)
+            .eq("periodo", periodo)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if existing:
+            novo = existing[0]["creditos_usados"] + qtd
+            db.table("consumo_mensal").update({"creditos_usados": novo}).eq("cliente_id", cliente_id).eq("periodo", periodo).execute()
+        else:
+            db.table("consumo_mensal").insert({"cliente_id": cliente_id, "periodo": periodo, "creditos_usados": qtd}).execute()
+    except Exception:
+        pass  # nunca falhar a ação principal por causa da contabilização de créditos
+
+
 def listar_relatorios(cliente_id: str) -> list[dict]:
     """Relatórios de BI de um cliente, mais recentes primeiro."""
     return (
@@ -764,6 +881,12 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
     if m["leads_totais"] == 0:
         return None  # sem atividade — não gasta token de Opus
 
+    # Regra de plano: sem créditos, salta este cliente (não gasta Opus).
+    try:
+        verificar_limite(cliente["id"], CREDITOS_BI)
+    except LimiteCreditosError:
+        return None
+
     taxa = m["reunioes"] / m["leads_totais"] * 100 if m["leads_totais"] else 0.0
     cpag = m["investimento"] / m["reunioes"] if m["reunioes"] else 0.0
 
@@ -793,4 +916,6 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
         "custo_por_agendamento": round(cpag, 2),
         "relatorio_whatsapp": out.relatorio_whatsapp,
     }
-    return get_db().table("relatorios").insert(row).execute().data[0]
+    rel = get_db().table("relatorios").insert(row).execute().data[0]
+    consumir_creditos(cliente["id"], CREDITOS_BI)
+    return rel

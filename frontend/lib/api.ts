@@ -67,6 +67,13 @@ export type Relatorio = {
   created_at: string;
 };
 
+export type Consumo = {
+  usados: number;
+  total: number;
+  restantes: number;
+  percent: number;
+};
+
 export type CampanhaInput = {
   nicho: string;
   dor_latente: string;
@@ -199,6 +206,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   me: () => req<Cliente>("/me"),
   campanhas: () => req<Campanha[]>("/me/campanhas"),
+  consumo: () => req<Consumo>("/me/consumo"),
   leads: () => req<Lead[]>("/me/leads"),
   conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),

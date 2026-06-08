@@ -153,7 +153,10 @@ def apagar_habilidade(hid: str, cliente_id: str = Depends(auth.current_cliente_i
 @app.post("/campanhas")
 def criar_campanha(req: CopyRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Gera os 2 anúncios + metadata e persiste a campanha do tenant autenticado."""
-    return flow.criar_campanha(cliente_id, req)
+    try:
+        return flow.criar_campanha(cliente_id, req)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
 
 
 # ===================== Agente 2: webhook WhatsApp (async) =====================
@@ -185,6 +188,12 @@ def verify_webhook(token: str = Query(default="")) -> dict:
 def listar_campanhas(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
     """Campanhas do tenant autenticado (mais recentes primeiro)."""
     return flow.listar_campanhas(cliente_id)
+
+
+@app.get("/me/consumo")
+def get_consumo(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Consumo de créditos do mês atual vs o limite do plano (para os cards)."""
+    return flow.get_consumo(cliente_id)
 
 
 @app.patch("/me/campanhas/{cid}")
