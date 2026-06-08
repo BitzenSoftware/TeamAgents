@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type AcaoItem, type ItemProcessado, type Processamento } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  api,
+  type AcaoItem,
+  type EmailAccount,
+  type ItemProcessado,
+  type Processamento,
+} from "@/lib/api";
 
 const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   alta: "bg-rose-100 text-rose-700",
@@ -9,12 +16,20 @@ const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   baixa: "bg-emerald-100 text-emerald-700",
 };
 
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+
 export default function ExecutivoPage() {
   const [lista, setLista] = useState<Processamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
+  const [contas, setContas] = useState<EmailAccount[]>([]);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const router = useRouter();
+  const params = useSearchParams();
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -25,9 +40,72 @@ export default function ExecutivoPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const carregarContas = useCallback(() => {
+    api.emailAccounts().then(setContas).catch(() => {});
+  }, []);
+
   useEffect(() => {
     carregar();
-  }, [carregar]);
+    carregarContas();
+  }, [carregar, carregarContas]);
+
+  // Callback do OAuth do Google (volta com ?code=...&state=google).
+  useEffect(() => {
+    const code = params.get("code");
+    const state = params.get("state");
+    if (code && state === "google") {
+      const redirectUri = `${window.location.origin}/executivo`;
+      api
+        .oauthGoogle(code, redirectUri)
+        .then((acc) => setEmailMsg({ ok: true, text: `Gmail ligado: ${acc.email}` }))
+        .catch((e) => setEmailMsg({ ok: false, text: e.message ?? "Erro ao ligar o Gmail." }))
+        .finally(() => {
+          carregarContas();
+          router.replace("/executivo");
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function ligarGmail() {
+    const redirectUri = `${window.location.origin}/executivo`;
+    const url =
+      "https://accounts.google.com/o/oauth2/v2/auth" +
+      `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent(GMAIL_SCOPE)}` +
+      "&response_type=code&access_type=offline&prompt=consent&state=google";
+    window.location.href = url;
+  }
+
+  async function desligarGmail() {
+    if (!window.confirm("Desligar a conta de Gmail?")) return;
+    await api.desligarEmail("gmail");
+    setEmailMsg(null);
+    carregarContas();
+  }
+
+  async function sincronizar() {
+    setSyncing(true);
+    setEmailMsg(null);
+    try {
+      const res = await api.sincronizarEmail("gmail");
+      if (res.n_emails === 0) {
+        setEmailMsg({ ok: true, text: "Sem emails novos nos últimos 7 dias." });
+      } else {
+        setEmailMsg({ ok: true, text: `${res.n_emails} email(s) processado(s).` });
+        if (res.processamento) setSelId(res.processamento.id);
+        carregar();
+      }
+      carregarContas();
+    } catch (e) {
+      setEmailMsg({ ok: false, text: e instanceof Error ? e.message : "Erro ao sincronizar." });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const gmail = contas.find((c) => c.provider === "gmail") ?? null;
 
   useEffect(() => {
     if (lista.length === 0) setSelId(null);
@@ -63,6 +141,77 @@ export default function ExecutivoPage() {
           </button>
         </div>
       </header>
+
+      {/* Integração de email (Fase 2) */}
+      <div className="mb-5 rounded-xl border border-black/10 bg-white p-4">
+        {emailMsg && (
+          <div
+            className={`mb-3 flex items-start justify-between rounded-lg border p-2.5 text-sm ${
+              emailMsg.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-rose-200 bg-rose-50 text-rose-700"
+            }`}
+          >
+            <span>
+              {emailMsg.ok ? "✓ " : "✗ "}
+              {emailMsg.text}
+            </span>
+            <button type="button" onClick={() => setEmailMsg(null)} className="ml-3 text-black/30 hover:text-black/60">
+              ×
+            </button>
+          </div>
+        )}
+        {gmail ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm">
+              <span className="font-medium">Gmail ligado:</span>{" "}
+              <span className="text-black/60">{gmail.email}</span>
+              {gmail.last_sync && (
+                <span className="ml-2 text-xs text-black/40">
+                  · última sync {new Date(gmail.last_sync).toLocaleString("pt-PT")}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={sincronizar}
+                disabled={syncing}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+              >
+                {syncing ? "A sincronizar…" : "Sincronizar agora"}
+              </button>
+              <button
+                type="button"
+                onClick={desligarGmail}
+                className="rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5"
+              >
+                Desligar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-black/55">
+              Liga a tua conta de Gmail para o agente buscar e resumir os emails recentes
+              automaticamente.
+            </p>
+            <button
+              type="button"
+              onClick={ligarGmail}
+              disabled={!GOOGLE_CLIENT_ID}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-40"
+            >
+              Ligar Gmail
+            </button>
+          </div>
+        )}
+        {!GOOGLE_CLIENT_ID && (
+          <p className="mt-2 text-xs text-rose-600">
+            Variável NEXT_PUBLIC_GOOGLE_CLIENT_ID não configurada no Vercel.
+          </p>
+        )}
+      </div>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
 

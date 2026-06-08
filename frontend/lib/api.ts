@@ -160,6 +160,19 @@ export type Processamento = {
   created_at: string;
 };
 
+// --- Fase 2: contas de email (OAuth) ---
+export type EmailAccount = {
+  provider: "gmail" | "outlook";
+  email: string;
+  last_sync: string | null;
+  created_at: string;
+};
+
+export type EmailSyncResult = {
+  processamento: Processamento | null;
+  n_emails: number;
+};
+
 export type SocialConfig = {
   id: string;
   cliente_id: string;
@@ -286,6 +299,21 @@ export const api = {
     }),
   apagarProcessamento: (id: string) =>
     req<void>(`/me/executivo/${id}`, { method: "DELETE" }),
+
+  // --- Fase 2: integração de email (OAuth Gmail) ---
+  emailAccounts: () => req<EmailAccount[]>("/me/email-accounts"),
+  oauthGoogle: (code: string, redirect_uri: string) =>
+    req<EmailAccount>("/oauth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code, redirect_uri }),
+    }),
+  sincronizarEmail: (provider = "gmail", max_results = 10) =>
+    req<EmailSyncResult>("/me/email/sync", {
+      method: "POST",
+      body: JSON.stringify({ provider, max_results }),
+    }),
+  desligarEmail: (provider: string) =>
+    req<void>(`/me/email-accounts/${provider}`, { method: "DELETE" }),
 
   trocarTokenFacebook: (user_access_token: string) =>
     req<{ access_token: string; name: string }>("/me/social-config/exchange-token", {

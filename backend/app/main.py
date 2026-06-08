@@ -14,9 +14,11 @@ from .schemas import (
     CampanhaUpdate,
     ConfigUpdate,
     CopyRequest,
+    EmailSyncRequest,
     ExecutivoRequest,
     HabilidadeCreate,
     HabilidadeUpdate,
+    OAuthGoogleExchange,
     OnboardingPayload,
     PlanoCreate,
     PlanoUpdate,
@@ -168,6 +170,35 @@ def processar_executivo(req: ExecutivoRequest, cliente_id: str = Depends(auth.cu
 @app.delete("/me/executivo/{pid}", status_code=204)
 def apagar_processamento(pid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.apagar_processamento(cliente_id, pid)
+
+
+# ===================== Fase 2: integração de email (OAuth Gmail) =====================
+@app.get("/me/email-accounts")
+def listar_email_accounts(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.listar_email_accounts(cliente_id)
+
+
+@app.post("/oauth/google/exchange", status_code=201)
+def oauth_google_exchange(req: OAuthGoogleExchange, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        return flow.oauth_google_exchange(cliente_id, req.code, req.redirect_uri)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/email/sync")
+def sincronizar_email(req: EmailSyncRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        return flow.sincronizar_email(cliente_id, req.provider, req.max_results)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/me/email-accounts/{provider}", status_code=204)
+def desligar_email_account(provider: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.desligar_email_account(cliente_id, provider)
 
 
 # ===================== Agente 1: criar campanha (autenticado) =====================

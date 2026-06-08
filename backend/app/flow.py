@@ -3,10 +3,11 @@
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
 import asyncio
+import time
 import httpx
 from datetime import datetime, timedelta, timezone
 
-from . import executivo, llm, whatsapp
+from . import email_ingest, executivo, llm, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, OnboardingPayload, SdrAction, SdrStatus
@@ -192,6 +193,108 @@ def _titulo_automatico(resultado) -> str:
 
 def apagar_processamento(cliente_id: str, pid: str) -> None:
     get_db().table("processamentos_executivo").delete().eq("id", pid).eq("cliente_id", cliente_id).execute()
+
+
+# ===================== Fase 2: contas de email (OAuth Gmail) =====================
+def _sanitizar_email_account(row: dict) -> dict:
+    """Versão segura para o frontend — nunca devolve tokens."""
+    return {
+        "provider": row.get("provider"),
+        "email": row.get("email"),
+        "last_sync": row.get("last_sync"),
+        "created_at": row.get("created_at"),
+    }
+
+
+def listar_email_accounts(cliente_id: str) -> list[dict]:
+    rows = (
+        get_db()
+        .table("email_accounts")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .order("created_at")
+        .execute()
+        .data
+    )
+    return [_sanitizar_email_account(r) for r in rows]
+
+
+def _get_email_account(cliente_id: str, provider: str) -> dict | None:
+    rows = (
+        get_db()
+        .table("email_accounts")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .eq("provider", provider)
+        .limit(1)
+        .execute()
+        .data
+    )
+    return rows[0] if rows else None
+
+
+def oauth_google_exchange(cliente_id: str, code: str, redirect_uri: str) -> dict:
+    """Troca o código OAuth do Google por tokens e guarda a conta (upsert)."""
+    acc = email_ingest.exchange_google(code, redirect_uri)
+    row = {
+        "cliente_id": cliente_id,
+        "provider": acc["provider"],
+        "email": acc["email"],
+        "access_token": acc["access_token"],
+        "expiry": acc["expiry"],
+    }
+    # O refresh_token só vem na 1ª autorização (prompt=consent). Não o apaga se faltar.
+    if acc.get("refresh_token"):
+        row["refresh_token"] = acc["refresh_token"]
+    saved = (
+        get_db()
+        .table("email_accounts")
+        .upsert(row, on_conflict="cliente_id,provider")
+        .execute()
+        .data[0]
+    )
+    return _sanitizar_email_account(saved)
+
+
+def desligar_email_account(cliente_id: str, provider: str) -> None:
+    get_db().table("email_accounts").delete().eq("cliente_id", cliente_id).eq("provider", provider).execute()
+
+
+def _access_token_valido(account: dict) -> str:
+    """Devolve um access_token válido, renovando-o (e persistindo) se expirou."""
+    expiry = account.get("expiry") or 0
+    if expiry and time.time() < expiry - 60:
+        return account["access_token"]
+    refresh = account.get("refresh_token")
+    if not refresh:
+        return account["access_token"]  # sem refresh: tenta o atual (pode falhar -> erro claro a montante)
+    novo_access, novo_expiry = email_ingest.refresh_google(refresh)
+    get_db().table("email_accounts").update(
+        {"access_token": novo_access, "expiry": novo_expiry}
+    ).eq("id", account["id"]).execute()
+    return novo_access
+
+
+def sincronizar_email(cliente_id: str, provider: str = "gmail", max_results: int = 10) -> dict:
+    """Busca os emails recentes e processa-os com o Agente Executivo (Fase 1)."""
+    account = _get_email_account(cliente_id, provider)
+    if not account:
+        raise ValueError("Nenhuma conta de email ligada. Liga o Gmail primeiro.")
+    verificar_limite(cliente_id, CREDITOS_EXEC_BASE)  # bloqueia ANTES de gastar API
+    access = _access_token_valido(account)
+    emails = email_ingest.fetch_recent_google(access, max_results=max_results)
+    if not emails:
+        get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
+        return {"processamento": None, "n_emails": 0}
+    entrada = email_ingest.construir_entrada(emails)
+    titulo = f"Gmail — {datetime.now(timezone.utc).strftime('%d/%m %H:%M')}"
+    proc = processar_executivo(cliente_id, ExecutivoRequest(entrada=entrada, titulo=titulo))
+    get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
+    return {"processamento": proc, "n_emails": len(emails)}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _habilidades_texto(

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     facebook_app_id: str = ""
     facebook_app_secret: str = ""
 
+    # Google OAuth (Agente Executivo — ligar Gmail, Fase 2)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
     # Model IDs (exatos — não acrescentar sufixos de data)
     model_copywriting: str = "claude-sonnet-4-6"
     model_sdr: str = "claude-haiku-4-5"

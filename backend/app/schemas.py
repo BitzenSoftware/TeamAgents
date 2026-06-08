@@ -216,6 +216,17 @@ class ExecutivoRequest(BaseModel):
     titulo: str | None = None
 
 
+# --- Fase 2: integração de email por OAuth ---
+class OAuthGoogleExchange(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+class EmailSyncRequest(BaseModel):
+    provider: str = "gmail"
+    max_results: int = Field(default=10, ge=1, le=25)
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""
