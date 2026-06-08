@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, type Config, type SocialConfig } from "@/lib/api";
+
+const FB_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID ?? "";
+const FB_SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_insights,public_profile";
 
 type Aba = "whatsapp" | "discord" | "facebook" | "instagram";
 
@@ -14,6 +18,28 @@ const ABAS: { id: Aba; label: string; sub: string }[] = [
 
 export default function ConfiguracoesPage() {
   const [aba, setAba] = useState<Aba>("whatsapp");
+  const [oauthMsg, setOauthMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const router = useRouter();
+  const params = useSearchParams();
+
+  useEffect(() => {
+    const code = params.get("code");
+    const state = params.get("state");
+    if (code && state === "facebook") {
+      setAba("facebook");
+      const redirectUri = `${window.location.origin}/configuracoes`;
+      api.oauthFacebook(code, redirectUri)
+        .then((res) => {
+          setOauthMsg({ ok: true, text: `Ligado à página "${res.facebook_page_name}"${res.instagram_business_account_id ? " + Instagram" : ""}!` });
+        })
+        .catch((e) => {
+          setOauthMsg({ ok: false, text: e.message ?? "Erro ao ligar conta Facebook." });
+        })
+        .finally(() => {
+          router.replace("/configuracoes");
+        });
+    }
+  }, []);
 
   return (
     <div className="p-6">
@@ -21,6 +47,14 @@ export default function ConfiguracoesPage() {
         <h1 className="text-xl font-semibold">Configurações</h1>
         <p className="text-sm text-black/50">Integrações e credenciais da tua empresa</p>
       </header>
+
+      {/* Banner resultado OAuth */}
+      {oauthMsg && (
+        <div className={`mb-4 flex items-start justify-between rounded-lg border p-3 text-sm ${oauthMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+          <span>{oauthMsg.ok ? "✓ " : "✗ "}{oauthMsg.text}</span>
+          <button type="button" onClick={() => setOauthMsg(null)} className="ml-3 text-black/30 hover:text-black/60">×</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-xl border border-black/10 bg-black/3 p-1">
@@ -234,6 +268,12 @@ function AbaFacebook() {
     api.getSocialConfig().then(setCfg).catch((e) => setErro(e.message)).finally(() => setLoading(false));
   }, []);
 
+  function ligarFacebook() {
+    const redirectUri = `${window.location.origin}/configuracoes`;
+    const url = `https://www.facebook.com/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(FB_SCOPES)}&response_type=code&state=facebook`;
+    window.location.href = url;
+  }
+
   function set(k: keyof SocialConfig, v: string) {
     setCfg((c) => c ? { ...c, [k]: v } : c);
     setOk(false);
@@ -295,6 +335,34 @@ function AbaFacebook() {
         <GuiaFacebook />
       </div>
       <div className="col-span-3">
+        {/* Botão OAuth — ligação automática */}
+        <div className="mb-4 rounded-xl border border-black/10 bg-white p-5">
+          <p className="text-sm font-medium mb-1">Ligar Facebook & Instagram automaticamente</p>
+          <p className="text-xs text-black/40 mb-3">Clica no botão abaixo e autoriza o TeamAgents a gerir as tuas páginas. Os tokens são guardados automaticamente — sem configuração manual.</p>
+          {cfg?.facebook_page_id && (
+            <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-800">
+              ✓ Conta já ligada (Page ID: {cfg.facebook_page_id}). Clica para reconectar se necessário.
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={ligarFacebook}
+            disabled={!FB_APP_ID}
+            className="flex items-center gap-2 rounded-lg bg-[#1877F2] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#166fe5] disabled:opacity-40 transition-colors"
+          >
+            <svg className="h-4 w-4 fill-white" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Ligar com Facebook
+          </button>
+          {!FB_APP_ID && <p className="mt-1 text-xs text-rose-600">Variável NEXT_PUBLIC_FACEBOOK_APP_ID não configurada no Vercel.</p>}
+        </div>
+
+        {/* Separador */}
+        <div className="mb-4 flex items-center gap-3 text-xs text-black/30">
+          <div className="h-px flex-1 bg-black/10" />
+          <span>ou configuração manual</span>
+          <div className="h-px flex-1 bg-black/10" />
+        </div>
+
         {erro && <Erro msg={erro} />}
         <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
           <Campo label="Facebook Page ID">

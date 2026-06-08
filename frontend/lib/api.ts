@@ -227,6 +227,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ user_access_token }),
     }),
+  oauthFacebook: (code: string, redirect_uri: string) =>
+    req<{ facebook_page_id: string; facebook_page_name: string; facebook_page_access_token: string; instagram_business_account_id: string | null }>("/oauth/facebook/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code, redirect_uri }),
+    }),
   getSocialConfig: () => req<SocialConfig>("/me/social-config"),
   updateSocialConfig: (body: SocialConfigUpdate) =>
     req<SocialConfig>("/me/social-config", { method: "PATCH", body: JSON.stringify(body) }),

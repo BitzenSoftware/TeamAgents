@@ -128,6 +128,11 @@ class TokenExchangeRequest(BaseModel):
     user_access_token: str = Field(min_length=1)
 
 
+class OAuthFacebookExchange(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

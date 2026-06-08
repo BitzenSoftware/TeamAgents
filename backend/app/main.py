@@ -18,6 +18,7 @@ from .schemas import (
     OnboardingPayload,
     PlanoCreate,
     PlanoUpdate,
+    OAuthFacebookExchange,
     SocialConfigUpdate,
     SocialPostRequest,
     TokenExchangeRequest,
@@ -273,6 +274,22 @@ async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth
         raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
     try:
         return await flow.postar_facebook(page_id, token, req.mensagem)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/oauth/facebook/exchange")
+async def oauth_facebook_exchange(req: OAuthFacebookExchange, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        result = await flow.oauth_facebook_exchange(req.code, req.redirect_uri)
+        update: dict = {
+            "facebook_page_id": result["facebook_page_id"],
+            "facebook_page_access_token": result["facebook_page_access_token"],
+        }
+        if result["instagram_business_account_id"]:
+            update["instagram_business_account_id"] = result["instagram_business_account_id"]
+        flow.update_social_config(cliente_id, update)
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
