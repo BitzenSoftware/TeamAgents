@@ -7,10 +7,11 @@ import { useCliente } from "@/components/cliente-context";
 import { SUPERADMIN_EMAIL } from "@/lib/api";
 
 const NAV = [
-  { href: "/pipeline", label: "Pipeline", hint: "Comercial / SDR" },
-  { href: "/campanhas", label: "Campanhas", hint: "Fábrica / Copy" },
+  { href: "/pipeline", label: "Agente SDR", hint: "Comercial / Pipeline" },
+  { href: "/campanhas", label: "Agente de Copywriting", hint: "Anúncios & Copy" },
+  { href: "/executivo", label: "Agente Executivo", hint: "Email & Atas" },
+  { href: "/consultoria", label: "Agente Diretor de BI", hint: "Consultoria & Dados" },
   { href: "/habilidades", label: "Habilidades", hint: "Conhecimento da empresa" },
-  { href: "/consultoria", label: "Consultoria", hint: "Diretor de BI" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];

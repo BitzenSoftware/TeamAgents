@@ -1,7 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api, type Habilidade } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, type AgenteSkill, type Habilidade } from "@/lib/api";
+
+const AGENTES: { valor: AgenteSkill; label: string }[] = [
+  { valor: "global", label: "Global (todos)" },
+  { valor: "copywriting", label: "Agente de Copywriting" },
+  { valor: "sdr", label: "Agente SDR" },
+  { valor: "bi", label: "Agente Diretor de BI" },
+  { valor: "assistente", label: "Agente Executivo" },
+];
+
+const AGENTE_LABEL: Record<AgenteSkill, string> = Object.fromEntries(
+  AGENTES.map((a) => [a.valor, a.label]),
+) as Record<AgenteSkill, string>;
 
 export default function HabilidadesPage() {
   const [lista, setLista] = useState<Habilidade[]>([]);
@@ -9,6 +21,12 @@ export default function HabilidadesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<AgenteSkill | "todos">("todos");
+
+  const listaFiltrada = useMemo(
+    () => (filtro === "todos" ? lista : lista.filter((h) => h.agente === filtro)),
+    [lista, filtro],
+  );
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -23,16 +41,16 @@ export default function HabilidadesPage() {
     carregar();
   }, [carregar]);
 
-  // Garante uma seleção válida (auto-seleciona a primeira, como num email).
+  // Garante uma seleção válida dentro do filtro (auto-seleciona a primeira).
   useEffect(() => {
-    if (lista.length === 0) {
+    if (listaFiltrada.length === 0) {
       setSelId(null);
-    } else if (!lista.some((h) => h.id === selId)) {
-      setSelId(lista[0].id);
+    } else if (!listaFiltrada.some((h) => h.id === selId)) {
+      setSelId(listaFiltrada[0].id);
     }
-  }, [lista, selId]);
+  }, [listaFiltrada, selId]);
 
-  const selecionada = lista.find((h) => h.id === selId) ?? null;
+  const selecionada = listaFiltrada.find((h) => h.id === selId) ?? null;
 
   async function toggle(h: Habilidade) {
     await api.atualizarHabilidade(h.id, { ativo: !h.ativo });
@@ -60,9 +78,30 @@ export default function HabilidadesPage() {
           </button>
         </div>
         <p className="mt-1 text-sm text-black/50">
-          O conhecimento da sua empresa. Os agentes consultam isto antes de gerar campanhas e ao
-          conversar — ofertas, tom de voz, argumentos, respostas a objeções.
+          O conhecimento da sua empresa. Cada habilidade pertence a um agente (ou é global, usada por
+          todos) — ofertas, tom de voz, argumentos, respostas a objeções.
         </p>
+        {/* Filtro por agente */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(["todos", "global", "copywriting", "sdr", "bi", "assistente"] as (AgenteSkill | "todos")[]).map(
+            (v) => {
+              const ativo = filtro === v;
+              const label = v === "todos" ? "Todos" : AGENTE_LABEL[v];
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setFiltro(v)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    ativo ? "bg-brand text-white" : "bg-black/5 text-black/60 hover:bg-black/10"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            },
+          )}
+        </div>
       </header>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
@@ -77,13 +116,18 @@ export default function HabilidadesPage() {
           {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
             <div className="mb-2 text-xs font-medium text-black/50">
-              Guardadas {lista.length > 0 && `(${lista.length})`}
+              {filtro === "todos" ? "Guardadas" : AGENTE_LABEL[filtro]}{" "}
+              {listaFiltrada.length > 0 && `(${listaFiltrada.length})`}
             </div>
             {loading ? (
               <p className="text-sm text-black/40">A carregar…</p>
+            ) : listaFiltrada.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
+                Nenhuma habilidade neste agente.
+              </p>
             ) : (
               <div className="space-y-1.5">
-                {lista.map((h) => {
+                {listaFiltrada.map((h) => {
                   const sel = h.id === selId;
                   return (
                     <button
@@ -96,8 +140,13 @@ export default function HabilidadesPage() {
                           : "border-black/10 bg-white hover:bg-black/[0.03]"
                       }`}
                     >
-                      <span className={`flex-1 break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>
-                        {h.titulo}
+                      <span className="min-w-0 flex-1">
+                        <span className={`block break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>
+                          {h.titulo}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-black/40">
+                          {AGENTE_LABEL[h.agente]}
+                        </span>
                       </span>
                       <span
                         className={`mt-1 h-2 w-2 shrink-0 rounded-full ${h.ativo ? "bg-emerald-500" : "bg-black/20"}`}
@@ -125,6 +174,7 @@ export default function HabilidadesPage() {
 
       {modalAberto && (
         <ModalAdicionar
+          defaultAgente={filtro === "todos" ? "global" : filtro}
           onClose={() => setModalAberto(false)}
           onSaved={() => {
             setModalAberto(false);
@@ -149,7 +199,10 @@ function Detalhe({
   return (
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-        <h2 className="min-w-0 break-words text-base font-semibold text-white">{h.titulo}</h2>
+        <div className="min-w-0">
+          <h2 className="min-w-0 break-words text-base font-semibold text-white">{h.titulo}</h2>
+          <div className="mt-0.5 text-[11px] text-white/70">{AGENTE_LABEL[h.agente]}</div>
+        </div>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
             h.ativo ? "bg-white/20 text-white" : "bg-black/20 text-white/80"
@@ -182,9 +235,18 @@ function Detalhe({
 }
 
 /* ---------------- Modal de criação ---------------- */
-function ModalAdicionar({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function ModalAdicionar({
+  defaultAgente,
+  onClose,
+  onSaved,
+}: {
+  defaultAgente: AgenteSkill;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
+  const [agente, setAgente] = useState<AgenteSkill>(defaultAgente);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -194,7 +256,7 @@ function ModalAdicionar({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     setSaving(true);
     setErro(null);
     try {
-      await api.criarHabilidade(titulo.trim(), conteudo.trim());
+      await api.criarHabilidade(titulo.trim(), conteudo.trim(), agente);
       onSaved();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao guardar");
@@ -212,6 +274,20 @@ function ModalAdicionar({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           </button>
         </div>
         <form onSubmit={adicionar} className="space-y-3 p-5">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-black/50">Agente</span>
+            <select
+              value={agente}
+              onChange={(e) => setAgente(e.target.value as AgenteSkill)}
+              className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+            >
+              {AGENTES.map((a) => (
+                <option key={a.valor} value={a.valor}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}

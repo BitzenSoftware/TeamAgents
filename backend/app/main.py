@@ -14,6 +14,7 @@ from .schemas import (
     CampanhaUpdate,
     ConfigUpdate,
     CopyRequest,
+    ExecutivoRequest,
     HabilidadeCreate,
     HabilidadeUpdate,
     OnboardingPayload,
@@ -131,14 +132,14 @@ def listar_habilidades(cliente_id: str = Depends(auth.current_cliente_id)) -> li
 
 @app.post("/me/habilidades", status_code=201)
 def criar_habilidade(payload: HabilidadeCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
-    return flow.criar_habilidade(cliente_id, payload.titulo, payload.conteudo)
+    return flow.criar_habilidade(cliente_id, payload.titulo, payload.conteudo, payload.agente.value)
 
 
 @app.patch("/me/habilidades/{hid}")
 def atualizar_habilidade(
     hid: str, payload: HabilidadeUpdate, cliente_id: str = Depends(auth.current_cliente_id)
 ) -> dict:
-    updated = flow.atualizar_habilidade(cliente_id, hid, payload.model_dump(exclude_none=True))
+    updated = flow.atualizar_habilidade(cliente_id, hid, payload.model_dump(exclude_none=True, mode="json"))
     if not updated:
         raise HTTPException(status_code=404, detail="Habilidade não encontrada.")
     return updated
@@ -147,6 +148,26 @@ def atualizar_habilidade(
 @app.delete("/me/habilidades/{hid}", status_code=204)
 def apagar_habilidade(hid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.apagar_habilidade(cliente_id, hid)
+
+
+# ===================== Agente Executivo (Email & Atas) =====================
+@app.get("/me/executivo")
+def listar_processamentos(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.listar_processamentos(cliente_id)
+
+
+@app.post("/me/executivo", status_code=201)
+def processar_executivo(req: ExecutivoRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Processa email(s)/ata(s): orquestrador (Opus) + workers (Haiku) em paralelo."""
+    try:
+        return flow.processar_executivo(cliente_id, req)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+
+
+@app.delete("/me/executivo/{pid}", status_code=204)
+def apagar_processamento(pid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.apagar_processamento(cliente_id, pid)
 
 
 # ===================== Agente 1: criar campanha (autenticado) =====================

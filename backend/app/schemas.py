@@ -84,15 +84,26 @@ class ConfigUpdate(BaseModel):
 
 
 # ===================== Habilidades (base de conhecimento) =====================
+class AgenteSkill(str, Enum):
+    """A que agente pertence a habilidade. `global` aplica-se a todos."""
+    GLOBAL = "global"
+    COPYWRITING = "copywriting"
+    SDR = "sdr"
+    BI = "bi"
+    ASSISTENTE = "assistente"
+
+
 class HabilidadeCreate(BaseModel):
     titulo: str = Field(min_length=1)
     conteudo: str = Field(min_length=1)
+    agente: AgenteSkill = AgenteSkill.GLOBAL
 
 
 class HabilidadeUpdate(BaseModel):
     titulo: str | None = None
     conteudo: str | None = None
     ativo: bool | None = None
+    agente: AgenteSkill | None = None
 
 
 class CampanhaUpdate(BaseModel):
@@ -142,6 +153,67 @@ class TokenExchangeRequest(BaseModel):
 class OAuthFacebookExchange(BaseModel):
     code: str
     redirect_uri: str
+
+
+# ===================== Agente Executivo (Email & Atas) =====================
+class TipoItem(str, Enum):
+    EMAIL = "email"
+    ATA = "ata"
+
+
+class Prioridade(str, Enum):
+    ALTA = "alta"
+    MEDIA = "media"
+    BAIXA = "baixa"
+
+
+class ItemBruto(BaseModel):
+    """Um item discreto separado pelo orquestrador (um email ou uma ata)."""
+    tipo: TipoItem
+    titulo: str = Field(description="Assunto do email / nome da reunião")
+    conteudo: str = Field(description="Texto integral desse item")
+
+
+class PlanoExecucao(BaseModel):
+    """Saída do orquestrador: o input dividido em itens discretos."""
+    itens: list[ItemBruto]
+
+
+class AcaoItem(BaseModel):
+    descricao: str
+    responsavel: str | None = None
+    prazo: str | None = None
+
+
+class ItemProcessado(BaseModel):
+    """Contrato rígido worker -> sintetizador (limita o output do worker)."""
+    tipo: TipoItem
+    titulo: str
+    resumo: str = Field(description="2 a 4 frases com a essência")
+    prioridade: Prioridade
+    acoes: list[AcaoItem] = Field(default_factory=list)
+    decisoes: list[str] = Field(default_factory=list)
+
+
+class SinteseExecutiva(BaseModel):
+    """Visão executiva consolidada de todos os itens processados."""
+    resumo_geral: str
+    prioridades: list[str] = Field(default_factory=list)
+    acoes_consolidadas: list[AcaoItem] = Field(default_factory=list)
+    decisoes_consolidadas: list[str] = Field(default_factory=list)
+
+
+class ExecutivoResultado(BaseModel):
+    """Resultado completo de um processamento (síntese + itens + relatório de falhas)."""
+    sintese: SinteseExecutiva
+    itens: list[ItemProcessado] = Field(default_factory=list)
+    n_itens: int = 0
+    n_falhas: int = 0
+
+
+class ExecutivoRequest(BaseModel):
+    entrada: str = Field(min_length=1, description="Email(s) ou ata(s) colados/carregados")
+    titulo: str | None = None
 
 
 # ===================== Webhook do WhatsApp =====================

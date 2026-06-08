@@ -2,13 +2,14 @@
 
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
+import asyncio
 import httpx
 from datetime import datetime, timedelta, timezone
 
-from . import llm, whatsapp
+from . import executivo, llm, whatsapp
 from .config import get_settings
 from .db import get_db
-from .schemas import CopyRequest, CopyOutput, OnboardingPayload, SdrAction, SdrStatus
+from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, OnboardingPayload, SdrAction, SdrStatus
 
 # O SDR responde em enum legível (inglês); a BD usa o enum status_qualificacao
 # em português. Mapeamos na fronteira BD.
@@ -115,11 +116,11 @@ def listar_habilidades(cliente_id: str) -> list[dict]:
     )
 
 
-def criar_habilidade(cliente_id: str, titulo: str, conteudo: str) -> dict:
+def criar_habilidade(cliente_id: str, titulo: str, conteudo: str, agente: str = "global") -> dict:
     return (
         get_db()
         .table("habilidades")
-        .insert({"cliente_id": cliente_id, "titulo": titulo, "conteudo": conteudo})
+        .insert({"cliente_id": cliente_id, "titulo": titulo, "conteudo": conteudo, "agente": agente})
         .execute()
         .data[0]
     )
@@ -141,12 +142,67 @@ def apagar_habilidade(cliente_id: str, hid: str) -> None:
     get_db().table("habilidades").delete().eq("id", hid).eq("cliente_id", cliente_id).execute()
 
 
-def _habilidades_texto(cliente_id: str, ids: list[str] | None = None) -> str:
+# ===================== Agente Executivo (Email & Atas) =====================
+def listar_processamentos(cliente_id: str) -> list[dict]:
+    return (
+        get_db()
+        .table("processamentos_executivo")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+
+
+def processar_executivo(cliente_id: str, req: ExecutivoRequest) -> dict:
+    """Orquestra o processamento (Opus+Haiku), persiste o resultado e desconta créditos.
+
+    Créditos: só descontamos os workers com ÊXITO (base + 1 por item processado).
+    """
+    verificar_limite(cliente_id, CREDITOS_EXEC_BASE)  # bloqueia ANTES de gastar API
+    habilidades = _habilidades_texto(cliente_id, agente="assistente")
+    resultado = asyncio.run(executivo.processar(req.entrada, habilidades))
+
+    titulo = (req.titulo or "").strip() or _titulo_automatico(resultado)
+    row = {
+        "cliente_id": cliente_id,
+        "titulo": titulo,
+        "entrada": req.entrada,
+        "sintese": resultado.sintese.model_dump(),
+        "itens": [i.model_dump() for i in resultado.itens],
+        "n_itens": resultado.n_itens,
+        "n_falhas": resultado.n_falhas,
+    }
+    saved = get_db().table("processamentos_executivo").insert(row).execute().data[0]
+    # Só os itens com êxito cobram (falhas não descontam).
+    consumir_creditos(cliente_id, CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM)
+    return saved
+
+
+def _titulo_automatico(resultado) -> str:
+    """Título de fallback quando o utilizador não fornece um."""
+    if resultado.itens:
+        primeiro = resultado.itens[0].titulo.strip()
+        if primeiro:
+            extra = f" (+{len(resultado.itens) - 1})" if len(resultado.itens) > 1 else ""
+            return (primeiro[:80] + extra)
+    return "Processamento " + datetime.now(timezone.utc).strftime("%d/%m %H:%M")
+
+
+def apagar_processamento(cliente_id: str, pid: str) -> None:
+    get_db().table("processamentos_executivo").delete().eq("id", pid).eq("cliente_id", cliente_id).execute()
+
+
+def _habilidades_texto(
+    cliente_id: str, ids: list[str] | None = None, agente: str | None = None
+) -> str:
     """Texto das habilidades do cliente, para injetar no prompt do agente.
 
     - ids=None  -> todas as ATIVAS (comportamento legado, usado pelo SDR).
     - ids=[]    -> nenhuma (seleção explícita vazia na Fábrica de Campanhas).
     - ids=[...] -> só as escolhidas (filtradas também por cliente_id, por segurança).
+    - agente    -> se dado, restringe às habilidades desse agente + as `global`.
     """
     if ids is not None and not ids:
         return ""
@@ -155,6 +211,8 @@ def _habilidades_texto(cliente_id: str, ids: list[str] | None = None) -> str:
         q = q.eq("ativo", True)
     else:
         q = q.in_("id", ids)
+    if agente is not None:
+        q = q.in_("agente", [agente, "global"])
     rows = q.order("created_at").execute().data
     if not rows:
         return ""
@@ -172,7 +230,9 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     verificar_limite(cliente_id, CREDITOS_CAMPANHA)  # bloqueia ANTES de gastar API
     # Lista explícita: omitido/[] => nenhuma habilidade (poupa tokens); nunca cai no "todas".
     out: CopyOutput = llm.gerar_anuncios(
-        req.nicho, req.dor_latente, habilidades=_habilidades_texto(cliente_id, req.habilidade_ids or [])
+        req.nicho,
+        req.dor_latente,
+        habilidades=_habilidades_texto(cliente_id, req.habilidade_ids or [], agente="copywriting"),
     )
     db = get_db()
     row = {
@@ -296,7 +356,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
         dor_alvo=campanha.get("dor_alvo") or "",
         palavra_chave_gatilho=campanha.get("palavra_chave_gatilho") or "",
         link_calendario=link_calendario,
-        habilidades=_habilidades_texto(cliente_id),
+        habilidades=_habilidades_texto(cliente_id, agente="sdr"),
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
@@ -693,6 +753,8 @@ def apagar_campanha(cliente_id: str, cid: str) -> None:
 CREDITOS_CAMPANHA = 6   # Fábrica de Campanhas (Sonnet)
 CREDITOS_SDR = 1        # resposta do SDR no WhatsApp (Haiku)
 CREDITOS_BI = 12        # relatório do Diretor de BI (Opus)
+CREDITOS_EXEC_BASE = 10  # Agente Executivo: orquestração + síntese (Opus)
+CREDITOS_EXEC_ITEM = 1   # + por cada item processado com ÊXITO (worker Haiku)
 
 _CREDITOS_FALLBACK = 500  # se não houver plano Starter na BD
 

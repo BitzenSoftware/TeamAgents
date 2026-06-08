@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     model_sdr: str = "claude-haiku-4-5"
     model_bi: str = "claude-opus-4-8"
 
+    # Agente Executivo: orquestrador/síntese (Opus) + workers em paralelo (Haiku)
+    model_exec_orchestrator: str = "claude-opus-4-8"
+    model_exec_worker: str = "claude-haiku-4-5"
+
 
 @lru_cache
 def get_settings() -> Settings:

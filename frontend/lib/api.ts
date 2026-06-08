@@ -113,12 +113,50 @@ export type Plano = {
   ordem: number;
 };
 
+export type AgenteSkill = "global" | "copywriting" | "sdr" | "bi" | "assistente";
+
 export type Habilidade = {
   id: string;
   cliente_id: string;
   titulo: string;
   conteudo: string;
   ativo: boolean;
+  agente: AgenteSkill;
+  created_at: string;
+};
+
+// --- Agente Executivo (Email & Atas) ---
+export type AcaoItem = {
+  descricao: string;
+  responsavel: string | null;
+  prazo: string | null;
+};
+
+export type ItemProcessado = {
+  tipo: "email" | "ata";
+  titulo: string;
+  resumo: string;
+  prioridade: "alta" | "media" | "baixa";
+  acoes: AcaoItem[];
+  decisoes: string[];
+};
+
+export type SinteseExecutiva = {
+  resumo_geral: string;
+  prioridades: string[];
+  acoes_consolidadas: AcaoItem[];
+  decisoes_consolidadas: string[];
+};
+
+export type Processamento = {
+  id: string;
+  cliente_id: string;
+  titulo: string;
+  entrada: string;
+  sintese: SinteseExecutiva;
+  itens: ItemProcessado[];
+  n_itens: number;
+  n_falhas: number;
   created_at: string;
 };
 
@@ -227,15 +265,27 @@ export const api = {
   updateConfig: (body: ConfigUpdate) =>
     req<Config>("/me/config", { method: "PATCH", body: JSON.stringify(body) }),
   habilidades: () => req<Habilidade[]>("/me/habilidades"),
-  criarHabilidade: (titulo: string, conteudo: string) =>
+  criarHabilidade: (titulo: string, conteudo: string, agente: AgenteSkill = "global") =>
     req<Habilidade>("/me/habilidades", {
       method: "POST",
-      body: JSON.stringify({ titulo, conteudo }),
+      body: JSON.stringify({ titulo, conteudo, agente }),
     }),
-  atualizarHabilidade: (id: string, body: Partial<Pick<Habilidade, "titulo" | "conteudo" | "ativo">>) =>
-    req<Habilidade>(`/me/habilidades/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  atualizarHabilidade: (
+    id: string,
+    body: Partial<Pick<Habilidade, "titulo" | "conteudo" | "ativo" | "agente">>,
+  ) => req<Habilidade>(`/me/habilidades/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarHabilidade: (id: string) =>
     req<void>(`/me/habilidades/${id}`, { method: "DELETE" }),
+
+  // --- Agente Executivo ---
+  processamentos: () => req<Processamento[]>("/me/executivo"),
+  processarExecutivo: (entrada: string, titulo?: string) =>
+    req<Processamento>("/me/executivo", {
+      method: "POST",
+      body: JSON.stringify({ entrada, titulo }),
+    }),
+  apagarProcessamento: (id: string) =>
+    req<void>(`/me/executivo/${id}`, { method: "DELETE" }),
 
   trocarTokenFacebook: (user_access_token: string) =>
     req<{ access_token: string; name: string }>("/me/social-config/exchange-token", {
