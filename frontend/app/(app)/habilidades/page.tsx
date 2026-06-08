@@ -35,21 +35,21 @@ export default function HabilidadesPage() {
 
   return (
     <div className="max-w-5xl p-6">
-      <header className="mb-5 flex items-start justify-between gap-4">
-        <div>
+      <header className="mb-5">
+        <div className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold">Habilidades</h1>
-          <p className="text-sm text-black/50">
-            O conhecimento da sua empresa. Os agentes consultam isto antes de gerar campanhas e ao
-            conversar — ofertas, tom de voz, argumentos, respostas a objeções.
-          </p>
+          <button
+            type="button"
+            onClick={() => setModalAberto(true)}
+            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            + Adicionar habilidade
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setModalAberto(true)}
-          className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          + Adicionar habilidade
-        </button>
+        <p className="mt-1 text-sm text-black/50">
+          O conhecimento da sua empresa. Os agentes consultam isto antes de gerar campanhas e ao
+          conversar — ofertas, tom de voz, argumentos, respostas a objeções.
+        </p>
       </header>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
