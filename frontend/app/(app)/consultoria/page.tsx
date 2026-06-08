@@ -42,7 +42,7 @@ export default function ConsultoriaPage() {
       {ultimo && (
         <article className="rounded-2xl border border-black/10 bg-white p-7 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+            <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-medium text-white">
               Mais recente
             </span>
             <span className="text-xs text-black/40">

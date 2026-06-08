@@ -82,7 +82,7 @@ export default function HabilidadesPage() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+          className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
         >
           {saving ? "A guardar…" : "Adicionar habilidade"}
         </button>

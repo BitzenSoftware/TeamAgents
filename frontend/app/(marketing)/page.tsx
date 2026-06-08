@@ -79,7 +79,7 @@ export default function LandingPage() {
           </div>
           <Link
             href="/login"
-            className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
           >
             Entrar na plataforma
             <ArrowRight size={14} />
@@ -105,7 +105,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/login"
-              className="flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             >
               Começar agora
               <ArrowRight size={16} />
@@ -222,7 +222,7 @@ export default function LandingPage() {
           </p>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-8 py-3.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand px-8 py-3.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
           >
             Entrar na plataforma
             <ArrowRight size={16} />

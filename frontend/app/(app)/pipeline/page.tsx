@@ -142,7 +142,7 @@ function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) 
               <div key={i} className={`flex ${doLead ? "justify-start" : "justify-end"}`}>
                 <div
                   className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                    doLead ? "bg-white border border-black/10" : "bg-ink text-white"
+                    doLead ? "bg-white border border-black/10" : "bg-brand text-white"
                   }`}
                 >
                   {m.mensagem}

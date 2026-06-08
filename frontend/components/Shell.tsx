@@ -39,7 +39,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={`rounded-lg px-3 py-2 text-sm transition ${
-                  active ? "bg-ink text-white" : "hover:bg-black/5"
+                  active ? "bg-brand text-white" : "hover:bg-black/5"
                 }`}
               >
                 <div className="font-medium">{item.label}</div>

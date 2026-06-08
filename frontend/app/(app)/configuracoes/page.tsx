@@ -58,20 +58,24 @@ export default function ConfiguracoesPage() {
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-xl border border-black/10 bg-black/3 p-1">
-        {ABAS.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setAba(a.id)}
-            className={`flex-1 rounded-lg px-3 py-2.5 text-center transition-all ${
-              aba === a.id
-                ? "bg-white shadow-sm font-medium text-ink"
-                : "text-black/50 hover:text-ink"
-            }`}
-          >
-            <div className="text-xs font-semibold">{a.label}</div>
-            <div className="text-[10px] text-black/40">{a.sub}</div>
-          </button>
-        ))}
+        {ABAS.map((a) => {
+          const ativa = aba === a.id;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setAba(a.id)}
+              className={`flex-1 rounded-lg px-3 py-2.5 text-center transition-all ${
+                ativa
+                  ? "bg-brand font-medium text-white shadow-sm"
+                  : "text-black/50 hover:bg-black/5 hover:text-ink"
+              }`}
+            >
+              <div className="text-xs font-semibold">{a.label}</div>
+              <div className={`text-[10px] ${ativa ? "text-white/70" : "text-black/40"}`}>{a.sub}</div>
+            </button>
+          );
+        })}
       </div>
 
       {aba === "whatsapp"  && <AbaWhatsApp />}
@@ -417,7 +421,7 @@ function AbaFacebook() {
           <div className="flex items-center gap-3">
             <button type="button" onClick={trocarToken}
               disabled={trocando || !userToken.trim()}
-              className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
               {trocando ? "A trocar…" : "Converter para 60 dias"}
             </button>
           </div>
@@ -670,7 +674,7 @@ function GuiaInstagram() {
 function Passo({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
         {n}
       </span>
       <div>
@@ -742,7 +746,7 @@ function BotaoGuardar({ saving, ok }: { saving: boolean; ok: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <button type="submit" disabled={saving}
-        className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
+        className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
         {saving ? "A guardar…" : "Guardar"}
       </button>
       {ok && <span className="text-sm text-emerald-700">✓ Guardado</span>}

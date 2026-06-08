@@ -187,7 +187,7 @@ function PlanoCard({
         </label>
         <div className="ml-auto flex items-center gap-2">
           {ok && <span className="text-sm text-emerald-700">✓ Guardado</span>}
-          <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
+          <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
             {saving ? "…" : "Guardar"}
           </button>
           <button type="button" onClick={apagar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">

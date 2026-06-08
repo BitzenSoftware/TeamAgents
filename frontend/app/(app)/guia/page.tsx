@@ -32,7 +32,7 @@ export default function GuiaPage() {
             type="button"
             onClick={() => setTab(t.id)}
             className={`rounded-lg px-3 py-1.5 text-sm transition ${
-              tab === t.id ? "bg-ink text-white" : "text-black/60 hover:bg-black/5"
+              tab === t.id ? "bg-brand text-white" : "text-black/60 hover:bg-black/5"
             }`}
           >
             {t.label}
@@ -70,7 +70,7 @@ function Geral() {
             { n: "4", t: "Relatório", d: "Vê o resultado da semana" },
           ].map((s) => (
             <div key={s.n} className="rounded-xl border border-black/10 bg-white p-4">
-              <div className="mb-2 grid h-7 w-7 place-items-center rounded-full bg-ink text-xs font-semibold text-white">
+              <div className="mb-2 grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-semibold text-white">
                 {s.n}
               </div>
               <div className="font-medium">{s.t}</div>
@@ -123,7 +123,7 @@ function Geral() {
             "Receba o seu primeiro relatório na Consultoria",
           ].map((t, i) => (
             <li key={i} className="flex gap-2">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink text-[11px] text-white">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand text-[11px] text-white">
                 {i + 1}
               </span>
               <span>{t}</span>

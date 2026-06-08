@@ -71,7 +71,7 @@ export default function CampanhasPage() {
           <Field label="Link de calendário (opcional)">
             <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder="https://cal.com/voce/15min" />
           </Field>
-          <button type="submit" disabled={loading || !cliente} className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+          <button type="submit" disabled={loading || !cliente} className="w-full rounded-lg bg-brand py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
             {loading ? "A gerar com a IA…" : "Gerar anúncios"}
           </button>
           {erro && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
@@ -167,7 +167,7 @@ function CampanhaCard({ c, aberta, onChange }: { c: Campanha; aberta: boolean; o
           </Field>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+            <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
               {saving ? "A guardar…" : "Guardar"}
             </button>
             <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40">

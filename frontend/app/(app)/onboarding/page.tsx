@@ -61,7 +61,7 @@ export default function OnboardingPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+          className="w-full rounded-lg bg-brand py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
         >
           {loading ? "A configurar…" : "Concluir onboarding"}
         </button>
