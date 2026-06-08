@@ -24,6 +24,12 @@ services:
         sync: false
       - key: WEBHOOK_VERIFY_TOKEN
         sync: false
+      # Facebook App — OAuth "Ligar com Facebook", troca de token e debug_token.
+      # Obtém em developers.facebook.com → a tua App → Settings → Basic.
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
       # CORS — depois do deploy do frontend, mete aqui o domínio do Vercel
       # (ex: https://teamagents.vercel.app). Em dev pode ficar "*".
       - key: ALLOWED_ORIGINS
