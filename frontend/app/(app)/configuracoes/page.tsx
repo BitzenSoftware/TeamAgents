@@ -442,6 +442,7 @@ function AbaInstagram() {
   const [erroVerif, setErroVerif] = useState<string | null>(null);
   const [publicacaoOk, setPublicacaoOk] = useState(false);
   const [erroPublicacao, setErroPublicacao] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
     api.getSocialConfig().then(setCfg).catch((e) => setErro(e.message)).finally(() => setLoading(false));
@@ -473,7 +474,10 @@ function AbaInstagram() {
   async function publicarTeste() {
     setPublicando(true); setErroPublicacao(null); setPublicacaoOk(false);
     try {
-      await api.postarInstagram("🤖 TeamAgents conectado ao Instagram com sucesso! Esta é uma publicação de teste automática.");
+      await api.postarInstagram(
+        "🤖 TeamAgents conectado ao Instagram com sucesso! Esta é uma publicação de teste automática.",
+        imageUrl.trim() || undefined,
+      );
       setPublicacaoOk(true);
     } catch (err) {
       setErroPublicacao(err instanceof Error ? err.message : "Erro ao publicar");
@@ -502,6 +506,15 @@ function AbaInstagram() {
               onChange={(e) => setCfg((c) => c ? { ...c, instagram_business_account_id: e.target.value } : c)}
               placeholder="17841400000000000" />
             <p className="mt-1 text-xs text-black/40">Requer conta Instagram Business ligada a uma Facebook Page.</p>
+          </Campo>
+          <Campo label="URL da imagem (para publicação de teste)">
+            <input className="campo" value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://exemplo.com/imagem.jpg" />
+            <p className="mt-1 text-xs text-black/40">
+              O Instagram exige sempre uma imagem. Cola o URL público de um JPEG/PNG acessível.
+              Se deixares vazio, é usada uma imagem genérica.
+            </p>
           </Campo>
           <div className="flex flex-wrap items-center gap-3">
             <BotaoGuardar saving={saving} ok={ok} />

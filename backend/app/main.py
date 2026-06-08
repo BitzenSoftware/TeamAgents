@@ -315,7 +315,7 @@ async def postar_instagram(req: SocialPostRequest, cliente_id: str = Depends(aut
     token = cfg.get("facebook_page_access_token")
     if not ig_id or not token:
         raise HTTPException(status_code=400, detail="Instagram Business ID e Access Token são obrigatórios.")
-    image_url = req.image_url or "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotham.jpg/1080px-Above_Gotham.jpg"
+    image_url = req.image_url or "https://picsum.photos/1080"
     try:
         return await flow.postar_instagram(ig_id, token, req.mensagem, image_url)
     except ValueError as e:
