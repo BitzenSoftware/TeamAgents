@@ -121,6 +121,7 @@ class SocialConfigUpdate(BaseModel):
 
 class SocialPostRequest(BaseModel):
     mensagem: str = Field(min_length=1)
+    image_url: str | None = None
 
 
 # ===================== Webhook do WhatsApp =====================

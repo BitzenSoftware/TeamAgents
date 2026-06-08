@@ -336,10 +336,13 @@ function AbaInstagram() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verificando, setVerificando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [igInfo, setIgInfo] = useState<{ name: string; username: string; followers_count?: number } | null>(null);
   const [erroVerif, setErroVerif] = useState<string | null>(null);
+  const [publicacaoOk, setPublicacaoOk] = useState(false);
+  const [erroPublicacao, setErroPublicacao] = useState<string | null>(null);
 
   useEffect(() => {
     api.getSocialConfig().then(setCfg).catch((e) => setErro(e.message)).finally(() => setLoading(false));
@@ -366,6 +369,16 @@ function AbaInstagram() {
     } catch (err) {
       setErroVerif(err instanceof Error ? err.message : "ID incorreto ou token sem permissão");
     } finally { setVerificando(false); }
+  }
+
+  async function publicarTeste() {
+    setPublicando(true); setErroPublicacao(null); setPublicacaoOk(false);
+    try {
+      await api.postarInstagram("🤖 TeamAgents conectado ao Instagram com sucesso! Esta é uma publicação de teste automática.");
+      setPublicacaoOk(true);
+    } catch (err) {
+      setErroPublicacao(err instanceof Error ? err.message : "Erro ao publicar");
+    } finally { setPublicando(false); }
   }
 
   if (loading) return <Carregando />;
@@ -396,12 +409,17 @@ function AbaInstagram() {
               placeholder="17841400000000000" />
             <p className="mt-1 text-xs text-black/40">Requer conta Instagram Business ligada a uma Facebook Page.</p>
           </Campo>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <BotaoGuardar saving={saving} ok={ok} />
             <button type="button" onClick={verificar}
               disabled={verificando || !cfg?.instagram_business_account_id || !temFbToken}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
               {verificando ? "A verificar…" : "Verificar conta"}
+            </button>
+            <button type="button" onClick={publicarTeste}
+              disabled={publicando || !cfg?.instagram_business_account_id || !temFbToken}
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
+              {publicando ? "A publicar…" : "Publicação de teste"}
             </button>
           </div>
           {igInfo && (
@@ -411,6 +429,12 @@ function AbaInstagram() {
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
+          {publicacaoOk && (
+            <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+              ✓ Publicação de teste criada no Instagram! Verifica o teu perfil @{igInfo?.username ?? "bitzensoftware"}.
+            </div>
+          )}
+          {erroPublicacao && <Erro msg={erroPublicacao} />}
         </form>
       </div>
     </div>

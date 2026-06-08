@@ -230,6 +230,8 @@ export const api = {
   verificarInstagram: () => req<{ id: string; name: string; username: string; followers_count?: number }>("/me/social-config/test/instagram", { method: "POST" }),
   postarFacebook: (mensagem: string) =>
     req<{ id: string }>("/me/social-config/post/facebook", { method: "POST", body: JSON.stringify({ mensagem }) }),
+  postarInstagram: (mensagem: string, image_url?: string) =>
+    req<{ id: string }>("/me/social-config/post/instagram", { method: "POST", body: JSON.stringify({ mensagem, image_url }) }),
 
   // --- Admin (superadmin) ---
   planos: () => req<Plano[]>("/admin/planos"),

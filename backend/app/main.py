@@ -276,6 +276,20 @@ async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/me/social-config/post/instagram")
+async def postar_instagram(req: SocialPostRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    cfg = flow.get_social_config(cliente_id)
+    ig_id = cfg.get("instagram_business_account_id")
+    token = cfg.get("facebook_page_access_token")
+    if not ig_id or not token:
+        raise HTTPException(status_code=400, detail="Instagram Business ID e Access Token são obrigatórios.")
+    image_url = req.image_url or "https://placehold.co/1080x1080/1a1a1a/ffffff/png?text=TeamAgents"
+    try:
+        return await flow.postar_instagram(ig_id, token, req.mensagem, image_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ===================== Agente 3: relatório semanal =====================
 @app.post("/relatorios/{campanha_id}")
 def gerar_relatorio(campanha_id: str, periodo_inicio: str, periodo_fim: str) -> dict:
