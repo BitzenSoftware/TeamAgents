@@ -151,7 +151,16 @@ function Campanhas() {
           "A estratégia por trás: gatilho, dor-alvo e desejo-alvo identificados pela IA",
         ]}
       />
-      <Nota>Todas as campanhas geradas ficam guardadas no histórico, sempre acessíveis.</Nota>
+      <p>
+        Pode ainda <strong>publicar cada anúncio diretamente</strong> no Facebook, Instagram ou Discord
+        — escolhe as redes por baixo de cada versão e clica em <strong>Postar</strong> (basta ter as
+        contas ligadas em Configurações).
+      </p>
+      <Nota>
+        Pode escolher quais <strong>Habilidades</strong> (conhecimento da empresa) entram na geração —
+        usa menos tokens e foca o anúncio. Todas as campanhas ficam guardadas e podem ser editadas ou
+        apagadas.
+      </Nota>
     </ModuleTab>
   );
 }
@@ -199,15 +208,38 @@ function Consultoria() {
 /* ---------------- Configurações ---------------- */
 function Configuracoes() {
   return (
-    <ModuleTab icon="⚙️" title="Configurações" subtitle="A ligação ao seu WhatsApp" tag="A tomada que liga tudo à corrente">
-      <p>É aqui que liga o sistema ao seu negócio real. Precisa de configurar:</p>
+    <ModuleTab icon="⚙️" title="Configurações" subtitle="Onde liga tudo ao seu negócio" tag="A tomada que liga tudo à corrente">
+      <p>É aqui que liga o sistema ao seu negócio real, organizado em separadores:</p>
+
+      <p className="font-semibold text-black/90">📱 WhatsApp — Evolution API / Agenda</p>
       <Lista
         itens={[
           "O número de WhatsApp da empresa (via Evolution API) — por onde o vendedor atende",
-          "O link de agenda (Calendly) — que o vendedor envia para marcar reunião",
+          "O link de agenda (Calendly / Cal.com) — que o vendedor envia para marcar reunião",
           "O número do dono — onde recebe o relatório semanal",
         ]}
       />
+
+      <p className="font-semibold text-black/90">🔵 Facebook & Instagram — publicação automática</p>
+      <Lista
+        itens={[
+          'Clica em "Ligar com Facebook" e autoriza — os tokens são guardados automaticamente, sem configuração manual',
+          "Liga a Página do Facebook e a conta Instagram Business associada num só passo",
+          "Depois, publica os anúncios da Fábrica de Campanhas diretamente no Facebook e Instagram",
+          "Existe também configuração manual (Page ID + Token) e botões de teste, para casos avançados",
+        ]}
+      />
+      <Nota>O Instagram exige sempre uma imagem na publicação; o Facebook aceita só texto.</Nota>
+
+      <p className="font-semibold text-black/90">💬 Discord — notificações e relatórios</p>
+      <Lista
+        itens={[
+          "Cola o Webhook URL de um canal do teu servidor Discord",
+          "Usa o botão de teste para confirmar a ligação",
+          "As notificações e relatórios do Diretor de BI passam a chegar também ao teu Discord",
+        ]}
+      />
+
       <Nota>
         Pode preencher isto a qualquer momento. Enquanto não ligar o WhatsApp, o sistema funciona em
         modo de demonstração.
