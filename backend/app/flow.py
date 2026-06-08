@@ -355,13 +355,42 @@ def get_social_config(cliente_id: str) -> dict:
     db = get_db()
     res = db.table("social_config").select("*").eq("cliente_id", cliente_id).limit(1).execute()
     if res.data:
-        return res.data[0]
+        row = res.data[0]
+        # Limpa dados já guardados "sujos" (ex.: Page ID colado com crases).
+        for campo in _SOCIAL_TEXT_FIELDS:
+            if isinstance(row.get(campo), str):
+                row[campo] = _limpar_valor_colado(row[campo])
+        return row
     row = db.table("social_config").insert({"cliente_id": cliente_id}).execute()
     return row.data[0]
 
 
+# Campos de texto que costumam ser colados pelo utilizador e vêm "sujos"
+# (crases da formatação markdown, espaços, aspas, caracteres invisíveis).
+_SOCIAL_TEXT_FIELDS = {
+    "facebook_page_id",
+    "facebook_page_access_token",
+    "instagram_business_account_id",
+    "discord_webhook_url",
+}
+
+
+def _limpar_valor_colado(valor: str) -> str:
+    """Remove lixo de colagem: crases, aspas, espaços e caracteres invisíveis."""
+    if valor is None:
+        return valor
+    # Caracteres de largura zero / BOM que se colam ao copiar de páginas web
+    for invisivel in ("​", "‌", "‍", "﻿"):
+        valor = valor.replace(invisivel, "")
+    return valor.strip().strip("`'\" ").strip()
+
+
 def update_social_config(cliente_id: str, fields: dict) -> dict:
     """Atualiza (ou cria) a social_config do cliente."""
+    fields = {
+        k: (_limpar_valor_colado(v) if k in _SOCIAL_TEXT_FIELDS and isinstance(v, str) else v)
+        for k, v in fields.items()
+    }
     db = get_db()
     existing = db.table("social_config").select("id").eq("cliente_id", cliente_id).limit(1).execute()
     if existing.data:
