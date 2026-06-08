@@ -87,7 +87,7 @@ export default function CampanhasPage() {
             </div>
           )}
           {lista.map((c) => (
-            <CampanhaCard key={c.id} c={c} aberta={c.id === novaId} />
+            <CampanhaCard key={c.id} c={c} aberta={c.id === novaId} onChange={carregar} />
           ))}
         </div>
       </div>
@@ -97,12 +97,93 @@ export default function CampanhasPage() {
   );
 }
 
-function CampanhaCard({ c, aberta }: { c: Campanha; aberta: boolean }) {
+function CampanhaCard({ c, aberta, onChange }: { c: Campanha; aberta: boolean; onChange: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [apagando, setApagando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  // Cópias editáveis dos campos que o utilizador afina
+  const [nome, setNome] = useState(c.nome_campanha);
+  const [anuncioDor, setAnuncioDor] = useState(c.anuncio_dor);
+  const [anuncioBeneficio, setAnuncioBeneficio] = useState(c.anuncio_beneficio);
+  const [palavraChave, setPalavraChave] = useState(c.palavra_chave_gatilho);
+
+  function cancelar() {
+    setNome(c.nome_campanha);
+    setAnuncioDor(c.anuncio_dor);
+    setAnuncioBeneficio(c.anuncio_beneficio);
+    setPalavraChave(c.palavra_chave_gatilho);
+    setErro(null);
+    setEditando(false);
+  }
+
+  async function guardar() {
+    setSaving(true);
+    setErro(null);
+    try {
+      await api.atualizarCampanha(c.id, {
+        nome_campanha: nome,
+        anuncio_dor: anuncioDor,
+        anuncio_beneficio: anuncioBeneficio,
+        palavra_chave_gatilho: palavraChave,
+      });
+      setEditando(false);
+      onChange();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function apagar() {
+    if (!window.confirm(`Apagar a campanha "${c.nome_campanha}"? Esta ação não pode ser desfeita.`)) return;
+    setApagando(true);
+    setErro(null);
+    try {
+      await api.apagarCampanha(c.id);
+      onChange();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao apagar");
+      setApagando(false);
+    }
+  }
+
+  if (editando) {
+    return (
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <div className="space-y-3">
+          <Field label="Nome da campanha">
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder="Nome da campanha" />
+          </Field>
+          <Field label="Anúncio — Foco na Dor">
+            <textarea value={anuncioDor} onChange={(e) => setAnuncioDor(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado na dor" />
+          </Field>
+          <Field label="Anúncio — Foco no Benefício">
+            <textarea value={anuncioBeneficio} onChange={(e) => setAnuncioBeneficio(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado no benefício" />
+          </Field>
+          <Field label="Palavra-chave de gatilho">
+            <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder="PALAVRA_CHAVE" />
+          </Field>
+          {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+              {saving ? "A guardar…" : "Guardar"}
+            </button>
+            <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <details open={aberta} className="rounded-xl border border-black/10 bg-white p-4">
-      <summary className="cursor-pointer">
+      <summary className="flex cursor-pointer items-center gap-2">
         <span className="font-medium">{c.nome_campanha}</span>
-        <span className="ml-2 rounded bg-black/5 px-1.5 py-0.5 font-mono text-[11px]">
+        <span className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-[11px]">
           {c.palavra_chave_gatilho}
         </span>
       </summary>
@@ -120,6 +201,15 @@ function CampanhaCard({ c, aberta }: { c: Campanha; aberta: boolean }) {
           <Meta k="Dor-alvo" v={c.dor_alvo} />
           <Meta k="Desejo-alvo" v={c.desejo_alvo} />
           <Meta k="Palavra-chave" v={c.palavra_chave_gatilho} mono />
+        </div>
+        {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+        <div className="flex gap-2 border-t border-black/5 pt-3">
+          <button type="button" onClick={() => setEditando(true)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/3">
+            Editar
+          </button>
+          <button type="button" onClick={apagar} disabled={apagando} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40">
+            {apagando ? "A apagar…" : "Apagar"}
+          </button>
         </div>
       </div>
     </details>

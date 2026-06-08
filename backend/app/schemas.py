@@ -92,6 +92,14 @@ class HabilidadeUpdate(BaseModel):
     ativo: bool | None = None
 
 
+class CampanhaUpdate(BaseModel):
+    """Edição de uma campanha gerada — só os campos que o utilizador afina."""
+    nome_campanha: str | None = None
+    anuncio_dor: str | None = None
+    anuncio_beneficio: str | None = None
+    palavra_chave_gatilho: str | None = None
+
+
 # ===================== Planos (superadmin) =====================
 class PlanoCreate(BaseModel):
     nome: str = Field(min_length=1)

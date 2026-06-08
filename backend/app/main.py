@@ -11,6 +11,7 @@ from postgrest.exceptions import APIError
 from . import auth, evolution, flow
 from .config import get_settings
 from .schemas import (
+    CampanhaUpdate,
     ConfigUpdate,
     CopyRequest,
     HabilidadeCreate,
@@ -184,6 +185,21 @@ def verify_webhook(token: str = Query(default="")) -> dict:
 def listar_campanhas(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
     """Campanhas do tenant autenticado (mais recentes primeiro)."""
     return flow.listar_campanhas(cliente_id)
+
+
+@app.patch("/me/campanhas/{cid}")
+def atualizar_campanha(cid: str, payload: CampanhaUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Edita uma campanha do tenant autenticado (nome, anúncios, palavra-chave)."""
+    res = flow.atualizar_campanha(cliente_id, cid, payload.model_dump(exclude_none=True))
+    if res is None:
+        raise HTTPException(status_code=404, detail="Campanha não encontrada.")
+    return res
+
+
+@app.delete("/me/campanhas/{cid}", status_code=204)
+def apagar_campanha(cid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    """Apaga uma campanha do tenant autenticado."""
+    flow.apagar_campanha(cliente_id, cid)
 
 
 @app.get("/me/relatorios")

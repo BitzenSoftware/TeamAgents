@@ -639,6 +639,26 @@ def listar_campanhas(cliente_id: str) -> list[dict]:
     )
 
 
+def atualizar_campanha(cliente_id: str, cid: str, fields: dict) -> dict | None:
+    """Edita uma campanha do cliente. Devolve None se não existir/não for dele."""
+    if not fields:
+        rows = get_db().table("campanhas").select("*").eq("id", cid).eq("cliente_id", cliente_id).execute().data
+        return rows[0] if rows else None
+    res = (
+        get_db()
+        .table("campanhas")
+        .update(fields)
+        .eq("id", cid)
+        .eq("cliente_id", cliente_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def apagar_campanha(cliente_id: str, cid: str) -> None:
+    get_db().table("campanhas").delete().eq("id", cid).eq("cliente_id", cliente_id).execute()
+
+
 def listar_relatorios(cliente_id: str) -> list[dict]:
     """Relatórios de BI de um cliente, mais recentes primeiro."""
     return (

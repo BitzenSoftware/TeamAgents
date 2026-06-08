@@ -203,6 +203,12 @@ export const api = {
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),
+  atualizarCampanha: (
+    id: string,
+    body: Partial<Pick<Campanha, "nome_campanha" | "anuncio_dor" | "anuncio_beneficio" | "palavra_chave_gatilho">>,
+  ) => req<Campanha>(`/me/campanhas/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarCampanha: (id: string) =>
+    req<void>(`/me/campanhas/${id}`, { method: "DELETE" }),
   onboarding: (body: OnboardingInput) =>
     req<{ cliente_id: string; workspace_config_id: string }>("/api/v1/onboarding", {
       method: "POST",
