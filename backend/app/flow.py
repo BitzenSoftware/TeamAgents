@@ -389,9 +389,8 @@ async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
     """Publica uma mensagem na Facebook Page."""
     async with httpx.AsyncClient() as client:
         r = await client.post(
-            f"https://graph.facebook.com/v22.0/{page_id}/feed",
-            params={"access_token": token},
-            json={"message": mensagem}
+            f"https://graph.facebook.com/v21.0/{page_id}/feed",
+            data={"message": mensagem, "access_token": token},
         )
         if not r.is_success:
             body = r.json()
@@ -404,9 +403,8 @@ async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str
     async with httpx.AsyncClient() as client:
         # Etapa 1: criar container
         r1 = await client.post(
-            f"https://graph.facebook.com/v22.0/{ig_id}/media",
-            params={"access_token": token},
-            json={"image_url": image_url, "caption": mensagem}
+            f"https://graph.facebook.com/v21.0/{ig_id}/media",
+            data={"image_url": image_url, "caption": mensagem, "access_token": token},
         )
         if not r1.is_success:
             raise ValueError(r1.json().get("error", {}).get("message", r1.text))
@@ -414,9 +412,8 @@ async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str
 
         # Etapa 2: publicar
         r2 = await client.post(
-            f"https://graph.facebook.com/v22.0/{ig_id}/media_publish",
-            params={"access_token": token},
-            json={"creation_id": creation_id}
+            f"https://graph.facebook.com/v21.0/{ig_id}/media_publish",
+            data={"creation_id": creation_id, "access_token": token},
         )
         if not r2.is_success:
             raise ValueError(r2.json().get("error", {}).get("message", r2.text))
@@ -427,7 +424,7 @@ async def verificar_facebook(page_id: str, token: str) -> dict:
     """Verifica se o token da Page é válido."""
     async with httpx.AsyncClient() as client:
         r = await client.get(
-            f"https://graph.facebook.com/v22.0/{page_id}",
+            f"https://graph.facebook.com/v21.0/{page_id}",
             params={"access_token": token, "fields": "id,name"}
         )
         if not r.is_success:
@@ -440,7 +437,7 @@ async def verificar_instagram(ig_id: str, token: str) -> dict:
     """Verifica se o Instagram Business Account é acessível."""
     async with httpx.AsyncClient() as client:
         r = await client.get(
-            f"https://graph.facebook.com/v22.0/{ig_id}",
+            f"https://graph.facebook.com/v21.0/{ig_id}",
             params={"access_token": token, "fields": "id,name,username,followers_count"}
         )
         if not r.is_success:
