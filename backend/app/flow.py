@@ -401,11 +401,10 @@ async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
 async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str) -> dict:
     """Publica uma imagem com legenda no Instagram Business Account (duas etapas)."""
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        # Etapa 1: criar container de media
+        # Etapa 1: criar container de media — todos os campos como query params
         r1 = await client.post(
             f"https://graph.facebook.com/v21.0/{ig_id}/media",
-            params={"access_token": token},
-            json={"image_url": image_url, "caption": mensagem},
+            params={"access_token": token, "image_url": image_url, "caption": mensagem},
         )
         if not r1.is_success:
             body = r1.json() if r1.headers.get("content-type", "").startswith("application/json") else {}
@@ -416,8 +415,7 @@ async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str
         # Etapa 2: publicar o container
         r2 = await client.post(
             f"https://graph.facebook.com/v21.0/{ig_id}/media_publish",
-            params={"access_token": token},
-            json={"creation_id": creation_id},
+            params={"access_token": token, "creation_id": creation_id},
         )
         if not r2.is_success:
             body = r2.json() if r2.headers.get("content-type", "").startswith("application/json") else {}
