@@ -512,12 +512,10 @@ function CardsConsumo({ c }: { c: Consumo }) {
         <div className="p-4 text-2xl font-semibold">{c.restantes}</div>
       </div>
       <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
-        <div className={`${faixa} flex items-center justify-between`}>
-          <span>Uso do plano</span>
-          <span>{c.percent}%</span>
-        </div>
+        <div className={faixa}>Uso do plano</div>
         <div className="p-4">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
+          <div className="text-2xl font-semibold">{c.percent}%</div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
             <div className={`h-full rounded-full transition-all ${cor}`} style={{ width: `${c.percent}%` }} />
           </div>
           {c.percent >= 90 && (
