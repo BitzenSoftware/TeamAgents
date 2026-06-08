@@ -400,23 +400,29 @@ async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
 
 async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str) -> dict:
     """Publica uma imagem com legenda no Instagram Business Account (duas etapas)."""
-    async with httpx.AsyncClient() as client:
-        # Etapa 1: criar container
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        # Etapa 1: criar container de media
         r1 = await client.post(
             f"https://graph.facebook.com/v21.0/{ig_id}/media",
-            data={"image_url": image_url, "caption": mensagem, "access_token": token},
+            params={"access_token": token},
+            json={"image_url": image_url, "caption": mensagem},
         )
         if not r1.is_success:
-            raise ValueError(r1.json().get("error", {}).get("message", r1.text))
+            body = r1.json() if r1.headers.get("content-type", "").startswith("application/json") else {}
+            msg = body.get("error", {}).get("message") or r1.text
+            raise ValueError(msg)
         creation_id = r1.json()["id"]
 
-        # Etapa 2: publicar
+        # Etapa 2: publicar o container
         r2 = await client.post(
             f"https://graph.facebook.com/v21.0/{ig_id}/media_publish",
-            data={"creation_id": creation_id, "access_token": token},
+            params={"access_token": token},
+            json={"creation_id": creation_id},
         )
         if not r2.is_success:
-            raise ValueError(r2.json().get("error", {}).get("message", r2.text))
+            body = r2.json() if r2.headers.get("content-type", "").startswith("application/json") else {}
+            msg = body.get("error", {}).get("message") or r2.text
+            raise ValueError(msg)
         return r2.json()
 
 
