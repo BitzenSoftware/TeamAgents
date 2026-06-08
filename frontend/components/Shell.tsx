@@ -26,7 +26,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-black/10 bg-white/60 p-5">
+      <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-black/10 bg-white p-5">
         <div>
           <div className="text-lg font-semibold tracking-tight">TeamAgents</div>
           <div className="text-xs text-black/50">{cliente?.nome ?? "Painel"}</div>
