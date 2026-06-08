@@ -415,32 +415,36 @@ function CardsConsumo({ c }: { c: Consumo }) {
   const texto =
     c.percent >= 90 ? "text-rose-600" : c.percent >= 70 ? "text-amber-600" : "text-brand";
 
+  const faixa = "bg-gradient-to-r from-brand to-brand-dark px-4 py-2 text-xs font-semibold text-white";
+
   return (
     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <div className="text-xs font-medium text-black/40">Créditos usados (mês)</div>
-        <div className="mt-1 text-2xl font-semibold">
+      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+        <div className={faixa}>Créditos usados (mês)</div>
+        <div className="p-4 text-2xl font-semibold">
           {c.usados}
           <span className="text-base font-normal text-black/40"> / {c.total}</span>
         </div>
       </div>
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <div className="text-xs font-medium text-black/40">Disponíveis</div>
-        <div className="mt-1 text-2xl font-semibold">{c.restantes}</div>
+      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+        <div className={faixa}>Disponíveis</div>
+        <div className="p-4 text-2xl font-semibold">{c.restantes}</div>
       </div>
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-black/40">Uso do plano</span>
-          <span className={`text-sm font-semibold ${texto}`}>{c.percent}%</span>
+      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+        <div className={`${faixa} flex items-center justify-between`}>
+          <span>Uso do plano</span>
+          <span>{c.percent}%</span>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
-          <div className={`h-full rounded-full transition-all ${cor}`} style={{ width: `${c.percent}%` }} />
+        <div className="p-4">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
+            <div className={`h-full rounded-full transition-all ${cor}`} style={{ width: `${c.percent}%` }} />
+          </div>
+          {c.percent >= 90 && (
+            <p className="mt-2 text-[11px] text-rose-600">
+              Limite quase atingido — faz upgrade para não parar as gerações.
+            </p>
+          )}
         </div>
-        {c.percent >= 90 && (
-          <p className="mt-2 text-[11px] text-rose-600">
-            Limite quase atingido — faz upgrade para não parar as gerações.
-          </p>
-        )}
       </div>
     </div>
   );
