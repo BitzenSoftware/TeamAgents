@@ -39,7 +39,7 @@ export default function CampanhasPage() {
   const selecionada = lista.find((c) => c.id === selId) ?? null;
 
   return (
-    <div className="max-w-6xl p-6">
+    <div className="p-6">
       <header className="mb-5">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
@@ -78,10 +78,10 @@ export default function CampanhasPage() {
                       sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"
                     }`}
                   >
-                    <div className={`truncate text-sm ${sel ? "font-semibold text-brand" : "font-medium"}`}>
+                    <div className={`break-words text-sm ${sel ? "font-semibold text-brand" : "font-medium"}`}>
                       {c.nome_campanha}
                     </div>
-                    <div className="mt-0.5 truncate font-mono text-[11px] text-black/40">{c.palavra_chave_gatilho}</div>
+                    <div className="mt-0.5 break-words font-mono text-[11px] text-black/40">{c.palavra_chave_gatilho}</div>
                   </button>
                 );
               })}
@@ -205,7 +205,7 @@ function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () =>
   return (
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-        <h2 className="min-w-0 truncate text-base font-semibold text-white">{c.nome_campanha}</h2>
+        <h2 className="min-w-0 break-words text-base font-semibold text-white">{c.nome_campanha}</h2>
         <span className="shrink-0 rounded bg-white/20 px-2 py-0.5 font-mono text-[11px] text-white">
           {c.palavra_chave_gatilho}
         </span>

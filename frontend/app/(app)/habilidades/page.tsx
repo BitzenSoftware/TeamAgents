@@ -47,7 +47,7 @@ export default function HabilidadesPage() {
   }
 
   return (
-    <div className="max-w-6xl p-6">
+    <div className="p-6">
       <header className="mb-5">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold">Habilidades</h1>
@@ -90,17 +90,17 @@ export default function HabilidadesPage() {
                       key={h.id}
                       type="button"
                       onClick={() => setSelId(h.id)}
-                      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                      className={`flex w-full items-start justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
                         sel
                           ? "border-brand/40 bg-brand/10"
                           : "border-black/10 bg-white hover:bg-black/[0.03]"
                       }`}
                     >
-                      <span className={`min-w-0 truncate ${sel ? "font-semibold text-brand" : "font-medium"}`}>
+                      <span className={`flex-1 break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>
                         {h.titulo}
                       </span>
                       <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${h.ativo ? "bg-emerald-500" : "bg-black/20"}`}
+                        className={`mt-1 h-2 w-2 shrink-0 rounded-full ${h.ativo ? "bg-emerald-500" : "bg-black/20"}`}
                         title={h.ativo ? "Ativa" : "Inativa"}
                       />
                     </button>
@@ -149,7 +149,7 @@ function Detalhe({
   return (
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-        <h2 className="min-w-0 truncate text-base font-semibold text-white">{h.titulo}</h2>
+        <h2 className="min-w-0 break-words text-base font-semibold text-white">{h.titulo}</h2>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
             h.ativo ? "bg-white/20 text-white" : "bg-black/20 text-white/80"
