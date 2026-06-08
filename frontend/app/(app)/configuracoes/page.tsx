@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, type Config, type SocialConfig } from "@/lib/api";
+import { api, type Config, type EmailAccount, type SocialConfig } from "@/lib/api";
 
 const FB_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID ?? "";
 const FB_SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_insights,public_profile";
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 
-type Aba = "whatsapp" | "discord" | "facebook" | "instagram";
+type Aba = "whatsapp" | "discord" | "facebook" | "instagram" | "email";
 
 const ABAS: { id: Aba; label: string; sub: string }[] = [
   { id: "whatsapp",  label: "WhatsApp",  sub: "Evolution API / Agenda" },
   { id: "discord",   label: "Discord",   sub: "Relatórios de BI" },
   { id: "facebook",  label: "Facebook",  sub: "Publicação em Pages" },
   { id: "instagram", label: "Instagram", sub: "Conta Business" },
+  { id: "email",     label: "Email",     sub: "Gmail / Agente Executivo" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -34,6 +37,20 @@ export default function ConfiguracoesPage() {
         })
         .catch((e) => {
           setOauthMsg({ ok: false, text: e.message ?? "Erro ao ligar conta Facebook." });
+        })
+        .finally(() => {
+          router.replace("/configuracoes");
+        });
+    }
+    if (code && state === "google") {
+      setAba("email");
+      const redirectUri = `${window.location.origin}/configuracoes`;
+      api.oauthGoogle(code, redirectUri)
+        .then((acc) => {
+          setOauthMsg({ ok: true, text: `Gmail ligado: ${acc.email}` });
+        })
+        .catch((e) => {
+          setOauthMsg({ ok: false, text: e.message ?? "Erro ao ligar o Gmail." });
         })
         .finally(() => {
           router.replace("/configuracoes");
@@ -82,6 +99,153 @@ export default function ConfiguracoesPage() {
       {aba === "discord"   && <AbaDiscord />}
       {aba === "facebook"  && <AbaFacebook />}
       {aba === "instagram" && <AbaInstagram />}
+      {aba === "email"     && <AbaEmail />}
+    </div>
+  );
+}
+
+/* ─── Email (Gmail / Agente Executivo) ─────────────────────────────── */
+function AbaEmail() {
+  const [contas, setContas] = useState<EmailAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function carregar() {
+    api.emailAccounts().then(setContas).catch(() => {}).finally(() => setLoading(false));
+  }
+  useEffect(() => { carregar(); }, []);
+
+  const gmail = contas.find((c) => c.provider === "gmail") ?? null;
+
+  function ligarGmail() {
+    const redirectUri = `${window.location.origin}/configuracoes`;
+    const url =
+      "https://accounts.google.com/o/oauth2/v2/auth" +
+      `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent(GMAIL_SCOPE)}` +
+      "&response_type=code&access_type=offline&prompt=consent&state=google";
+    window.location.href = url;
+  }
+
+  async function desligar() {
+    if (!window.confirm("Desligar a conta de Gmail?")) return;
+    await api.desligarEmail("gmail");
+    setMsg(null);
+    carregar();
+  }
+
+  async function sincronizar() {
+    setSyncing(true); setMsg(null);
+    try {
+      const res = await api.sincronizarEmail("gmail");
+      setMsg({
+        ok: true,
+        text: res.n_emails === 0
+          ? "Sem emails novos nos últimos 7 dias."
+          : `${res.n_emails} email(s) processado(s). Vê o resultado em Agente Executivo.`,
+      });
+      carregar();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Erro ao sincronizar." });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  if (loading) return <Carregando />;
+
+  return (
+    <div className="grid grid-cols-5 gap-6">
+      <div className="col-span-2">
+        <GuiaEmail />
+      </div>
+      <div className="col-span-3">
+        {msg && (
+          <div className={`mb-4 flex items-start justify-between rounded-lg border p-3 text-sm ${msg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+            <span>{msg.ok ? "✓ " : "✗ "}{msg.text}</span>
+            <button type="button" onClick={() => setMsg(null)} className="ml-3 text-black/30 hover:text-black/60">×</button>
+          </div>
+        )}
+        <div className="rounded-xl border border-black/10 bg-white p-5">
+          <p className="mb-1 text-sm font-medium">Ligar a caixa de Gmail</p>
+          <p className="mb-3 text-xs text-black/40">
+            O Agente Executivo lê os teus emails recentes (só leitura) e resume-os — prioridades,
+            ações e decisões. Os tokens são guardados de forma segura, por empresa.
+          </p>
+
+          {gmail ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                ✓ Gmail ligado: <strong>{gmail.email}</strong>
+                {gmail.last_sync && (
+                  <span className="ml-2 text-xs text-emerald-700/70">
+                    · última sync {new Date(gmail.last_sync).toLocaleString("pt-PT")}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={sincronizar}
+                  disabled={syncing}
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  {syncing ? "A sincronizar…" : "Sincronizar agora"}
+                </button>
+                <button
+                  type="button"
+                  onClick={ligarGmail}
+                  className="rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5"
+                >
+                  Reconectar
+                </button>
+                <button
+                  type="button"
+                  onClick={desligar}
+                  className="rounded-lg border border-rose-200 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                >
+                  Desligar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={ligarGmail}
+              disabled={!GOOGLE_CLIENT_ID}
+              className="flex items-center gap-2 rounded-lg border border-black/20 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-black/5 disabled:opacity-40"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+              Ligar Gmail
+            </button>
+          )}
+          {!GOOGLE_CLIENT_ID && (
+            <p className="mt-2 text-xs text-rose-600">
+              Variável NEXT_PUBLIC_GOOGLE_CLIENT_ID não configurada no Vercel.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuiaEmail() {
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-5 text-sm">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">Como configurar</p>
+      <ol className="space-y-2.5 text-black/70">
+        <li><span className="mr-1 font-semibold text-brand">1</span> Cria um projeto em <strong>console.cloud.google.com</strong> e ativa a <strong>Gmail API</strong>.</li>
+        <li><span className="mr-1 font-semibold text-brand">2</span> Em <strong>OAuth consent screen</strong>, modo <strong>Testing</strong>, adiciona o teu email como <strong>Test user</strong>.</li>
+        <li><span className="mr-1 font-semibold text-brand">3</span> Em <strong>Credentials</strong>, cria um <strong>OAuth client ID</strong> (Web) com o redirect <code className="rounded bg-black/8 px-1">/configuracoes</code> deste domínio.</li>
+        <li><span className="mr-1 font-semibold text-brand">4</span> Mete o <strong>Client ID/Secret</strong> no Render e o <strong>Client ID</strong> no Vercel.</li>
+        <li><span className="mr-1 font-semibold text-brand">5</span> Clica <strong>Ligar Gmail</strong> e autoriza só-leitura. Depois usa <strong>Sincronizar</strong>.</li>
+      </ol>
+      <p className="mt-3 text-xs text-black/40">
+        O agente só <strong>lê</strong> emails — nunca envia nem apaga. O processamento aparece na página <strong>Agente Executivo</strong>.
+      </p>
     </div>
   );
 }

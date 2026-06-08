@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   api,
   type AcaoItem,
@@ -16,9 +16,6 @@ const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   baixa: "bg-emerald-100 text-emerald-700",
 };
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
-
 export default function ExecutivoPage() {
   const [lista, setLista] = useState<Processamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,8 +25,6 @@ export default function ExecutivoPage() {
   const [contas, setContas] = useState<EmailAccount[]>([]);
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const router = useRouter();
-  const params = useSearchParams();
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -48,42 +43,6 @@ export default function ExecutivoPage() {
     carregar();
     carregarContas();
   }, [carregar, carregarContas]);
-
-  // Callback do OAuth do Google (volta com ?code=...&state=google).
-  useEffect(() => {
-    const code = params.get("code");
-    const state = params.get("state");
-    if (code && state === "google") {
-      const redirectUri = `${window.location.origin}/executivo`;
-      api
-        .oauthGoogle(code, redirectUri)
-        .then((acc) => setEmailMsg({ ok: true, text: `Gmail ligado: ${acc.email}` }))
-        .catch((e) => setEmailMsg({ ok: false, text: e.message ?? "Erro ao ligar o Gmail." }))
-        .finally(() => {
-          carregarContas();
-          router.replace("/executivo");
-        });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function ligarGmail() {
-    const redirectUri = `${window.location.origin}/executivo`;
-    const url =
-      "https://accounts.google.com/o/oauth2/v2/auth" +
-      `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent(GMAIL_SCOPE)}` +
-      "&response_type=code&access_type=offline&prompt=consent&state=google";
-    window.location.href = url;
-  }
-
-  async function desligarGmail() {
-    if (!window.confirm("Desligar a conta de Gmail?")) return;
-    await api.desligarEmail("gmail");
-    setEmailMsg(null);
-    carregarContas();
-  }
 
   async function sincronizar() {
     setSyncing(true);
@@ -172,44 +131,27 @@ export default function ExecutivoPage() {
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={sincronizar}
-                disabled={syncing}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
-              >
-                {syncing ? "A sincronizar…" : "Sincronizar agora"}
-              </button>
-              <button
-                type="button"
-                onClick={desligarGmail}
-                className="rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5"
-              >
-                Desligar
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={sincronizar}
+              disabled={syncing}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+            >
+              {syncing ? "A sincronizar…" : "Sincronizar agora"}
+            </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-black/55">
-              Liga a tua conta de Gmail para o agente buscar e resumir os emails recentes
-              automaticamente.
+              Liga a tua conta de Gmail para o agente buscar e resumir os emails recentes.
             </p>
-            <button
-              type="button"
-              onClick={ligarGmail}
-              disabled={!GOOGLE_CLIENT_ID}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-40"
+            <Link
+              href="/configuracoes"
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5"
             >
-              Ligar Gmail
-            </button>
+              Ligar Gmail em Configurações →
+            </Link>
           </div>
-        )}
-        {!GOOGLE_CLIENT_ID && (
-          <p className="mt-2 text-xs text-rose-600">
-            Variável NEXT_PUBLIC_GOOGLE_CLIENT_ID não configurada no Vercel.
-          </p>
         )}
       </div>
 
