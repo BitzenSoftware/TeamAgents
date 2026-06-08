@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha, type Habilidade } from "@/lib/api";
+import { api, type Campanha, type Habilidade, type SocialConfig } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
@@ -19,6 +19,7 @@ export default function CampanhasPage() {
 
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [social, setSocial] = useState<SocialConfig | null>(null);
 
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
@@ -30,6 +31,7 @@ export default function CampanhasPage() {
 
   useEffect(() => {
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
+    api.getSocialConfig().then(setSocial).catch(() => {});
   }, []);
 
   function toggleHabilidade(id: string) {
@@ -145,7 +147,7 @@ export default function CampanhasPage() {
             </div>
           )}
           {lista.map((c) => (
-            <CampanhaCard key={c.id} c={c} aberta={c.id === novaId} onChange={carregar} />
+            <CampanhaCard key={c.id} c={c} aberta={c.id === novaId} onChange={carregar} social={social} />
           ))}
         </div>
       </div>
@@ -155,7 +157,7 @@ export default function CampanhasPage() {
   );
 }
 
-function CampanhaCard({ c, aberta, onChange }: { c: Campanha; aberta: boolean; onChange: () => void }) {
+function CampanhaCard({ c, aberta, onChange, social }: { c: Campanha; aberta: boolean; onChange: () => void; social: SocialConfig | null }) {
   const [editando, setEditando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apagando, setApagando] = useState(false);
@@ -249,10 +251,12 @@ function CampanhaCard({ c, aberta, onChange }: { c: Campanha; aberta: boolean; o
         <div className="rounded-lg border border-black/10 p-3">
           <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Foco na Dor</span>
           <p className="whitespace-pre-wrap text-sm">{c.anuncio_dor}</p>
+          <PostarAnuncio texto={c.anuncio_dor} social={social} />
         </div>
         <div className="rounded-lg border border-black/10 p-3">
           <span className="mb-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Foco no Benefício</span>
           <p className="whitespace-pre-wrap text-sm">{c.anuncio_beneficio}</p>
+          <PostarAnuncio texto={c.anuncio_beneficio} social={social} />
         </div>
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-3 text-sm">
           <Meta k="Gatilho" v={c.gatilho_principal} />
@@ -271,6 +275,109 @@ function CampanhaCard({ c, aberta, onChange }: { c: Campanha; aberta: boolean; o
         </div>
       </div>
     </details>
+  );
+}
+
+const REDES = [
+  { id: "facebook", label: "Facebook" },
+  { id: "instagram", label: "Instagram" },
+  { id: "discord", label: "Discord" },
+] as const;
+
+type RedeId = (typeof REDES)[number]["id"];
+
+function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig | null }) {
+  const [sel, setSel] = useState<RedeId[]>([]);
+  const [imageUrl, setImageUrl] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [resultados, setResultados] = useState<{ rede: RedeId; ok: boolean; msg: string }[]>([]);
+
+  function configurado(id: RedeId): boolean {
+    if (!social) return false;
+    if (id === "facebook") return !!(social.facebook_page_id && social.facebook_page_access_token);
+    if (id === "instagram") return !!(social.instagram_business_account_id && social.facebook_page_access_token);
+    return !!social.discord_webhook_url; // discord
+  }
+
+  function toggle(id: RedeId) {
+    if (!configurado(id)) return;
+    setResultados([]);
+    setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+
+  const precisaImagem = sel.includes("instagram");
+  const labelRede = (id: RedeId) => REDES.find((r) => r.id === id)?.label ?? id;
+
+  async function postar() {
+    setPosting(true);
+    setResultados([]);
+    const res: { rede: RedeId; ok: boolean; msg: string }[] = [];
+    for (const rede of sel) {
+      try {
+        if (rede === "facebook") await api.postarFacebook(texto);
+        else if (rede === "instagram") await api.postarInstagram(texto, imageUrl.trim() || undefined);
+        else await api.postarDiscord(texto);
+        res.push({ rede, ok: true, msg: "publicado" });
+      } catch (err) {
+        res.push({ rede, ok: false, msg: err instanceof Error ? err.message : "erro" });
+      }
+    }
+    setResultados(res);
+    setPosting(false);
+  }
+
+  return (
+    <div className="mt-3 border-t border-black/5 pt-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {REDES.map((r) => {
+          const ok = configurado(r.id);
+          const ativo = sel.includes(r.id);
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => toggle(r.id)}
+              disabled={!ok}
+              title={ok ? undefined : "Liga esta rede em Configurações"}
+              className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                ativo
+                  ? "border-brand bg-brand text-white"
+                  : ok
+                    ? "border-black/15 text-black/60 hover:bg-black/5"
+                    : "cursor-not-allowed border-black/10 text-black/25"
+              }`}
+            >
+              {r.label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={postar}
+          disabled={posting || sel.length === 0 || (precisaImagem && !imageUrl.trim())}
+          className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+        >
+          {posting ? "A publicar…" : "Postar"}
+        </button>
+      </div>
+      {precisaImagem && (
+        <input
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="URL da imagem (obrigatório para Instagram)"
+          className="campo mt-2 text-xs"
+        />
+      )}
+      {resultados.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {resultados.map((r) => (
+            <p key={r.rede} className={`text-[11px] ${r.ok ? "text-emerald-700" : "text-rose-700"}`}>
+              {r.ok ? "✓" : "✗"} {labelRede(r.rede)}: {r.ok ? "publicado" : r.msg}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

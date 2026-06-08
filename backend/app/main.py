@@ -276,7 +276,7 @@ async def postar_discord(req: SocialPostRequest, cliente_id: str = Depends(auth.
     if not url:
         raise HTTPException(status_code=400, detail="Webhook URL do Discord não configurado.")
     try:
-        return await flow.testar_discord(url)
+        return await flow.postar_discord(url, req.mensagem)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

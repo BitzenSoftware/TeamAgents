@@ -249,6 +249,8 @@ export const api = {
     req<{ id: string }>("/me/social-config/post/facebook", { method: "POST", body: JSON.stringify({ mensagem }) }),
   postarInstagram: (mensagem: string, image_url?: string) =>
     req<{ id: string }>("/me/social-config/post/instagram", { method: "POST", body: JSON.stringify({ mensagem, image_url }) }),
+  postarDiscord: (mensagem: string) =>
+    req<{ ok: boolean }>("/me/social-config/post/discord", { method: "POST", body: JSON.stringify({ mensagem }) }),
 
   // --- Admin (superadmin) ---
   planos: () => req<Plano[]>("/admin/planos"),

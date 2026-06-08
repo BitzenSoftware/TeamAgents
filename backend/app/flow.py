@@ -405,18 +405,28 @@ def update_social_config(cliente_id: str, fields: dict) -> dict:
     return res.data[0]
 
 
-async def testar_discord(webhook_url: str) -> dict:
-    """Envia uma mensagem de teste ao webhook do Discord."""
+async def _enviar_discord(webhook_url: str, content: str) -> dict:
+    """Envia uma mensagem (content) ao webhook do Discord."""
     # Normaliza para discord.com (discordapp.com é domínio legado)
     url = webhook_url.replace("discordapp.com", "discord.com")
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        r = await client.post(url, json={
-            "content": "✅ **TeamAgents** conectado com sucesso! As notificações do Diretor de BI serão enviadas aqui.",
-            "username": "TeamAgents BI"
-        })
+        r = await client.post(url, json={"content": content, "username": "TeamAgents BI"})
         if r.status_code not in (200, 204):
             raise ValueError(f"Discord devolveu {r.status_code}: {r.text}")
     return {"ok": True}
+
+
+async def testar_discord(webhook_url: str) -> dict:
+    """Envia uma mensagem de teste ao webhook do Discord."""
+    return await _enviar_discord(
+        webhook_url,
+        "✅ **TeamAgents** conectado com sucesso! As notificações do Diretor de BI serão enviadas aqui.",
+    )
+
+
+async def postar_discord(webhook_url: str, mensagem: str) -> dict:
+    """Publica uma mensagem real (ex.: anúncio de campanha) no webhook do Discord."""
+    return await _enviar_discord(webhook_url, mensagem)
 
 
 async def _diagnosticar_token_facebook(client: httpx.AsyncClient, token: str) -> str | None:
