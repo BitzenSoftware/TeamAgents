@@ -274,12 +274,7 @@ function AbaFacebook() {
   return (
     <div className="grid grid-cols-5 gap-6">
       <div className="col-span-2">
-        <Instrucoes steps={[
-          "Acede a developers.facebook.com e cria uma App (tipo: Business)",
-          "Em Graph API Explorer, gera um User Token com permissão pages_manage_posts",
-          "Troca o User Token por um Page Token de longa duração",
-          "Copia o Page ID (visível nas definições da Página) e o Page Access Token",
-        ]} />
+        <GuiaFacebook />
       </div>
       <div className="col-span-3">
         {erro && <Erro msg={erro} />}
@@ -388,12 +383,7 @@ function AbaInstagram() {
   return (
     <div className="grid grid-cols-5 gap-6">
       <div className="col-span-2">
-        <Instrucoes steps={[
-          "Garante que tens a aba Facebook configurada (partilham o mesmo token)",
-          "Na tua Facebook Page → Definições → Instagram → Liga a conta",
-          "Em Graph API Explorer: GET /{facebook-page-id}?fields=instagram_business_account",
-          "Copia o 'id' devolvido — esse é o teu Instagram Business Account ID",
-        ]} />
+        <GuiaInstagram />
       </div>
       <div className="col-span-3">
         {!temFbToken && (
@@ -436,6 +426,139 @@ function AbaInstagram() {
           )}
           {erroPublicacao && <Erro msg={erroPublicacao} />}
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Guia Facebook ────────────────────────────────────────────────── */
+function GuiaFacebook() {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-xl border border-black/8 bg-black/2 p-4 text-xs text-black/60">
+      <button type="button" onClick={() => setAberto(v => !v)}
+        className="flex w-full items-center justify-between font-semibold uppercase tracking-wide text-black/40 hover:text-black/60 transition-colors">
+        <span>Guia de configuração</span>
+        <span>{aberto ? "▲" : "▼"}</span>
+      </button>
+      {aberto && (
+        <div className="mt-4 space-y-4">
+          <Passo n={1} titulo="Criar a App no Facebook">
+            <p>Acede a <strong>developers.facebook.com</strong> → clica em <strong>My Apps</strong> → <strong>Create App</strong>.</p>
+            <p className="mt-1">Preenche os campos:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li><strong>App name:</strong> Bitzen Social (ou o nome da tua empresa)</li>
+              <li><strong>App contact email:</strong> o teu email</li>
+            </ul>
+            <p className="mt-1">Clica em <strong>Next</strong>.</p>
+          </Passo>
+
+          <Passo n={2} titulo="Selecionar casos de utilização">
+            <p>No filtro lateral, clica em <strong>Content management</strong>.</p>
+            <p className="mt-1">Seleciona <strong>os dois</strong> casos:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li>Manage messaging &amp; content on Instagram</li>
+              <li>Manage everything on your Page</li>
+            </ul>
+            <p className="mt-1">Clica <strong>Next</strong> → <strong>Next</strong> → <strong>Next</strong> → <strong>Create App</strong>.</p>
+          </Passo>
+
+          <Passo n={3} titulo="Adicionar permissões à app">
+            <p>No dashboard da app, clica em:</p>
+            <p className="mt-1 font-medium text-black/70">"Customize the Manage everything on your Page use case"</p>
+            <p className="mt-1">Vai a <strong>Permissions and features</strong> e clica <strong>+ Add</strong> em:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li><code className="bg-black/8 px-1 rounded">pages_manage_posts</code></li>
+              <li><code className="bg-black/8 px-1 rounded">pages_read_engagement</code></li>
+            </ul>
+          </Passo>
+
+          <Passo n={4} titulo="Gerar o Page Access Token">
+            <p>Vai a <strong>Tools</strong> (menu superior) → <strong>Graph API Explorer</strong>.</p>
+            <p className="mt-1">No painel direito:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li>Em <strong>Meta App</strong>, seleciona a tua app</li>
+              <li>Em <strong>Permissions</strong>, adiciona: <code className="bg-black/8 px-1 rounded">pages_show_list</code>, <code className="bg-black/8 px-1 rounded">pages_read_engagement</code>, <code className="bg-black/8 px-1 rounded">pages_manage_posts</code></li>
+              <li>Clica <strong>Generate Access Token</strong> e autoriza o popup</li>
+            </ul>
+          </Passo>
+
+          <Passo n={5} titulo="Obter o Page ID e o Token">
+            <p>No campo de query, escreve:</p>
+            <code className="mt-1 block bg-black/8 px-2 py-1 rounded font-mono">me/accounts</code>
+            <p className="mt-2">Clica <strong>Submit</strong>. Na resposta JSON, dentro de <code className="bg-black/8 px-1 rounded">data[0]</code>, copia:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li><code className="bg-black/8 px-1 rounded">"access_token"</code> → cola em <strong>Page Access Token</strong></li>
+              <li><code className="bg-black/8 px-1 rounded">"id"</code> → cola em <strong>Facebook Page ID</strong></li>
+            </ul>
+            <div className="mt-2 rounded bg-amber-50 border border-amber-200 p-2 text-amber-800">
+              ⚠️ Copia o token do <strong>JSON da resposta</strong>, NÃO o token do painel direito. São tokens diferentes!
+            </div>
+          </Passo>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Guia Instagram ───────────────────────────────────────────────── */
+function GuiaInstagram() {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-xl border border-black/8 bg-black/2 p-4 text-xs text-black/60">
+      <button type="button" onClick={() => setAberto(v => !v)}
+        className="flex w-full items-center justify-between font-semibold uppercase tracking-wide text-black/40 hover:text-black/60 transition-colors">
+        <span>Guia de configuração</span>
+        <span>{aberto ? "▲" : "▼"}</span>
+      </button>
+      {aberto && (
+        <div className="mt-4 space-y-4">
+          <Passo n={1} titulo="Pré-requisito: aba Facebook">
+            <p>O Instagram usa o <strong>mesmo Page Access Token</strong> do Facebook.</p>
+            <p className="mt-1">Configura primeiro a aba <strong>Facebook</strong> antes de continuar aqui.</p>
+          </Passo>
+
+          <Passo n={2} titulo="Ligar o Instagram à Página">
+            <p>Na tua Página do Facebook, clica em <strong>Configurações</strong>.</p>
+            <p className="mt-1">No menu lateral, procura <strong>Contas associadas</strong> → <strong>Instagram</strong>.</p>
+            <p className="mt-1">Clica em Instagram → <strong>Ligar conta</strong> e entra com as credenciais da tua conta <strong>Instagram Business ou Creator</strong>.</p>
+            <div className="mt-2 rounded bg-blue-50 border border-blue-200 p-2 text-blue-800">
+              ℹ️ O Instagram tem de ser uma conta <strong>Business</strong> ou <strong>Creator</strong>, não pessoal.
+            </div>
+          </Passo>
+
+          <Passo n={3} titulo="Obter o Instagram Business Account ID">
+            <p>Volta ao <strong>Graph API Explorer</strong> (Tools → Graph API Explorer).</p>
+            <p className="mt-1">No campo de query, escreve (substitui pelo teu Page ID):</p>
+            <code className="mt-1 block bg-black/8 px-2 py-1 rounded font-mono break-all">{'<PAGE_ID>?fields=instagram_business_account'}</code>
+            <p className="mt-2">Clica <strong>Submit</strong>. Na resposta, copia o valor de <code className="bg-black/8 px-1 rounded">"id"</code> dentro de <code className="bg-black/8 px-1 rounded">instagram_business_account</code>.</p>
+            <p className="mt-1">É um número com ~17 dígitos. Cola-o em <strong>Instagram Business Account ID</strong> acima.</p>
+          </Passo>
+
+          <Passo n={4} titulo="Renovar o token (a cada 60 dias)">
+            <p>O Page Access Token expira em <strong>60 dias</strong>. Quando expirar:</p>
+            <ul className="mt-1 list-disc pl-4 space-y-0.5">
+              <li>Vai ao Graph API Explorer → Generate Access Token</li>
+              <li>Corre <code className="bg-black/8 px-1 rounded">me/accounts</code></li>
+              <li>Copia o novo <code className="bg-black/8 px-1 rounded">access_token</code> do JSON</li>
+              <li>Atualiza na aba <strong>Facebook</strong> (o Instagram atualiza automaticamente)</li>
+            </ul>
+          </Passo>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Passo({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white">
+        {n}
+      </span>
+      <div>
+        <p className="font-semibold text-black/70 mb-1">{titulo}</p>
+        {children}
       </div>
     </div>
   );
