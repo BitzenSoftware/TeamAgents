@@ -141,18 +141,21 @@ def apagar_habilidade(cliente_id: str, hid: str) -> None:
     get_db().table("habilidades").delete().eq("id", hid).eq("cliente_id", cliente_id).execute()
 
 
-def _habilidades_texto(cliente_id: str) -> str:
-    """Texto das habilidades ATIVAS do cliente, para injetar no prompt do agente."""
-    rows = (
-        get_db()
-        .table("habilidades")
-        .select("titulo, conteudo")
-        .eq("cliente_id", cliente_id)
-        .eq("ativo", True)
-        .order("created_at")
-        .execute()
-        .data
-    )
+def _habilidades_texto(cliente_id: str, ids: list[str] | None = None) -> str:
+    """Texto das habilidades do cliente, para injetar no prompt do agente.
+
+    - ids=None  -> todas as ATIVAS (comportamento legado, usado pelo SDR).
+    - ids=[]    -> nenhuma (seleção explícita vazia na Fábrica de Campanhas).
+    - ids=[...] -> só as escolhidas (filtradas também por cliente_id, por segurança).
+    """
+    if ids is not None and not ids:
+        return ""
+    q = get_db().table("habilidades").select("titulo, conteudo").eq("cliente_id", cliente_id)
+    if ids is None:
+        q = q.eq("ativo", True)
+    else:
+        q = q.in_("id", ids)
+    rows = q.order("created_at").execute().data
     if not rows:
         return ""
     linhas = "\n".join(f"- {r['titulo']}: {r['conteudo']}" for r in rows)
@@ -166,8 +169,9 @@ def _habilidades_texto(cliente_id: str) -> str:
 # ===================== Agente 1: criar campanha =====================
 def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""
+    # Lista explícita: omitido/[] => nenhuma habilidade (poupa tokens); nunca cai no "todas".
     out: CopyOutput = llm.gerar_anuncios(
-        req.nicho, req.dor_latente, habilidades=_habilidades_texto(cliente_id)
+        req.nicho, req.dor_latente, habilidades=_habilidades_texto(cliente_id, req.habilidade_ids or [])
     )
     db = get_db()
     row = {

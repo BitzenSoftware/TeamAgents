@@ -26,6 +26,9 @@ class CopyRequest(BaseModel):
     nome_cliente: str
     nome_campanha: str
     link_calendario: str | None = None
+    # IDs das habilidades a injetar no prompt. [] ou omitido = nenhuma (poupa tokens).
+    # A lista é explícita: para "todas", o frontend envia todos os IDs.
+    habilidade_ids: list[str] | None = None
 
 
 # ===================== Agente 2: SDR =====================

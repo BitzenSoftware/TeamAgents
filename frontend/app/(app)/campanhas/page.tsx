@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha } from "@/lib/api";
+import { api, type Campanha, type Habilidade } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
@@ -16,6 +17,9 @@ export default function CampanhasPage() {
   const [lista, setLista] = useState<Campanha[]>([]);
   const [novaId, setNovaId] = useState<string | null>(null);
 
+  const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
   }, []);
@@ -23,6 +27,14 @@ export default function CampanhasPage() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
+  }, []);
+
+  function toggleHabilidade(id: string) {
+    setSelecionadas((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
 
   async function gerar(e: React.FormEvent) {
     e.preventDefault();
@@ -36,12 +48,14 @@ export default function CampanhasPage() {
         dor_latente: dor,
         nome_campanha: nomeCampanha,
         link_calendario: link || undefined,
+        habilidade_ids: selecionadas,
       });
       setNovaId(c.id);
       setNomeCampanha("");
       setNicho("");
       setDor("");
       setLink("");
+      setSelecionadas([]);
       carregar();
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao gerar campanha");
@@ -68,6 +82,50 @@ export default function CampanhasPage() {
           <Field label="Dor latente / objetivo do negócio">
             <textarea required value={dor} onChange={(e) => setDor(e.target.value)} className="campo h-24 resize-none" placeholder="Ex: O dono é engolido pela burocracia e não consegue crescer." />
           </Field>
+          <div className="block">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-xs font-medium text-black/60">Habilidades (opcional)</span>
+              {habilidades.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelecionadas(selecionadas.length === habilidades.length ? [] : habilidades.map((h) => h.id))}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  {selecionadas.length === habilidades.length ? "Limpar" : "Selecionar todas"}
+                </button>
+              )}
+            </div>
+            {habilidades.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-black/15 p-3 text-xs text-black/40">
+                Sem habilidades ativas. Cria conhecimento da empresa no menu{" "}
+                <Link href="/habilidades" className="font-medium text-brand hover:underline">Habilidades</Link>.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {habilidades.map((h) => {
+                  const sel = selecionadas.includes(h.id);
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => toggleHabilidade(h.id)}
+                      title={h.conteudo}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${
+                        sel ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/5"
+                      }`}
+                    >
+                      {h.titulo}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-1 text-xs text-black/40">
+              {selecionadas.length === 0
+                ? "Nenhuma selecionada — gera só com nicho + dor (mais económico em tokens)."
+                : `${selecionadas.length} habilidade${selecionadas.length > 1 ? "s" : ""} no prompt.`}
+            </p>
+          </div>
           <Field label="Link de calendário (opcional)">
             <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder="https://cal.com/voce/15min" />
           </Field>

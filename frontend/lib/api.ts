@@ -73,6 +73,7 @@ export type CampanhaInput = {
   nome_cliente: string;
   nome_campanha: string;
   link_calendario?: string;
+  habilidade_ids?: string[];
 };
 
 export type OnboardingInput = {
