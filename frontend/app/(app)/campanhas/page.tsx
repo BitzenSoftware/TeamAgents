@@ -3,22 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha, type Habilidade, type SocialConfig, type Consumo } from "@/lib/api";
+import { api, type Campanha, type Cliente, type Habilidade, type SocialConfig, type Consumo } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
-  const [nicho, setNicho] = useState("");
-  const [dor, setDor] = useState("");
-  const [nomeCampanha, setNomeCampanha] = useState("");
-  const [link, setLink] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
   const [lista, setLista] = useState<Campanha[]>([]);
-  const [novaId, setNovaId] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [modalAberto, setModalAberto] = useState(false);
 
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
-  const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [social, setSocial] = useState<SocialConfig | null>(null);
   const [consumo, setConsumo] = useState<Consumo | null>(null);
 
@@ -32,13 +25,241 @@ export default function CampanhasPage() {
 
   useEffect(() => {
     carregar();
-  }, [carregar]);
-
-  useEffect(() => {
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
     api.getSocialConfig().then(setSocial).catch(() => {});
     carregarConsumo();
-  }, [carregarConsumo]);
+  }, [carregar, carregarConsumo]);
+
+  // Mantém uma seleção válida (auto-seleciona a primeira).
+  useEffect(() => {
+    if (lista.length === 0) setSelId(null);
+    else if (!lista.some((c) => c.id === selId)) setSelId(lista[0].id);
+  }, [lista, selId]);
+
+  const selecionada = lista.find((c) => c.id === selId) ?? null;
+
+  return (
+    <div className="max-w-6xl p-6">
+      <header className="mb-5">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
+          <button
+            type="button"
+            onClick={() => setModalAberto(true)}
+            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            + Nova campanha
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
+      </header>
+
+      {consumo && <CardsConsumo c={consumo} />}
+
+      {lista.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
+          Ainda não há campanhas. Clica em <strong>“+ Nova campanha”</strong> para gerar os teus
+          primeiros anúncios.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+          {/* Lista (master) */}
+          <aside className="md:col-span-4 lg:col-span-3">
+            <div className="mb-2 text-xs font-medium text-black/50">Campanhas geradas ({lista.length})</div>
+            <div className="space-y-1.5">
+              {lista.map((c) => {
+                const sel = c.id === selId;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelId(c.id)}
+                    className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
+                      sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    <div className={`truncate text-sm ${sel ? "font-semibold text-brand" : "font-medium"}`}>
+                      {c.nome_campanha}
+                    </div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-black/40">{c.palavra_chave_gatilho}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          {/* Detalhe (detail) */}
+          <section className="md:col-span-8 lg:col-span-9">
+            {selecionada ? (
+              <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} />
+            ) : (
+              <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
+                Seleciona uma campanha à esquerda.
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {modalAberto && (
+        <ModalNovaCampanha
+          cliente={cliente}
+          habilidades={habilidades}
+          onClose={() => setModalAberto(false)}
+          onCreated={(c) => {
+            setModalAberto(false);
+            setSelId(c.id);
+            carregar();
+            carregarConsumo();
+          }}
+        />
+      )}
+
+      <style>{`.campo{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.5rem .65rem;font-size:.875rem;background:#fff}`}</style>
+    </div>
+  );
+}
+
+/* ---------------- Painel de detalhe da campanha ---------------- */
+function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () => void; social: SocialConfig | null }) {
+  const [editando, setEditando] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [apagando, setApagando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [nome, setNome] = useState(c.nome_campanha);
+  const [anuncioDor, setAnuncioDor] = useState(c.anuncio_dor);
+  const [anuncioBeneficio, setAnuncioBeneficio] = useState(c.anuncio_beneficio);
+  const [palavraChave, setPalavraChave] = useState(c.palavra_chave_gatilho);
+
+  function cancelar() {
+    setNome(c.nome_campanha);
+    setAnuncioDor(c.anuncio_dor);
+    setAnuncioBeneficio(c.anuncio_beneficio);
+    setPalavraChave(c.palavra_chave_gatilho);
+    setErro(null);
+    setEditando(false);
+  }
+
+  async function guardar() {
+    setSaving(true);
+    setErro(null);
+    try {
+      await api.atualizarCampanha(c.id, {
+        nome_campanha: nome,
+        anuncio_dor: anuncioDor,
+        anuncio_beneficio: anuncioBeneficio,
+        palavra_chave_gatilho: palavraChave,
+      });
+      setEditando(false);
+      onChange();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function apagar() {
+    if (!window.confirm(`Apagar a campanha "${c.nome_campanha}"? Esta ação não pode ser desfeita.`)) return;
+    setApagando(true);
+    setErro(null);
+    try {
+      await api.apagarCampanha(c.id);
+      onChange();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao apagar");
+      setApagando(false);
+    }
+  }
+
+  if (editando) {
+    return (
+      <div className="rounded-xl border border-black/10 bg-white p-5">
+        <div className="space-y-3">
+          <Field label="Nome da campanha">
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder="Nome da campanha" />
+          </Field>
+          <Field label="Anúncio — Foco na Dor">
+            <textarea value={anuncioDor} onChange={(e) => setAnuncioDor(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado na dor" />
+          </Field>
+          <Field label="Anúncio — Foco no Benefício">
+            <textarea value={anuncioBeneficio} onChange={(e) => setAnuncioBeneficio(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado no benefício" />
+          </Field>
+          <Field label="Palavra-chave de gatilho">
+            <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder="PALAVRA_CHAVE" />
+          </Field>
+          {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+              {saving ? "A guardar…" : "Guardar"}
+            </button>
+            <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+        <h2 className="min-w-0 truncate text-base font-semibold text-white">{c.nome_campanha}</h2>
+        <span className="shrink-0 rounded bg-white/20 px-2 py-0.5 font-mono text-[11px] text-white">
+          {c.palavra_chave_gatilho}
+        </span>
+      </div>
+      <div className="space-y-3 p-5">
+        <div className="rounded-lg border border-black/10 p-3">
+          <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Foco na Dor</span>
+          <p className="whitespace-pre-wrap text-sm">{c.anuncio_dor}</p>
+          <PostarAnuncio texto={c.anuncio_dor} social={social} />
+        </div>
+        <div className="rounded-lg border border-black/10 p-3">
+          <span className="mb-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Foco no Benefício</span>
+          <p className="whitespace-pre-wrap text-sm">{c.anuncio_beneficio}</p>
+          <PostarAnuncio texto={c.anuncio_beneficio} social={social} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-3 text-sm">
+          <Meta k="Gatilho" v={c.gatilho_principal} />
+          <Meta k="Dor-alvo" v={c.dor_alvo} />
+          <Meta k="Desejo-alvo" v={c.desejo_alvo} />
+          <Meta k="Palavra-chave" v={c.palavra_chave_gatilho} mono />
+        </div>
+        {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+        <div className="flex gap-2 border-t border-black/5 pt-3">
+          <button type="button" onClick={() => setEditando(true)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">
+            Editar
+          </button>
+          <button type="button" onClick={apagar} disabled={apagando} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40">
+            {apagando ? "A apagar…" : "Apagar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modal: nova campanha ---------------- */
+function ModalNovaCampanha({
+  cliente,
+  habilidades,
+  onClose,
+  onCreated,
+}: {
+  cliente: Cliente | null;
+  habilidades: Habilidade[];
+  onClose: () => void;
+  onCreated: (c: Campanha) => void;
+}) {
+  const [nomeCampanha, setNomeCampanha] = useState("");
+  const [nicho, setNicho] = useState("");
+  const [dor, setDor] = useState("");
+  const [link, setLink] = useState("");
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   function toggleHabilidade(id: string) {
     setSelecionadas((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -58,32 +279,26 @@ export default function CampanhasPage() {
         link_calendario: link || undefined,
         habilidade_ids: selecionadas,
       });
-      setNovaId(c.id);
-      setNomeCampanha("");
-      setNicho("");
-      setDor("");
-      setLink("");
-      setSelecionadas([]);
-      carregar();
-      carregarConsumo();
+      onCreated(c);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao gerar campanha");
-    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="p-6">
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
-        <p className="text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
-      </header>
-
-      {consumo && <CardsConsumo c={consumo} />}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <form onSubmit={gerar} className="space-y-4 rounded-xl border border-black/10 bg-white/60 p-5">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+          <span className="text-sm font-semibold text-white">Nova campanha</span>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">
+            ×
+          </button>
+        </div>
+        <form onSubmit={gerar} className="space-y-4 p-5">
           <Field label="Nome da campanha">
             <input required value={nomeCampanha} onChange={(e) => setNomeCampanha(e.target.value)} className="campo" placeholder="Ex: Contabilidade Sem Burocracia" />
           </Field>
@@ -140,150 +355,18 @@ export default function CampanhasPage() {
           <Field label="Link de calendário (opcional)">
             <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder="https://cal.com/voce/15min" />
           </Field>
-          <button type="submit" disabled={loading || !cliente} className="w-full rounded-lg bg-brand py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-            {loading ? "A gerar com a IA…" : "Gerar anúncios"}
-          </button>
           {erro && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
-        </form>
-
-        <div className="space-y-3">
-          <div className="text-xs font-medium text-black/50">
-            Campanhas geradas {lista.length > 0 && `(${lista.length})`}
-          </div>
-          {lista.length === 0 && (
-            <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-black/15 p-6 text-center text-sm text-black/40">
-              As campanhas geradas aparecem aqui e ficam guardadas.
-            </div>
-          )}
-          {lista.map((c) => (
-            <CampanhaCard key={c.id} c={c} aberta={c.id === novaId} onChange={carregar} social={social} />
-          ))}
-        </div>
-      </div>
-
-      <style>{`.campo{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.5rem .65rem;font-size:.875rem;background:#fff}`}</style>
-    </div>
-  );
-}
-
-function CampanhaCard({ c, aberta, onChange, social }: { c: Campanha; aberta: boolean; onChange: () => void; social: SocialConfig | null }) {
-  const [editando, setEditando] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [apagando, setApagando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  // Cópias editáveis dos campos que o utilizador afina
-  const [nome, setNome] = useState(c.nome_campanha);
-  const [anuncioDor, setAnuncioDor] = useState(c.anuncio_dor);
-  const [anuncioBeneficio, setAnuncioBeneficio] = useState(c.anuncio_beneficio);
-  const [palavraChave, setPalavraChave] = useState(c.palavra_chave_gatilho);
-
-  function cancelar() {
-    setNome(c.nome_campanha);
-    setAnuncioDor(c.anuncio_dor);
-    setAnuncioBeneficio(c.anuncio_beneficio);
-    setPalavraChave(c.palavra_chave_gatilho);
-    setErro(null);
-    setEditando(false);
-  }
-
-  async function guardar() {
-    setSaving(true);
-    setErro(null);
-    try {
-      await api.atualizarCampanha(c.id, {
-        nome_campanha: nome,
-        anuncio_dor: anuncioDor,
-        anuncio_beneficio: anuncioBeneficio,
-        palavra_chave_gatilho: palavraChave,
-      });
-      setEditando(false);
-      onChange();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao guardar");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function apagar() {
-    if (!window.confirm(`Apagar a campanha "${c.nome_campanha}"? Esta ação não pode ser desfeita.`)) return;
-    setApagando(true);
-    setErro(null);
-    try {
-      await api.apagarCampanha(c.id);
-      onChange();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao apagar");
-      setApagando(false);
-    }
-  }
-
-  if (editando) {
-    return (
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <div className="space-y-3">
-          <Field label="Nome da campanha">
-            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder="Nome da campanha" />
-          </Field>
-          <Field label="Anúncio — Foco na Dor">
-            <textarea value={anuncioDor} onChange={(e) => setAnuncioDor(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado na dor" />
-          </Field>
-          <Field label="Anúncio — Foco no Benefício">
-            <textarea value={anuncioBeneficio} onChange={(e) => setAnuncioBeneficio(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado no benefício" />
-          </Field>
-          <Field label="Palavra-chave de gatilho">
-            <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder="PALAVRA_CHAVE" />
-          </Field>
-          {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-              {saving ? "A guardar…" : "Guardar"}
-            </button>
-            <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40">
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} disabled={loading} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
               Cancelar
             </button>
+            <button type="submit" disabled={loading || !cliente} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+              {loading ? "A gerar com a IA…" : "Gerar anúncios"}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
-    );
-  }
-
-  return (
-    <details open={aberta} className="rounded-xl border border-black/10 bg-white p-4">
-      <summary className="flex cursor-pointer items-center gap-2">
-        <span className="font-medium">{c.nome_campanha}</span>
-        <span className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-[11px]">
-          {c.palavra_chave_gatilho}
-        </span>
-      </summary>
-      <div className="mt-3 space-y-3">
-        <div className="rounded-lg border border-black/10 p-3">
-          <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Foco na Dor</span>
-          <p className="whitespace-pre-wrap text-sm">{c.anuncio_dor}</p>
-          <PostarAnuncio texto={c.anuncio_dor} social={social} />
-        </div>
-        <div className="rounded-lg border border-black/10 p-3">
-          <span className="mb-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Foco no Benefício</span>
-          <p className="whitespace-pre-wrap text-sm">{c.anuncio_beneficio}</p>
-          <PostarAnuncio texto={c.anuncio_beneficio} social={social} />
-        </div>
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-3 text-sm">
-          <Meta k="Gatilho" v={c.gatilho_principal} />
-          <Meta k="Dor-alvo" v={c.dor_alvo} />
-          <Meta k="Desejo-alvo" v={c.desejo_alvo} />
-          <Meta k="Palavra-chave" v={c.palavra_chave_gatilho} mono />
-        </div>
-        {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
-        <div className="flex gap-2 border-t border-black/5 pt-3">
-          <button type="button" onClick={() => setEditando(true)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/3">
-            Editar
-          </button>
-          <button type="button" onClick={apagar} disabled={apagando} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40">
-            {apagando ? "A apagar…" : "Apagar"}
-          </button>
-        </div>
-      </div>
-    </details>
+    </div>
   );
 }
 
@@ -412,8 +495,6 @@ function CardsConsumo({ c }: { c: Consumo }) {
   // Cor consoante o uso: verde < 70%, âmbar 70-89%, vermelho >= 90%.
   const cor =
     c.percent >= 90 ? "bg-rose-500" : c.percent >= 70 ? "bg-amber-500" : "bg-brand";
-  const texto =
-    c.percent >= 90 ? "text-rose-600" : c.percent >= 70 ? "text-amber-600" : "text-brand";
 
   const faixa = "bg-gradient-to-r from-brand to-brand-dark px-4 py-2 text-xs font-semibold text-white";
 
