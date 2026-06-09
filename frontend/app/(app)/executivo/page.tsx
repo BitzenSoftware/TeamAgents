@@ -11,19 +11,13 @@ import {
   type Processamento,
   type TarefaExecutivo,
 } from "@/lib/api";
+import { FluxoAgentes } from "@/components/FluxoAgentes";
 
 const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   alta: "bg-rose-100 text-rose-700",
   media: "bg-amber-100 text-amber-700",
   baixa: "bg-emerald-100 text-emerald-700",
 };
-
-const SYNC_PASSOS = [
-  "A procurar os emails das tuas tarefas…",
-  "A resumir com a IA (workers em paralelo)…",
-  "A consolidar a síntese executiva…",
-  "Quase pronto…",
-];
 
 export default function ExecutivoPage() {
   const [lista, setLista] = useState<Processamento[]>([]);
@@ -34,7 +28,6 @@ export default function ExecutivoPage() {
   const [contas, setContas] = useState<EmailAccount[]>([]);
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [syncPasso, setSyncPasso] = useState(0);
   const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
   const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
   const [syncPicker, setSyncPicker] = useState(false);
@@ -61,14 +54,6 @@ export default function ExecutivoPage() {
       .then((hs) => setSkills(hs.filter((h) => h.ativo && (h.agente === "assistente" || h.agente === "global"))))
       .catch(() => {});
   }, [carregar, carregarContas, carregarTarefas]);
-
-  // Anima os passos da barra de progresso enquanto sincroniza.
-  useEffect(() => {
-    if (!syncing) return;
-    setSyncPasso(0);
-    const id = setInterval(() => setSyncPasso((p) => Math.min(p + 1, SYNC_PASSOS.length - 1)), 1400);
-    return () => clearInterval(id);
-  }, [syncing]);
 
   const gmail = contas.find((c) => c.provider === "gmail") ?? null;
 
@@ -185,14 +170,7 @@ export default function ExecutivoPage() {
           </div>
         </div>
 
-        {syncing && (
-          <div className="px-4 py-3">
-            <div className="relative h-1.5 overflow-hidden rounded-full bg-black/10">
-              <div className="ta-prog absolute inset-y-0 w-1/3 rounded-full bg-brand" />
-            </div>
-            <p className="mt-2 text-xs text-black/50">{SYNC_PASSOS[syncPasso]}</p>
-          </div>
-        )}
+        <FluxoAgentes ativo={syncing} />
 
         {emailMsg && (
           <div className={`mx-4 mt-3 flex items-start justify-between rounded-lg border p-2.5 text-sm ${emailMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
@@ -321,7 +299,6 @@ export default function ExecutivoPage() {
         />
       )}
 
-      <style>{`@keyframes ta-prog{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}.ta-prog{animation:ta-prog 1.1s ease-in-out infinite}`}</style>
     </div>
   );
 }
