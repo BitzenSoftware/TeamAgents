@@ -77,6 +77,35 @@ export default function ConsumoPage() {
     }
   }
 
+  async function cancelarAssinatura() {
+    if (!confirm("Cancelar a assinatura? Mantens o acesso até ao fim do período já pago; depois não renova.")) return;
+    setBillingBusy("cancel");
+    setBillingErro(null);
+    try {
+      await api.cancelarAssinatura();
+      const c = await api.consumo();
+      setConsumo(c);
+    } catch (e) {
+      setBillingErro(e instanceof Error ? e.message : "Não foi possível cancelar.");
+    } finally {
+      setBillingBusy(null);
+    }
+  }
+
+  async function reativarAssinatura() {
+    setBillingBusy("react");
+    setBillingErro(null);
+    try {
+      await api.reativarAssinatura();
+      const c = await api.consumo();
+      setConsumo(c);
+    } catch (e) {
+      setBillingErro(e instanceof Error ? e.message : "Não foi possível reativar.");
+    } finally {
+      setBillingBusy(null);
+    }
+  }
+
   const carregar = useCallback(() => {
     setLoading(true);
     // Para "ano" mostramos todos os anos; para dia/semana/mês, o ano selecionado.
@@ -137,14 +166,42 @@ export default function ConsumoPage() {
               )}
             </span>
             {consumo?.tem_assinatura && (
-              <button
-                type="button"
-                onClick={gerirAssinatura}
-                disabled={billingBusy === "portal"}
-                className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25 disabled:opacity-50"
-              >
-                {billingBusy === "portal" ? "A abrir…" : "Gerir assinatura"}
-              </button>
+              <div className="flex items-center gap-2">
+                {consumo.assinatura_cancela_em ? (
+                  <>
+                    <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[11px] font-medium text-amber-950">
+                      Cancela em {fmtData(consumo.assinatura_cancela_em)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={reativarAssinatura}
+                      disabled={billingBusy === "react"}
+                      className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-brand hover:bg-white/90 disabled:opacity-50"
+                    >
+                      {billingBusy === "react" ? "A reativar…" : "Reativar assinatura"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={gerirAssinatura}
+                      disabled={billingBusy === "portal"}
+                      className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25 disabled:opacity-50"
+                    >
+                      {billingBusy === "portal" ? "A abrir…" : "Gerir pagamento"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelarAssinatura}
+                      disabled={billingBusy === "cancel"}
+                      className="rounded-lg bg-rose-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
+                    >
+                      {billingBusy === "cancel" ? "A cancelar…" : "Cancelar assinatura"}
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
           <div className="p-4">
@@ -341,6 +398,11 @@ export default function ConsumoPage() {
       </div>
     </div>
   );
+}
+
+function fmtData(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function rotuloBucket(b: string, gran: Gran): string {

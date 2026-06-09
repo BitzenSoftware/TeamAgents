@@ -77,6 +77,7 @@ export type Consumo = {
   plano_id?: string | null;
   plano_nome?: string | null;
   tem_assinatura?: boolean;
+  assinatura_cancela_em?: string | null;
 };
 
 export type PlanoAtivo = {
@@ -433,6 +434,8 @@ export const api = {
   checkout: (planoId: string) =>
     req<{ url: string }>("/me/checkout", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
   portal: () => req<{ url: string }>("/me/portal", { method: "POST" }),
+  cancelarAssinatura: () => req<{ cancela_em: string | null }>("/me/cancelar-assinatura", { method: "POST" }),
+  reativarAssinatura: () => req<{ cancela_em: string | null }>("/me/reativar-assinatura", { method: "POST" }),
 
   // --- Pacotes de créditos avulsos ---
   pacotes: () => req<Pacote[]>("/admin/pacotes"),

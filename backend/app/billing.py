@@ -11,11 +11,20 @@ O `cliente_id` que liga a Stripe ao nosso tenant viaja sempre em
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import stripe
 
 from . import flow
 from .config import get_settings
 from .db import get_db
+
+
+def _ts_iso(ts: int | None) -> str | None:
+    """Converte um timestamp Unix da Stripe em ISO 8601 (UTC), ou None."""
+    if not ts:
+        return None
+    return datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
 
 
 class StripeNaoConfigurada(RuntimeError):
@@ -192,6 +201,33 @@ def criar_portal(cliente_id: str) -> str:
     return sess["url"]
 
 
+def _subscription_id(cliente_id: str) -> str:
+    row = get_db().table("clientes").select("stripe_subscription_id").eq("id", cliente_id).limit(1).execute().data
+    sub_id = row[0].get("stripe_subscription_id") if row else None
+    if not sub_id:
+        raise ValueError("Sem assinatura ativa.")
+    return sub_id
+
+
+def cancelar_assinatura(cliente_id: str) -> dict:
+    """Agenda o cancelamento para o fim do período pago (não corta já o acesso)."""
+    _init()
+    sub_id = _subscription_id(cliente_id)
+    sub = stripe.Subscription.modify(sub_id, cancel_at_period_end=True)
+    quando = _ts_iso(sub.get("cancel_at") or sub.get("current_period_end"))
+    get_db().table("clientes").update({"assinatura_cancela_em": quando}).eq("id", cliente_id).execute()
+    return {"cancela_em": quando}
+
+
+def reativar_assinatura(cliente_id: str) -> dict:
+    """Anula um cancelamento agendado — a assinatura volta a renovar normalmente."""
+    _init()
+    sub_id = _subscription_id(cliente_id)
+    stripe.Subscription.modify(sub_id, cancel_at_period_end=False)
+    get_db().table("clientes").update({"assinatura_cancela_em": None}).eq("id", cliente_id).execute()
+    return {"cancela_em": None}
+
+
 # ===================== Webhook =====================
 def tratar_evento(payload: bytes, sig_header: str) -> dict:
     """Valida a assinatura do webhook e aplica o efeito do evento."""
@@ -235,14 +271,21 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
 
     elif tipo == "customer.subscription.updated":
         cliente_id = _cliente_por_customer(obj.get("customer"))
-        plano_id = _plano_por_subscription(obj)
-        if cliente_id and plano_id:
-            _set_plano(cliente_id, plano_id)
+        if cliente_id:
+            plano_id = _plano_por_subscription(obj)
+            if plano_id:
+                _set_plano(cliente_id, plano_id)
+            # Reflete um cancelamento agendado (ou a sua anulação).
+            quando = _ts_iso(obj.get("cancel_at") or obj.get("current_period_end")) if obj.get("cancel_at_period_end") else None
+            _set_cancelamento(cliente_id, quando)
 
     elif tipo == "customer.subscription.deleted":
         cliente_id = _cliente_por_customer(obj.get("customer"))
         if cliente_id:
             _set_plano(cliente_id, None)
+            get_db().table("clientes").update(
+                {"stripe_subscription_id": None, "assinatura_cancela_em": None}
+            ).eq("id", cliente_id).execute()
 
     return {"status": "ok", "type": tipo}
 
@@ -260,6 +303,13 @@ def _guardar_ids(cliente_id: str, customer_id: str | None, subscription_id: str 
 
 def _set_plano(cliente_id: str, plano_id: str | None) -> None:
     get_db().table("clientes").update({"plano_id": plano_id}).eq("id", cliente_id).execute()
+
+
+def _set_cancelamento(cliente_id: str, quando_iso: str | None) -> None:
+    try:
+        get_db().table("clientes").update({"assinatura_cancela_em": quando_iso}).eq("id", cliente_id).execute()
+    except Exception:
+        pass  # migração 019 pode ainda não ter corrido
 
 
 def _reset_consumo(cliente_id: str) -> None:

@@ -1011,23 +1011,25 @@ def get_consumo(cliente_id: str) -> dict:
         # Schema de consumo ainda não migrado — devolve um estado neutro.
         return {"usados": 0, "total": _CREDITOS_FALLBACK, "restantes": _CREDITOS_FALLBACK, "percent": 0,
                 "creditos_avulsos": 0, "disponivel_total": _CREDITOS_FALLBACK,
-                "plano_id": None, "plano_nome": None, "tem_assinatura": False}
+                "plano_id": None, "plano_nome": None, "tem_assinatura": False, "assinatura_cancela_em": None}
     percent = round(usados / total * 100) if total else 0
     plano_id = plano_nome = None
     tem_assinatura = False
     avulsos = 0
+    cancela_em = None
     try:
         db = get_db()
-        row = db.table("clientes").select("plano_id, stripe_subscription_id, creditos_avulsos").eq("id", cliente_id).limit(1).execute().data
+        row = db.table("clientes").select("plano_id, stripe_subscription_id, creditos_avulsos, assinatura_cancela_em").eq("id", cliente_id).limit(1).execute().data
         if row:
             plano_id = row[0].get("plano_id")
             tem_assinatura = bool(row[0].get("stripe_subscription_id"))
             avulsos = int(row[0].get("creditos_avulsos") or 0)
+            cancela_em = row[0].get("assinatura_cancela_em")
         if plano_id:
             p = db.table("planos").select("nome").eq("id", plano_id).limit(1).execute().data
             plano_nome = p[0]["nome"] if p else None
     except Exception:
-        pass  # migração 017/018 ainda não aplicada
+        pass  # migração 017/018/019 ainda não aplicada
     restantes_plano = max(total - usados, 0)
     return {
         "usados": usados,
@@ -1039,6 +1041,7 @@ def get_consumo(cliente_id: str) -> dict:
         "plano_id": plano_id,
         "plano_nome": plano_nome,
         "tem_assinatura": tem_assinatura,
+        "assinatura_cancela_em": cancela_em,
     }
 
 

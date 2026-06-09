@@ -183,6 +183,28 @@ def criar_portal(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/me/cancelar-assinatura")
+def cancelar_assinatura(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Cancela a assinatura no fim do período pago (sem ir ao painel da Stripe)."""
+    try:
+        return billing.cancelar_assinatura(cliente_id)
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/reativar-assinatura")
+def reativar_assinatura(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Anula um cancelamento agendado — a assinatura volta a renovar."""
+    try:
+        return billing.reativar_assinatura(cliente_id)
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.get("/me/pacotes")
 def listar_pacotes_ativos(_: str = Depends(auth.current_cliente_id)) -> list[dict]:
     """Pacotes de créditos avulsos disponíveis para compra."""
