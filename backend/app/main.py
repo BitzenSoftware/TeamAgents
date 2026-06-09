@@ -274,6 +274,14 @@ def get_consumo(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     return flow.get_consumo(cliente_id)
 
 
+@app.get("/me/consumo/dashboard")
+def consumo_dashboard(
+    de: str, ate: str, gran: str = "dia", cliente_id: str = Depends(auth.current_cliente_id)
+) -> dict:
+    """Séries de consumo (bucket dia/semana/mes) + repartição por origem, no intervalo [de, ate]."""
+    return flow.consumo_dashboard(cliente_id, de, ate, gran)
+
+
 @app.patch("/me/campanhas/{cid}")
 def atualizar_campanha(cid: str, payload: CampanhaUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Edita uma campanha do tenant autenticado (nome, anúncios, palavra-chave)."""

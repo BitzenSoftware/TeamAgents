@@ -74,6 +74,12 @@ export type Consumo = {
   percent: number;
 };
 
+export type ConsumoDashboard = {
+  total: number;
+  por_origem: Record<string, number>;
+  series: { bucket: string; total: number }[];
+};
+
 export type CampanhaInput = {
   nicho: string;
   dor_latente: string;
@@ -286,6 +292,8 @@ export const api = {
   me: () => req<Cliente>("/me"),
   campanhas: () => req<Campanha[]>("/me/campanhas"),
   consumo: () => req<Consumo>("/me/consumo"),
+  consumoDashboard: (de: string, ate: string, gran: "dia" | "semana" | "mes" | "ano") =>
+    req<ConsumoDashboard>(`/me/consumo/dashboard?de=${de}&ate=${ate}&gran=${gran}`),
   leads: () => req<Lead[]>("/me/leads"),
   conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),

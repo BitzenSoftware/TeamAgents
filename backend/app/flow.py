@@ -181,7 +181,7 @@ def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, r
         "n_falhas": resultado.n_falhas,
     }
     saved = get_db().table("processamentos_executivo").insert(row).execute().data[0]
-    consumir_creditos(cliente_id, CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM)
+    consumir_creditos(cliente_id, CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM, "executivo")
     return saved
 
 
@@ -458,7 +458,7 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
         "status": "ATIVA",
     }
     res = db.table("campanhas").insert(row).execute()
-    consumir_creditos(cliente_id, CREDITOS_CAMPANHA)  # só desconta após êxito
+    consumir_creditos(cliente_id, CREDITOS_CAMPANHA, "campanhas")  # só desconta após êxito
     return res.data[0]
 
 
@@ -567,7 +567,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
-    consumir_creditos(cliente_id, CREDITOS_SDR)
+    consumir_creditos(cliente_id, CREDITOS_SDR, "sdr")
 
     # Atualiza estado do lead (mapeando o enum do SDR -> enum da BD)
     updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status]}
@@ -632,7 +632,7 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
     }
     rel = db.table("relatorios").insert(row).execute().data[0]
     if cliente_id:
-        consumir_creditos(cliente_id, CREDITOS_BI)
+        consumir_creditos(cliente_id, CREDITOS_BI, "bi")
     return rel
 
 
@@ -1036,8 +1036,11 @@ def verificar_limite(cliente_id: str, qtd: int) -> None:
         )
 
 
-def consumir_creditos(cliente_id: str, qtd: int) -> None:
-    """Incrementa o consumo do período atual (upsert). Chamar após a ação ter êxito."""
+def consumir_creditos(cliente_id: str, qtd: int, origem: str = "outro") -> None:
+    """Incrementa o consumo do mês (contador) e regista no log detalhado (por origem).
+
+    Chamar após a ação ter êxito. `origem`: campanhas | sdr | bi | executivo.
+    """
     try:
         db = get_db()
         periodo = _periodo_atual()
@@ -1057,6 +1060,54 @@ def consumir_creditos(cliente_id: str, qtd: int) -> None:
             db.table("consumo_mensal").insert({"cliente_id": cliente_id, "periodo": periodo, "creditos_usados": qtd}).execute()
     except Exception:
         pass  # nunca falhar a ação principal por causa da contabilização de créditos
+    try:
+        db.table("consumo_log").insert({"cliente_id": cliente_id, "origem": origem, "creditos": qtd}).execute()
+    except Exception:
+        pass  # log detalhado é best-effort (migração 016 pode ainda não ter corrido)
+
+
+def consumo_dashboard(cliente_id: str, de: str, ate: str, gran: str = "dia") -> dict:
+    """Agrega o log de consumo no intervalo [de, ate] por bucket (dia/semana/mes) e por origem."""
+    try:
+        rows = (
+            get_db()
+            .table("consumo_log")
+            .select("origem, creditos, created_at")
+            .eq("cliente_id", cliente_id)
+            .gte("created_at", de)
+            .lte("created_at", ate)
+            .order("created_at")
+            .execute()
+            .data
+        )
+    except Exception:
+        return {"total": 0, "por_origem": {}, "series": []}
+
+    def _bucket(iso: str) -> str:
+        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        if gran == "ano":
+            return d.strftime("%Y")
+        if gran == "mes":
+            return d.strftime("%Y-%m")
+        if gran == "semana":
+            y, w, _ = d.isocalendar()
+            return f"{y}-S{w:02d}"
+        return d.strftime("%Y-%m-%d")
+
+    series: dict[str, int] = {}
+    por_origem: dict[str, int] = {}
+    total = 0
+    for r in rows:
+        q = int(r.get("creditos") or 0)
+        total += q
+        series[_bucket(r["created_at"])] = series.get(_bucket(r["created_at"]), 0) + q
+        o = r.get("origem") or "outro"
+        por_origem[o] = por_origem.get(o, 0) + q
+    return {
+        "total": total,
+        "por_origem": por_origem,
+        "series": [{"bucket": k, "total": v} for k, v in sorted(series.items())],
+    }
 
 
 def listar_relatorios(cliente_id: str) -> list[dict]:
@@ -1186,5 +1237,5 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
         "relatorio_whatsapp": out.relatorio_whatsapp,
     }
     rel = get_db().table("relatorios").insert(row).execute().data[0]
-    consumir_creditos(cliente["id"], CREDITOS_BI)
+    consumir_creditos(cliente["id"], CREDITOS_BI, "bi")
     return rel

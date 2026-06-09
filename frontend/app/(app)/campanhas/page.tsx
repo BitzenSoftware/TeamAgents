@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha, type Cliente, type Habilidade, type SocialConfig, type Consumo } from "@/lib/api";
+import { api, type Campanha, type Cliente, type Habilidade, type SocialConfig } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
@@ -13,11 +13,6 @@ export default function CampanhasPage() {
 
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
   const [social, setSocial] = useState<SocialConfig | null>(null);
-  const [consumo, setConsumo] = useState<Consumo | null>(null);
-
-  const carregarConsumo = useCallback(() => {
-    api.consumo().then(setConsumo).catch(() => {});
-  }, []);
 
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
@@ -27,8 +22,7 @@ export default function CampanhasPage() {
     carregar();
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
     api.getSocialConfig().then(setSocial).catch(() => {});
-    carregarConsumo();
-  }, [carregar, carregarConsumo]);
+  }, [carregar]);
 
   // Mantém uma seleção válida (auto-seleciona a primeira).
   useEffect(() => {
@@ -53,8 +47,6 @@ export default function CampanhasPage() {
         </div>
         <p className="mt-1 text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
       </header>
-
-      {consumo && <CardsConsumo c={consumo} />}
 
       {lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
@@ -110,7 +102,6 @@ export default function CampanhasPage() {
             setModalAberto(false);
             setSelId(c.id);
             carregar();
-            carregarConsumo();
           }}
         />
       )}
@@ -487,44 +478,6 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function CardsConsumo({ c }: { c: Consumo }) {
-  // Cor consoante o uso: verde < 70%, âmbar 70-89%, vermelho >= 90%.
-  const cor =
-    c.percent >= 90 ? "bg-rose-500" : c.percent >= 70 ? "bg-amber-500" : "bg-brand";
-
-  const faixa = "bg-gradient-to-r from-brand to-brand-dark px-4 py-2 text-xs font-semibold text-white";
-
-  return (
-    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
-        <div className={faixa}>Créditos usados (mês)</div>
-        <div className="p-4 text-2xl font-semibold">
-          {c.usados}
-          <span className="text-base font-normal text-black/40"> / {c.total}</span>
-        </div>
-      </div>
-      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
-        <div className={faixa}>Disponíveis</div>
-        <div className="p-4 text-2xl font-semibold">{c.restantes}</div>
-      </div>
-      <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
-        <div className={faixa}>Uso do plano</div>
-        <div className="p-4">
-          <div className="text-2xl font-semibold">{c.percent}%</div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
-            <div className={`h-full rounded-full transition-all ${cor}`} style={{ width: `${c.percent}%` }} />
-          </div>
-          {c.percent >= 90 && (
-            <p className="mt-2 text-[11px] text-rose-600">
-              Limite quase atingido — faz upgrade para não parar as gerações.
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

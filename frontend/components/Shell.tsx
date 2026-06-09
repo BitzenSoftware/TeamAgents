@@ -12,6 +12,7 @@ const NAV = [
   { href: "/executivo", label: "Agente Executivo", hint: "Email & Atas" },
   { href: "/consultoria", label: "Agente Diretor de BI", hint: "Consultoria & Dados" },
   { href: "/habilidades", label: "Habilidades", hint: "Conhecimento da empresa" },
+  { href: "/consumo", label: "Consumo", hint: "Créditos / Dashboard" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];
