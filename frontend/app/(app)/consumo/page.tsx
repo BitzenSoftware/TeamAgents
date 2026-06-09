@@ -68,17 +68,27 @@ export default function ConsumoPage() {
       {/* KPIs do plano (mês atual) */}
       {consumo && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
-          <CardKpi
-            titulo="Disponíveis"
-            valor={`${consumo.disponivel_total ?? consumo.restantes}`}
-            sub={
-              consumo.creditos_avulsos
-                ? `(${consumo.restantes} do plano + ${consumo.creditos_avulsos} avulsos)`
-                : undefined
-            }
-          />
-          <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
+          {consumo.ilimitado ? (
+            <>
+              <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub="ilimitado" />
+              <CardKpi titulo="Disponíveis" valor="∞" />
+              <CardKpi titulo="Plano" valor="Superadmin" sub="créditos ilimitados" />
+            </>
+          ) : (
+            <>
+              <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
+              <CardKpi
+                titulo="Disponíveis"
+                valor={`${consumo.disponivel_total ?? consumo.restantes}`}
+                sub={
+                  consumo.creditos_avulsos
+                    ? `(${consumo.restantes} do plano + ${consumo.creditos_avulsos} avulsos)`
+                    : undefined
+                }
+              />
+              <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
+            </>
+          )}
         </div>
       )}
 

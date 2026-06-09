@@ -69,11 +69,12 @@ export type Relatorio = {
 
 export type Consumo = {
   usados: number;
-  total: number;
-  restantes: number;
+  total: number | null;
+  restantes: number | null;
   percent: number;
   creditos_avulsos?: number;
-  disponivel_total?: number;
+  disponivel_total?: number | null;
+  ilimitado?: boolean;
   plano_id?: string | null;
   plano_nome?: string | null;
   tem_assinatura?: boolean;

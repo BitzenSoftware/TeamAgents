@@ -1002,8 +1002,48 @@ def consumo_atual(cliente_id: str) -> int:
     return row[0]["creditos_usados"] if row else 0
 
 
+def consumo_atual_seguro(cliente_id: str) -> int:
+    """consumo_atual tolerante (0 se o schema ainda não foi migrado)."""
+    try:
+        return consumo_atual(cliente_id)
+    except Exception:
+        return 0
+
+
+_superadmin_cache: dict[str, bool] = {}
+
+
+def is_superadmin_cliente(cliente_id: str) -> bool:
+    """True se o cliente pertence ao superadmin (créditos ilimitados). Em cache."""
+    if cliente_id in _superadmin_cache:
+        return _superadmin_cache[cliente_id]
+    resultado = False
+    try:
+        s = get_settings()
+        row = get_db().table("clientes").select("auth_user_id").eq("id", cliente_id).limit(1).execute().data
+        uid = row[0].get("auth_user_id") if row else None
+        if uid:
+            r = httpx.get(
+                f"{s.supabase_url}/auth/v1/admin/users/{uid}",
+                headers={"apikey": s.supabase_service_role_key, "Authorization": f"Bearer {s.supabase_service_role_key}"},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                email = (r.json().get("email") or "").lower()
+                resultado = email == s.superadmin_email.lower()
+    except Exception:
+        resultado = False
+    _superadmin_cache[cliente_id] = resultado
+    return resultado
+
+
 def get_consumo(cliente_id: str) -> dict:
     """Resumo de consumo para os cards do frontend (+ plano atual e assinatura)."""
+    if is_superadmin_cliente(cliente_id):
+        # Superadmin: créditos ilimitados.
+        return {"usados": consumo_atual_seguro(cliente_id), "total": None, "restantes": None, "percent": 0,
+                "creditos_avulsos": 0, "disponivel_total": None, "plano_id": None, "plano_nome": "Superadmin",
+                "tem_assinatura": False, "assinatura_cancela_em": None, "ilimitado": True}
     try:
         total = creditos_do_plano(cliente_id)
         usados = consumo_atual(cliente_id)
@@ -1126,6 +1166,8 @@ def verificar_limite(cliente_id: str, qtd: int) -> None:
     Disponível = (mesada do plano − usado no mês) + créditos avulsos. NÃO consome.
     Se o schema de consumo ainda não foi migrado, NÃO bloqueia (degrada com segurança).
     """
+    if is_superadmin_cliente(cliente_id):
+        return  # superadmin: créditos ilimitados, nunca bloqueia
     try:
         total = creditos_do_plano(cliente_id)
         usados = consumo_atual(cliente_id)
