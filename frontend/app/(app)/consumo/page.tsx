@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type Consumo, type ConsumoDashboard, type PacoteAtivo, type PlanoAtivo } from "@/lib/api";
+import { api, type Consumo, type ConsumoDashboard } from "@/lib/api";
 
 type Gran = "dia" | "semana" | "mes" | "ano";
 
@@ -28,83 +28,12 @@ export default function ConsumoPage() {
   const [gran, setGran] = useState<Gran>("mes");
   const [ano, setAno] = useState(anoAtual);
   const [loading, setLoading] = useState(false);
-  const [planos, setPlanos] = useState<PlanoAtivo[]>([]);
-  const [pacotes, setPacotes] = useState<PacoteAtivo[]>([]);
-  const [billingBusy, setBillingBusy] = useState<string | null>(null);
-  const [billingErro, setBillingErro] = useState<string | null>(null);
 
   const anos = useMemo(() => Array.from({ length: 4 }, (_, i) => anoAtual - i), [anoAtual]);
 
   useEffect(() => {
     api.consumo().then(setConsumo).catch(() => {});
-    api.planosAtivos().then(setPlanos).catch(() => {});
-    api.pacotesAtivos().then(setPacotes).catch(() => {});
   }, []);
-
-  async function comprar(pacoteId: string) {
-    setBillingBusy(`pac-${pacoteId}`);
-    setBillingErro(null);
-    try {
-      const { url } = await api.comprarCreditos(pacoteId);
-      window.location.href = url;
-    } catch (e) {
-      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir a compra.");
-      setBillingBusy(null);
-    }
-  }
-
-  async function assinar(planoId: string) {
-    setBillingBusy(planoId);
-    setBillingErro(null);
-    try {
-      const { url } = await api.checkout(planoId);
-      window.location.href = url;
-    } catch (e) {
-      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir o checkout.");
-      setBillingBusy(null);
-    }
-  }
-
-  async function gerirAssinatura() {
-    setBillingBusy("portal");
-    setBillingErro(null);
-    try {
-      const { url } = await api.portal();
-      window.location.href = url;
-    } catch (e) {
-      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir o portal.");
-      setBillingBusy(null);
-    }
-  }
-
-  async function cancelarAssinatura() {
-    if (!confirm("Cancelar a assinatura? Mantens o acesso até ao fim do período já pago; depois não renova.")) return;
-    setBillingBusy("cancel");
-    setBillingErro(null);
-    try {
-      await api.cancelarAssinatura();
-      const c = await api.consumo();
-      setConsumo(c);
-    } catch (e) {
-      setBillingErro(e instanceof Error ? e.message : "Não foi possível cancelar.");
-    } finally {
-      setBillingBusy(null);
-    }
-  }
-
-  async function reativarAssinatura() {
-    setBillingBusy("react");
-    setBillingErro(null);
-    try {
-      await api.reativarAssinatura();
-      const c = await api.consumo();
-      setConsumo(c);
-    } catch (e) {
-      setBillingErro(e instanceof Error ? e.message : "Não foi possível reativar.");
-    } finally {
-      setBillingBusy(null);
-    }
-  }
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -150,147 +79,6 @@ export default function ConsumoPage() {
             }
           />
           <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
-        </div>
-      )}
-
-      {/* Plano & assinatura */}
-      {planos.length > 0 && (
-        <div className="mb-6 overflow-hidden rounded-xl border border-black/10 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-white">
-            <span className="text-xs font-semibold">
-              Plano & assinatura
-              {consumo?.plano_nome && (
-                <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
-                  Atual: {consumo.plano_nome}
-                </span>
-              )}
-            </span>
-            {consumo?.tem_assinatura && (
-              <div className="flex items-center gap-2">
-                {consumo.assinatura_cancela_em ? (
-                  <>
-                    <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[11px] font-medium text-amber-950">
-                      Cancela em {fmtData(consumo.assinatura_cancela_em)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={reativarAssinatura}
-                      disabled={billingBusy === "react"}
-                      className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-brand hover:bg-white/90 disabled:opacity-50"
-                    >
-                      {billingBusy === "react" ? "A reativar…" : "Reativar assinatura"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={gerirAssinatura}
-                      disabled={billingBusy === "portal"}
-                      className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25 disabled:opacity-50"
-                    >
-                      {billingBusy === "portal" ? "A abrir…" : "Gerir pagamento"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelarAssinatura}
-                      disabled={billingBusy === "cancel"}
-                      className="rounded-lg bg-rose-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
-                    >
-                      {billingBusy === "cancel" ? "A cancelar…" : "Cancelar assinatura"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="p-4">
-            {billingErro && (
-              <p className="mb-3 rounded-lg bg-rose-50 p-2.5 text-sm text-rose-700">{billingErro}</p>
-            )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {planos.map((p) => {
-                const atual = p.id === consumo?.plano_id;
-                const semStripe = !p.stripe_price_id;
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex flex-col rounded-xl border p-4 ${
-                      atual ? "border-brand/50 bg-brand/5" : "border-black/10"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{p.nome}</span>
-                      {atual && (
-                        <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-medium text-brand">
-                          Plano atual
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-2xl font-semibold">
-                      R$ {Number(p.preco).toFixed(2)}
-                      <span className="text-sm font-normal text-black/40"> /mês</span>
-                    </div>
-                    <div className="mt-0.5 text-xs text-black/50">
-                      {p.creditos_mensais.toLocaleString("pt-BR")} créditos/mês
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => assinar(p.id)}
-                      disabled={atual || semStripe || billingBusy === p.id}
-                      title={semStripe ? "Plano ainda não disponível para assinatura." : undefined}
-                      className="mt-3 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
-                    >
-                      {atual ? "Plano atual" : billingBusy === p.id ? "A abrir…" : semStripe ? "Indisponível" : "Assinar"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Comprar créditos avulsos (top-ups) */}
-      {pacotes.length > 0 && (
-        <div className="mb-6 overflow-hidden rounded-xl border border-black/10 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-white">
-            <span className="text-xs font-semibold">
-              Comprar créditos avulsos
-              <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
-                Saldo: {consumo?.creditos_avulsos ?? 0}
-              </span>
-            </span>
-            <span className="text-[11px] text-white/70">Compra única · não expiram · usados após a mesada do plano</span>
-          </div>
-          <div className="p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {pacotes.map((p) => {
-                const semStripe = !p.stripe_price_id;
-                return (
-                  <div key={p.id} className="flex flex-col rounded-xl border border-black/10 p-4">
-                    <span className="font-semibold">{p.nome}</span>
-                    <div className="mt-1 text-2xl font-semibold">
-                      R$ {Number(p.preco).toFixed(2)}
-                      <span className="text-sm font-normal text-black/40"> única</span>
-                    </div>
-                    <div className="mt-0.5 text-xs text-black/50">
-                      +{p.creditos.toLocaleString("pt-BR")} créditos
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => comprar(p.id)}
-                      disabled={semStripe || billingBusy === `pac-${p.id}`}
-                      title={semStripe ? "Pacote ainda não disponível para compra." : undefined}
-                      className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
-                    >
-                      {billingBusy === `pac-${p.id}` ? "A abrir…" : semStripe ? "Indisponível" : "Comprar"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
 
@@ -398,11 +186,6 @@ export default function ConsumoPage() {
       </div>
     </div>
   );
-}
-
-function fmtData(iso: string): string {
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function rotuloBucket(b: string, gran: Gran): string {

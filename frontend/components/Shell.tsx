@@ -13,6 +13,7 @@ const NAV = [
   { href: "/consultoria", label: "Agente Diretor de BI", hint: "Consultoria & Dados" },
   { href: "/habilidades", label: "Habilidades", hint: "Conhecimento da empresa" },
   { href: "/consumo", label: "Consumo", hint: "Créditos / Dashboard" },
+  { href: "/assinatura", label: "Assinatura", hint: "Planos & Pacotes" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];

@@ -172,6 +172,17 @@ def criar_checkout(req: CheckoutRequest, cliente_id: str = Depends(auth.current_
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/me/mudar-plano")
+def mudar_plano(req: CheckoutRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Upgrade/downgrade de uma assinatura existente (sem novo checkout)."""
+    try:
+        return billing.mudar_plano(cliente_id, req.plano_id)
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/me/portal")
 def criar_portal(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Abre o Portal de Faturação da Stripe (gerir/cancelar) e devolve a URL."""

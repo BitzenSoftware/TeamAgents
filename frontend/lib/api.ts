@@ -433,6 +433,8 @@ export const api = {
   planosAtivos: () => req<PlanoAtivo[]>("/me/planos"),
   checkout: (planoId: string) =>
     req<{ url: string }>("/me/checkout", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
+  mudarPlano: (planoId: string) =>
+    req<{ plano_id: string }>("/me/mudar-plano", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
   portal: () => req<{ url: string }>("/me/portal", { method: "POST" }),
   cancelarAssinatura: () => req<{ cancela_em: string | null }>("/me/cancelar-assinatura", { method: "POST" }),
   reativarAssinatura: () => req<{ cancela_em: string | null }>("/me/reativar-assinatura", { method: "POST" }),

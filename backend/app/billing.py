@@ -141,8 +141,8 @@ def criar_checkout_pacote(cliente_id: str, pacote_id: str) -> str:
             "creditos": str(pac["creditos"]),
             "valor": str(pac["preco"]),
         },
-        "success_url": f"{s.frontend_url}/consumo?compra=sucesso",
-        "cancel_url": f"{s.frontend_url}/consumo?compra=cancelado",
+        "success_url": f"{s.frontend_url}/assinatura?compra=sucesso",
+        "cancel_url": f"{s.frontend_url}/assinatura?compra=cancelado",
         "allow_promotion_codes": True,
     }
     if customer_id:
@@ -175,8 +175,8 @@ def criar_checkout(cliente_id: str, plano_id: str) -> str:
         "client_reference_id": cliente_id,
         "metadata": {"cliente_id": cliente_id, "plano_id": plano_id},
         "subscription_data": {"metadata": {"cliente_id": cliente_id, "plano_id": plano_id}},
-        "success_url": f"{s.frontend_url}/consumo?assinatura=sucesso",
-        "cancel_url": f"{s.frontend_url}/consumo?assinatura=cancelado",
+        "success_url": f"{s.frontend_url}/assinatura?assinatura=sucesso",
+        "cancel_url": f"{s.frontend_url}/assinatura?assinatura=cancelado",
         "allow_promotion_codes": True,
     }
     if customer_id:
@@ -184,6 +184,40 @@ def criar_checkout(cliente_id: str, plano_id: str) -> str:
 
     sess = stripe.checkout.Session.create(**params)
     return sess["url"]
+
+
+def mudar_plano(cliente_id: str, plano_id: str) -> dict:
+    """Upgrade/downgrade de uma assinatura JÁ existente (troca o preço, com proration).
+
+    Não cria nova subscrição nem redireciona — é tudo via API. Se houver um
+    cancelamento agendado, reativa. Levanta ValueError se não houver assinatura.
+    """
+    _init()
+    db = get_db()
+
+    plano = db.table("planos").select("*").eq("id", plano_id).limit(1).execute().data
+    if not plano:
+        raise ValueError("Plano não encontrado.")
+    price_id = plano[0].get("stripe_price_id")
+    if not price_id:
+        raise ValueError("Este plano ainda não está registado na Stripe.")
+
+    sub_id = _subscription_id(cliente_id)  # ValueError se não existir
+    sub = stripe.Subscription.retrieve(sub_id)
+    try:
+        item_id = sub["items"]["data"][0]["id"]
+    except (KeyError, IndexError, TypeError):
+        raise ValueError("Assinatura sem item para atualizar.")
+
+    stripe.Subscription.modify(
+        sub_id,
+        cancel_at_period_end=False,  # se estava agendado p/ cancelar, reativa
+        items=[{"id": item_id, "price": price_id}],
+        proration_behavior="create_prorations",
+    )
+    # Atualiza já localmente (o webhook subscription.updated confirma na mesma).
+    db.table("clientes").update({"plano_id": plano_id, "assinatura_cancela_em": None}).eq("id", cliente_id).execute()
+    return {"plano_id": plano_id}
 
 
 # ===================== Cliente: Portal de faturação =====================
