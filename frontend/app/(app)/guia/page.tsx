@@ -231,6 +231,19 @@ function Configuracoes() {
       />
       <Nota>O Instagram exige sempre uma imagem na publicação; o Facebook aceita só texto.</Nota>
 
+      <p className="font-semibold text-black/90">📧 Email (Gmail) — Agente Executivo</p>
+      <Lista
+        itens={[
+          'Clica em "Ligar Gmail" e autoriza — acesso só de leitura, os tokens ficam guardados de forma segura',
+          "No menu Agente Executivo crias tarefas (ex.: ler emails de um remetente) e ele resume — prioridades, ações e decisões",
+          "Cada empresa liga a sua própria caixa; os dados ficam isolados por empresa",
+        ]}
+      />
+      <Nota>
+        O agente lê só o que as tuas tarefas pedem (não a caixa inteira) — poupa tokens. Podes ainda
+        marcar uma tarefa como “diária” para correr sozinha todos os dias.
+      </Nota>
+
       <p className="font-semibold text-black/90">💬 Discord — notificações e relatórios</p>
       <Lista
         itens={[
