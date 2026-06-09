@@ -642,8 +642,8 @@ function ModalTarefa({
               <Campo label="Palavras-chave — opcional (assunto/corpo)">
                 <input value={palavras} onChange={(e) => setPalavras(e.target.value)} className="campoexec" placeholder="proposta, contrato" />
               </Campo>
-              <Campo label="Janela (dias) — quão recentes os emails a buscar">
-                <input type="number" min={1} max={30} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
+              <Campo label="Janela (dias) — quão recentes os emails a buscar (1–180)">
+                <input type="number" min={1} max={180} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
               </Campo>
             </div>
           )}

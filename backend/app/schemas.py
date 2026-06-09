@@ -264,7 +264,7 @@ class TarefaExecutivoCreate(BaseModel):
     nome: str = Field(min_length=1)
     remetente: str | None = None
     palavras_chave: str | None = None
-    janela_dias: int = Field(default=1, ge=1, le=30)
+    janela_dias: int = Field(default=1, ge=1, le=180)
     frequencia: str = "diaria"      # período (ver FREQUENCIAS)
     automatica: bool = False        # True = corre no cron; False = só ao sincronizar
     dia_semana: int | None = Field(default=None, ge=0, le=6)  # semanal/quinzenal (0=Seg)
@@ -280,7 +280,7 @@ class TarefaExecutivoUpdate(BaseModel):
     nome: str | None = None
     remetente: str | None = None
     palavras_chave: str | None = None
-    janela_dias: int | None = Field(default=None, ge=1, le=30)
+    janela_dias: int | None = Field(default=None, ge=1, le=180)
     frequencia: str | None = None
     automatica: bool | None = None
     dia_semana: int | None = Field(default=None, ge=0, le=6)
