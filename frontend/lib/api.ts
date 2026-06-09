@@ -94,6 +94,7 @@ export type Empresa = {
   id: string;
   nome: string | null;
   email: string;
+  ilimitado?: boolean;
   plano_nome: string | null;
   creditos_mensais: number | null;
   preco: number;

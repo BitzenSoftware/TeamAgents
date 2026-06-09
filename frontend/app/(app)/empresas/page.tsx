@@ -126,11 +126,15 @@ function AbaCadastro() {
         linhas={filtradas.map((l) => [
           l.nome ?? "—",
           l.email || "—",
-          l.plano_nome ?? "—",
-          l.creditos_mensais?.toLocaleString("pt-BR") ?? "—",
+          l.ilimitado ? "Ilimitado" : (l.plano_nome ?? "—"),
+          l.ilimitado ? "∞" : (l.creditos_mensais?.toLocaleString("pt-BR") ?? "—"),
           l.creditos_avulsos.toLocaleString("pt-BR"),
           l.consumo_mes.toLocaleString("pt-BR"),
-          <Badge key="b" ok={l.tem_assinatura} cancela={l.assinatura_cancela_em} />,
+          l.ilimitado ? (
+            <span key="b" className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-700">Superadmin</span>
+          ) : (
+            <Badge key="b" ok={l.tem_assinatura} cancela={l.assinatura_cancela_em} />
+          ),
           fmtData(l.created_at),
         ])}
       />

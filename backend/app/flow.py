@@ -1347,6 +1347,7 @@ def admin_empresas() -> list[dict]:
     )
     planos = {p["id"]: p for p in db.table("planos").select("id, nome, creditos_mensais, preco").execute().data}
     emails = _mapa_emails()
+    superadmin_email = get_settings().superadmin_email.lower()
     consumo_mes: dict[str, int] = {}
     try:
         for r in db.table("consumo_mensal").select("cliente_id, creditos_usados").eq("periodo", _periodo_atual()).execute().data:
@@ -1356,13 +1357,16 @@ def admin_empresas() -> list[dict]:
     out = []
     for c in clientes:
         plano = planos.get(c.get("plano_id"))
+        email = emails.get(c.get("auth_user_id"), "")
+        ilimitado = bool(email) and email.lower() == superadmin_email
         out.append({
             "id": c["id"],
             "nome": c.get("nome"),
-            "email": emails.get(c.get("auth_user_id"), ""),
-            "plano_nome": plano["nome"] if plano else None,
-            "creditos_mensais": plano["creditos_mensais"] if plano else None,
-            "preco": float(plano["preco"]) if plano else 0,
+            "email": email,
+            "ilimitado": ilimitado,
+            "plano_nome": "Ilimitado" if ilimitado else (plano["nome"] if plano else None),
+            "creditos_mensais": None if ilimitado else (plano["creditos_mensais"] if plano else None),
+            "preco": 0 if ilimitado else (float(plano["preco"]) if plano else 0),
             "creditos_avulsos": c.get("creditos_avulsos") or 0,
             "tem_assinatura": bool(c.get("stripe_subscription_id")),
             "assinatura_cancela_em": c.get("assinatura_cancela_em"),
