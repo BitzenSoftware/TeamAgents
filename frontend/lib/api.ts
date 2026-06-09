@@ -331,6 +331,27 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Delays entre tentativas (~53s) — cobre o cold-start do plano free do Render.
 const RETRY_DELAYS = [3000, 5000, 8000, 10000, 12000, 15000];
 
+// Converte o `detail` do erro (string | array de validação FastAPI | objeto) em texto legível.
+function msgDoDetalhe(d: unknown): string | undefined {
+  if (d == null) return undefined;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) {
+    const partes = d.map((e) => {
+      if (e && typeof e === "object" && "msg" in e) {
+        const loc = Array.isArray((e as { loc?: unknown[] }).loc) ? ` (${((e as { loc: unknown[] }).loc).join(".")})` : "";
+        return `${(e as { msg: string }).msg}${loc}`;
+      }
+      return typeof e === "string" ? e : JSON.stringify(e);
+    });
+    return partes.join("; ");
+  }
+  if (typeof d === "object") {
+    const o = d as { msg?: string; detail?: string };
+    return o.msg ?? o.detail ?? JSON.stringify(d);
+  }
+  return String(d);
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -366,7 +387,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       let detail = res.statusText;
       try {
         const body = await res.json();
-        detail = body.detail ?? detail;
+        detail = msgDoDetalhe(body.detail) ?? detail;
       } catch {
         /* ignore */
       }
