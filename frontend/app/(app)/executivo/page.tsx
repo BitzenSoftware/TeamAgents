@@ -553,6 +553,7 @@ function ModalTarefa({
   const [habIds, setHabIds] = useState<string[]>(tarefa?.habilidade_ids ?? []);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [aba, setAba] = useState<"filtro" | "agendamento" | "ia">("filtro");
 
   function toggleHab(id: string) {
     setHabIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -595,91 +596,133 @@ function ModalTarefa({
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
         </div>
         <form onSubmit={guardar} className="space-y-3 p-5">
+          {/* Nome — sempre visível (identidade + obrigatório) */}
           <Campo label="Nome da tarefa">
             <input value={nome} onChange={(e) => setNome(e.target.value)} className="campoexec" placeholder="Ex: Resumo diário do João" />
           </Campo>
-          <Campo label="Remetente(s) — opcional (separa por vírgula)">
-            <input value={remetente} onChange={(e) => setRemetente(e.target.value)} className="campoexec" placeholder="joao@cliente.com, equipa@empresa.com" />
-          </Campo>
-          <Campo label="Palavras-chave — opcional (assunto/corpo)">
-            <input value={palavras} onChange={(e) => setPalavras(e.target.value)} className="campoexec" placeholder="proposta, contrato" />
-          </Campo>
-          <div className="flex gap-3">
-            <Campo label="Janela (dias)">
-              <input type="number" min={1} max={30} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
-            </Campo>
-            <Campo label="Frequência">
-              <select
-                value={`${frequencia}|${automatica ? "auto" : "man"}`}
-                onChange={(e) => {
-                  const [f, a] = e.target.value.split("|");
-                  setFrequencia(f as Frequencia);
-                  setAutomatica(a === "auto");
-                }}
-                className="campoexec"
-                aria-label="Frequência"
+
+          {/* Abas */}
+          <div className="flex gap-1 rounded-lg border border-black/10 bg-black/[0.02] p-1">
+            {([
+              { id: "filtro", label: "Filtro" },
+              { id: "agendamento", label: "Agendamento" },
+              { id: "ia", label: "Inteligência" },
+            ] as const).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setAba(t.id)}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  aba === t.id ? "bg-brand text-white" : "text-black/55 hover:bg-black/5"
+                }`}
               >
-                {FREQ_OPCOES.map((o) => (
-                  <option key={o.v} value={o.v}>{o.l}</option>
-                ))}
-              </select>
-            </Campo>
+                {t.label}
+              </button>
+            ))}
           </div>
-          {(frequencia === "semanal" || frequencia === "quinzenal") && (
-            <Campo label="Dia da semana">
-              <select value={diaSemana} onChange={(e) => setDiaSemana(Number(e.target.value))} className="campoexec" aria-label="Dia da semana">
-                {DIAS_SEMANA.map((d, i) => (
-                  <option key={d} value={i}>{d}</option>
-                ))}
-              </select>
-            </Campo>
+
+          {/* Aba: Filtro — o que ler */}
+          {aba === "filtro" && (
+            <div className="space-y-3">
+              <Campo label="Remetente(s) — opcional (separa por vírgula)">
+                <input value={remetente} onChange={(e) => setRemetente(e.target.value)} className="campoexec" placeholder="joao@cliente.com, equipa@empresa.com" />
+              </Campo>
+              <Campo label="Palavras-chave — opcional (assunto/corpo)">
+                <input value={palavras} onChange={(e) => setPalavras(e.target.value)} className="campoexec" placeholder="proposta, contrato" />
+              </Campo>
+              <Campo label="Janela (dias) — quão recentes os emails a buscar">
+                <input type="number" min={1} max={30} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
+              </Campo>
+            </div>
           )}
-          {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && (
-            <Campo label="Dia do mês (1–31)">
-              <input type="number" min={1} max={31} value={diaMes} onChange={(e) => setDiaMes(Number(e.target.value))} className="campoexec" aria-label="Dia do mês" placeholder="10" />
-            </Campo>
-          )}
-          {automatica && (
-            <p className="-mt-1 text-[11px] text-black/45">
-              ⚙️ Automática: o sistema corre esta tarefa sozinho conforme a frequência.{" "}
-              {frequencia === "diaria" && "Todos os dias."}
-              {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}.`}
-              {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes} do mês.`}
-            </p>
-          )}
-          <Campo label="O que extrair destes emails — opcional">
-            <textarea
-              value={instrucoes}
-              onChange={(e) => setInstrucoes(e.target.value)}
-              className="campoexec h-20 resize-none"
-              placeholder="Ex: Foca em prazos, valores e pedidos do cliente. Ignora newsletters."
-            />
-          </Campo>
-          <div className="block">
-            <span className="mb-1 block text-xs font-medium text-black/60">Habilidades a usar — opcional</span>
-            {skills.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-black/15 p-2.5 text-xs text-black/40">
-                Sem habilidades para o Agente Executivo. Cria no menu Habilidades (agente “Agente Executivo” ou “Global”).
+
+          {/* Aba: Agendamento — quando correr */}
+          {aba === "agendamento" && (
+            <div className="space-y-3">
+              <Campo label="Frequência">
+                <select
+                  value={`${frequencia}|${automatica ? "auto" : "man"}`}
+                  onChange={(e) => {
+                    const [f, a] = e.target.value.split("|");
+                    setFrequencia(f as Frequencia);
+                    setAutomatica(a === "auto");
+                  }}
+                  className="campoexec"
+                  aria-label="Frequência"
+                >
+                  {FREQ_OPCOES.map((o) => (
+                    <option key={o.v} value={o.v}>{o.l}</option>
+                  ))}
+                </select>
+              </Campo>
+              {(frequencia === "semanal" || frequencia === "quinzenal") && (
+                <Campo label="Dia da semana">
+                  <select value={diaSemana} onChange={(e) => setDiaSemana(Number(e.target.value))} className="campoexec" aria-label="Dia da semana">
+                    {DIAS_SEMANA.map((d, i) => (
+                      <option key={d} value={i}>{d}</option>
+                    ))}
+                  </select>
+                </Campo>
+              )}
+              {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && (
+                <Campo label="Dia do mês (1–31)">
+                  <input type="number" min={1} max={31} value={diaMes} onChange={(e) => setDiaMes(Number(e.target.value))} className="campoexec" aria-label="Dia do mês" placeholder="10" />
+                </Campo>
+              )}
+              <p className="rounded-lg bg-black/[0.03] p-2.5 text-[11px] text-black/50">
+                {automatica ? (
+                  <>
+                    ⚙️ <strong>Automática</strong> — o sistema corre esta tarefa sozinho.{" "}
+                    {frequencia === "diaria" && "Todos os dias."}
+                    {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}${frequencia === "quinzenal" ? " (de 15 em 15 dias)" : ""}.`}
+                    {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes}, a cada ${frequencia === "mensal" ? "mês" : frequencia === "trimestral" ? "trimestre" : "semestre"}.`}
+                  </>
+                ) : (
+                  <>✋ <strong>Manual</strong> — só corre quando clicas em <em>Sincronizar</em>.</>
+                )}
               </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {skills.map((h) => {
-                  const sel = habIds.includes(h.id);
-                  return (
-                    <button
-                      key={h.id}
-                      type="button"
-                      onClick={() => toggleHab(h.id)}
-                      title={h.conteudo}
-                      className={`rounded-full border px-3 py-1 text-xs transition ${sel ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/5"}`}
-                    >
-                      {h.titulo}
-                    </button>
-                  );
-                })}
+            </div>
+          )}
+
+          {/* Aba: Inteligência — como a IA resume */}
+          {aba === "ia" && (
+            <div className="space-y-3">
+              <Campo label="O que extrair destes emails — opcional">
+                <textarea
+                  value={instrucoes}
+                  onChange={(e) => setInstrucoes(e.target.value)}
+                  className="campoexec h-24 resize-none"
+                  placeholder="Ex: Foca em prazos, valores e pedidos do cliente. Ignora newsletters."
+                />
+              </Campo>
+              <div className="block">
+                <span className="mb-1 block text-xs font-medium text-black/60">Habilidades a usar — opcional</span>
+                {skills.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-black/15 p-2.5 text-xs text-black/40">
+                    Sem habilidades para o Agente Executivo. Cria no menu Habilidades (agente “Agente Executivo” ou “Global”).
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((h) => {
+                      const sel = habIds.includes(h.id);
+                      return (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onClick={() => toggleHab(h.id)}
+                          title={h.conteudo}
+                          className={`rounded-full border px-3 py-1 text-xs transition ${sel ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/5"}`}
+                        >
+                          {h.titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
