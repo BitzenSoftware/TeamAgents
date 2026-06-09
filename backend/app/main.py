@@ -13,6 +13,7 @@ from .config import get_settings
 from .schemas import (
     CampanhaUpdate,
     CheckoutRequest,
+    CompraPacoteRequest,
     ConfigUpdate,
     CopyRequest,
     EmailSyncRequest,
@@ -21,6 +22,8 @@ from .schemas import (
     HabilidadeUpdate,
     OAuthGoogleExchange,
     OnboardingPayload,
+    PacoteCreate,
+    PacoteUpdate,
     PlanoCreate,
     PlanoUpdate,
     OAuthFacebookExchange,
@@ -119,6 +122,44 @@ def registar_plano_stripe(pid: str, _: str = Depends(auth.require_superadmin)) -
         raise HTTPException(status_code=400, detail=f"Falha na Stripe: {e}")
 
 
+# ===================== Pacotes de créditos avulsos (admin) =====================
+@app.get("/admin/pacotes")
+def listar_pacotes(_: str = Depends(auth.require_superadmin)) -> list[dict]:
+    return flow.listar_pacotes()
+
+
+@app.post("/admin/pacotes", status_code=201)
+def criar_pacote(payload: PacoteCreate, _: str = Depends(auth.require_superadmin)) -> dict:
+    return flow.criar_pacote(payload.model_dump())
+
+
+@app.patch("/admin/pacotes/{pid}")
+def atualizar_pacote(pid: str, payload: PacoteUpdate, _: str = Depends(auth.require_superadmin)) -> dict:
+    updated = flow.atualizar_pacote(pid, payload.model_dump(exclude_none=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Pacote não encontrado.")
+    return updated
+
+
+@app.delete("/admin/pacotes/{pid}", status_code=204)
+def apagar_pacote(pid: str, _: str = Depends(auth.require_superadmin)) -> None:
+    flow.apagar_pacote(pid)
+
+
+@app.post("/admin/pacotes/{pid}/stripe")
+def registar_pacote_stripe(pid: str, _: str = Depends(auth.require_superadmin)) -> dict:
+    """Cria/recria o Produto + Preço de compra única na Stripe e guarda o price_id."""
+    pacotes = [p for p in flow.listar_pacotes() if p["id"] == pid]
+    if not pacotes:
+        raise HTTPException(status_code=404, detail="Pacote não encontrado.")
+    try:
+        return billing.criar_preco_para_pacote(pacotes[0])
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Falha na Stripe: {e}")
+
+
 # ===================== Stripe: assinaturas do cliente =====================
 @app.post("/me/checkout")
 def criar_checkout(req: CheckoutRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
@@ -136,6 +177,23 @@ def criar_portal(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Abre o Portal de Faturação da Stripe (gerir/cancelar) e devolve a URL."""
     try:
         return {"url": billing.criar_portal(cliente_id)}
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/me/pacotes")
+def listar_pacotes_ativos(_: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Pacotes de créditos avulsos disponíveis para compra."""
+    return flow.listar_pacotes_ativos()
+
+
+@app.post("/me/comprar-creditos")
+def comprar_creditos(req: CompraPacoteRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Abre o Checkout (compra única) de um pacote de créditos e devolve a URL."""
+    try:
+        return {"url": billing.criar_checkout_pacote(cliente_id, req.pacote_id)}
     except billing.StripeNaoConfigurada as e:
         raise HTTPException(status_code=503, detail=str(e))
     except ValueError as e:

@@ -1010,26 +1010,32 @@ def get_consumo(cliente_id: str) -> dict:
     except Exception:
         # Schema de consumo ainda não migrado — devolve um estado neutro.
         return {"usados": 0, "total": _CREDITOS_FALLBACK, "restantes": _CREDITOS_FALLBACK, "percent": 0,
+                "creditos_avulsos": 0, "disponivel_total": _CREDITOS_FALLBACK,
                 "plano_id": None, "plano_nome": None, "tem_assinatura": False}
     percent = round(usados / total * 100) if total else 0
     plano_id = plano_nome = None
     tem_assinatura = False
+    avulsos = 0
     try:
         db = get_db()
-        row = db.table("clientes").select("plano_id, stripe_subscription_id").eq("id", cliente_id).limit(1).execute().data
+        row = db.table("clientes").select("plano_id, stripe_subscription_id, creditos_avulsos").eq("id", cliente_id).limit(1).execute().data
         if row:
             plano_id = row[0].get("plano_id")
             tem_assinatura = bool(row[0].get("stripe_subscription_id"))
+            avulsos = int(row[0].get("creditos_avulsos") or 0)
         if plano_id:
             p = db.table("planos").select("nome").eq("id", plano_id).limit(1).execute().data
             plano_nome = p[0]["nome"] if p else None
     except Exception:
-        pass  # migração 017 ainda não aplicada
+        pass  # migração 017/018 ainda não aplicada
+    restantes_plano = max(total - usados, 0)
     return {
         "usados": usados,
         "total": total,
-        "restantes": max(total - usados, 0),
+        "restantes": restantes_plano,
         "percent": min(percent, 100),
+        "creditos_avulsos": avulsos,
+        "disponivel_total": restantes_plano + avulsos,
         "plano_id": plano_id,
         "plano_nome": plano_nome,
         "tem_assinatura": tem_assinatura,
@@ -1049,9 +1055,72 @@ def listar_planos_ativos() -> list[dict]:
     )
 
 
-def verificar_limite(cliente_id: str, qtd: int) -> None:
-    """Levanta LimiteCreditosError se a ação exceder o plano. NÃO consome.
+def saldo_avulso(cliente_id: str) -> int:
+    """Saldo de créditos avulsos (comprados, não expiram). 0 se migração 018 ausente."""
+    try:
+        row = get_db().table("clientes").select("creditos_avulsos").eq("id", cliente_id).limit(1).execute().data
+        return int(row[0].get("creditos_avulsos") or 0) if row else 0
+    except Exception:
+        return 0  # coluna ainda não existe
 
+
+# ===================== Pacotes de créditos avulsos =====================
+def listar_pacotes() -> list[dict]:
+    return get_db().table("pacotes_creditos").select("*").order("ordem").execute().data
+
+
+def listar_pacotes_ativos() -> list[dict]:
+    """Pacotes ativos (para o cliente comprar)."""
+    return (
+        get_db()
+        .table("pacotes_creditos")
+        .select("id, nome, creditos, preco, stripe_price_id, ordem")
+        .eq("ativo", True)
+        .order("ordem")
+        .execute()
+        .data
+    )
+
+
+def criar_pacote(fields: dict) -> dict:
+    return get_db().table("pacotes_creditos").insert(fields).execute().data[0]
+
+
+def atualizar_pacote(pid: str, fields: dict) -> dict | None:
+    res = get_db().table("pacotes_creditos").update(fields).eq("id", pid).execute()
+    return res.data[0] if res.data else None
+
+
+def apagar_pacote(pid: str) -> None:
+    get_db().table("pacotes_creditos").delete().eq("id", pid).execute()
+
+
+def creditar_compra_avulsa(cliente_id: str, creditos: int, valor: float, pacote_id: str | None, session_id: str | None) -> bool:
+    """Soma créditos ao saldo avulso e regista a compra. Idempotente por session_id.
+
+    Devolve True se creditou, False se já tinha sido processado (mesmo session_id).
+    """
+    db = get_db()
+    if session_id:
+        ja = db.table("compras_creditos").select("id").eq("stripe_session_id", session_id).limit(1).execute().data
+        if ja:
+            return False  # webhook reentregue — não credita 2x
+    db.table("compras_creditos").insert({
+        "cliente_id": cliente_id,
+        "pacote_id": pacote_id,
+        "creditos": creditos,
+        "valor": valor,
+        "stripe_session_id": session_id,
+    }).execute()
+    atual = saldo_avulso(cliente_id)
+    db.table("clientes").update({"creditos_avulsos": atual + creditos}).eq("id", cliente_id).execute()
+    return True
+
+
+def verificar_limite(cliente_id: str, qtd: int) -> None:
+    """Levanta LimiteCreditosError se a ação exceder mesada do plano + saldo avulso.
+
+    Disponível = (mesada do plano − usado no mês) + créditos avulsos. NÃO consome.
     Se o schema de consumo ainda não foi migrado, NÃO bloqueia (degrada com segurança).
     """
     try:
@@ -1059,35 +1128,59 @@ def verificar_limite(cliente_id: str, qtd: int) -> None:
         usados = consumo_atual(cliente_id)
     except Exception:
         return  # migração 011 ainda não aplicada — não impõe limite
-    if usados + qtd > total:
+    restante_mensal = max(total - usados, 0)
+    disponivel = restante_mensal + saldo_avulso(cliente_id)
+    if qtd > disponivel:
         raise LimiteCreditosError(
-            f"Limite do plano atingido ({usados}/{total} créditos este mês). "
-            "Faz upgrade do plano para continuar."
+            f"Créditos insuficientes ({disponivel} disponíveis: {restante_mensal} do plano "
+            f"+ {saldo_avulso(cliente_id)} avulsos). Faz upgrade ou compra um pacote de créditos."
         )
 
 
 def consumir_creditos(cliente_id: str, qtd: int, origem: str = "outro") -> None:
-    """Incrementa o consumo do mês (contador) e regista no log detalhado (por origem).
+    """Contabiliza o consumo: gasta a mesada do plano primeiro, depois o saldo avulso.
 
     Chamar após a ação ter êxito. `origem`: campanhas | sdr | bi | executivo.
+    O `consumo_log` regista sempre a quantidade total (para o dashboard).
     """
     try:
         db = get_db()
         periodo = _periodo_atual()
-        existing = (
-            db.table("consumo_mensal")
-            .select("creditos_usados")
-            .eq("cliente_id", cliente_id)
-            .eq("periodo", periodo)
-            .limit(1)
-            .execute()
-            .data
-        )
-        if existing:
-            novo = existing[0]["creditos_usados"] + qtd
-            db.table("consumo_mensal").update({"creditos_usados": novo}).eq("cliente_id", cliente_id).eq("periodo", periodo).execute()
-        else:
-            db.table("consumo_mensal").insert({"cliente_id": cliente_id, "periodo": periodo, "creditos_usados": qtd}).execute()
+
+        # Quanto ainda cabe na mesada do plano este mês.
+        try:
+            total = creditos_do_plano(cliente_id)
+            usado_mes = consumo_atual(cliente_id)
+            restante_mensal = max(total - usado_mes, 0)
+        except Exception:
+            restante_mensal = qtd  # sem schema de plano — tudo conta como mesada
+        do_mes = min(qtd, restante_mensal)
+        do_avulso = qtd - do_mes
+
+        # 1) incrementa o contador mensal (só a parte coberta pela mesada).
+        if do_mes > 0:
+            existing = (
+                db.table("consumo_mensal")
+                .select("creditos_usados")
+                .eq("cliente_id", cliente_id)
+                .eq("periodo", periodo)
+                .limit(1)
+                .execute()
+                .data
+            )
+            if existing:
+                novo = existing[0]["creditos_usados"] + do_mes
+                db.table("consumo_mensal").update({"creditos_usados": novo}).eq("cliente_id", cliente_id).eq("periodo", periodo).execute()
+            else:
+                db.table("consumo_mensal").insert({"cliente_id": cliente_id, "periodo": periodo, "creditos_usados": do_mes}).execute()
+
+        # 2) o resto sai do saldo avulso (nunca abaixo de 0).
+        if do_avulso > 0:
+            try:
+                atual = saldo_avulso(cliente_id)
+                db.table("clientes").update({"creditos_avulsos": max(atual - do_avulso, 0)}).eq("id", cliente_id).execute()
+            except Exception:
+                pass  # migração 018 pode ainda não ter corrido
     except Exception:
         pass  # nunca falhar a ação principal por causa da contabilização de créditos
     try:

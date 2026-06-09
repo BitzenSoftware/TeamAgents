@@ -137,6 +137,29 @@ class CheckoutRequest(BaseModel):
     plano_id: str = Field(min_length=1)
 
 
+# ===================== Pacotes de créditos avulsos =====================
+class PacoteCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    creditos: int = 0
+    preco: float = 0
+    stripe_price_id: str | None = None
+    ativo: bool = True
+    ordem: int = 0
+
+
+class PacoteUpdate(BaseModel):
+    nome: str | None = None
+    creditos: int | None = None
+    preco: float | None = None
+    stripe_price_id: str | None = None
+    ativo: bool | None = None
+    ordem: int | None = None
+
+
+class CompraPacoteRequest(BaseModel):
+    pacote_id: str = Field(min_length=1)
+
+
 # ===================== Social Config =====================
 class SocialConfigUpdate(BaseModel):
     discord_webhook_url: str | None = None

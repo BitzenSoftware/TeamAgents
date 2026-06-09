@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type Consumo, type ConsumoDashboard, type PlanoAtivo } from "@/lib/api";
+import { api, type Consumo, type ConsumoDashboard, type PacoteAtivo, type PlanoAtivo } from "@/lib/api";
 
 type Gran = "dia" | "semana" | "mes" | "ano";
 
@@ -29,6 +29,7 @@ export default function ConsumoPage() {
   const [ano, setAno] = useState(anoAtual);
   const [loading, setLoading] = useState(false);
   const [planos, setPlanos] = useState<PlanoAtivo[]>([]);
+  const [pacotes, setPacotes] = useState<PacoteAtivo[]>([]);
   const [billingBusy, setBillingBusy] = useState<string | null>(null);
   const [billingErro, setBillingErro] = useState<string | null>(null);
 
@@ -37,7 +38,20 @@ export default function ConsumoPage() {
   useEffect(() => {
     api.consumo().then(setConsumo).catch(() => {});
     api.planosAtivos().then(setPlanos).catch(() => {});
+    api.pacotesAtivos().then(setPacotes).catch(() => {});
   }, []);
+
+  async function comprar(pacoteId: string) {
+    setBillingBusy(`pac-${pacoteId}`);
+    setBillingErro(null);
+    try {
+      const { url } = await api.comprarCreditos(pacoteId);
+      window.location.href = url;
+    } catch (e) {
+      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir a compra.");
+      setBillingBusy(null);
+    }
+  }
 
   async function assinar(planoId: string) {
     setBillingBusy(planoId);
@@ -97,7 +111,15 @@ export default function ConsumoPage() {
       {consumo && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
-          <CardKpi titulo="Disponíveis" valor={`${consumo.restantes}`} />
+          <CardKpi
+            titulo="Disponíveis"
+            valor={`${consumo.disponivel_total ?? consumo.restantes}`}
+            sub={
+              consumo.creditos_avulsos
+                ? `(${consumo.restantes} do plano + ${consumo.creditos_avulsos} avulsos)`
+                : undefined
+            }
+          />
           <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
         </div>
       )}
@@ -163,6 +185,49 @@ export default function ConsumoPage() {
                       className="mt-3 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                     >
                       {atual ? "Plano atual" : billingBusy === p.id ? "A abrir…" : semStripe ? "Indisponível" : "Assinar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comprar créditos avulsos (top-ups) */}
+      {pacotes.length > 0 && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-white">
+            <span className="text-xs font-semibold">
+              Comprar créditos avulsos
+              <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
+                Saldo: {consumo?.creditos_avulsos ?? 0}
+              </span>
+            </span>
+            <span className="text-[11px] text-white/70">Compra única · não expiram · usados após a mesada do plano</span>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {pacotes.map((p) => {
+                const semStripe = !p.stripe_price_id;
+                return (
+                  <div key={p.id} className="flex flex-col rounded-xl border border-black/10 p-4">
+                    <span className="font-semibold">{p.nome}</span>
+                    <div className="mt-1 text-2xl font-semibold">
+                      R$ {Number(p.preco).toFixed(2)}
+                      <span className="text-sm font-normal text-black/40"> única</span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-black/50">
+                      +{p.creditos.toLocaleString("pt-BR")} créditos
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => comprar(p.id)}
+                      disabled={semStripe || billingBusy === `pac-${p.id}`}
+                      title={semStripe ? "Pacote ainda não disponível para compra." : undefined}
+                      className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                    >
+                      {billingBusy === `pac-${p.id}` ? "A abrir…" : semStripe ? "Indisponível" : "Comprar"}
                     </button>
                   </div>
                 );

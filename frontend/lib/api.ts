@@ -72,6 +72,8 @@ export type Consumo = {
   total: number;
   restantes: number;
   percent: number;
+  creditos_avulsos?: number;
+  disponivel_total?: number;
   plano_id?: string | null;
   plano_nome?: string | null;
   tem_assinatura?: boolean;
@@ -81,6 +83,26 @@ export type PlanoAtivo = {
   id: string;
   nome: string;
   creditos_mensais: number;
+  preco: number;
+  stripe_price_id: string | null;
+  ordem: number;
+};
+
+export type Pacote = {
+  id: string;
+  nome: string;
+  creditos: number;
+  preco: number;
+  stripe_price_id: string | null;
+  stripe_product_id?: string | null;
+  ativo: boolean;
+  ordem: number;
+};
+
+export type PacoteAtivo = {
+  id: string;
+  nome: string;
+  creditos: number;
   preco: number;
   stripe_price_id: string | null;
   ordem: number;
@@ -411,4 +433,17 @@ export const api = {
   checkout: (planoId: string) =>
     req<{ url: string }>("/me/checkout", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
   portal: () => req<{ url: string }>("/me/portal", { method: "POST" }),
+
+  // --- Pacotes de créditos avulsos ---
+  pacotes: () => req<Pacote[]>("/admin/pacotes"),
+  criarPacote: (body: Partial<Pacote>) =>
+    req<Pacote>("/admin/pacotes", { method: "POST", body: JSON.stringify(body) }),
+  atualizarPacote: (id: string, body: Partial<Pacote>) =>
+    req<Pacote>(`/admin/pacotes/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarPacote: (id: string) => req<void>(`/admin/pacotes/${id}`, { method: "DELETE" }),
+  registarPacoteStripe: (id: string) =>
+    req<Pacote>(`/admin/pacotes/${id}/stripe`, { method: "POST" }),
+  pacotesAtivos: () => req<PacoteAtivo[]>("/me/pacotes"),
+  comprarCreditos: (pacoteId: string) =>
+    req<{ url: string }>("/me/comprar-creditos", { method: "POST", body: JSON.stringify({ pacote_id: pacoteId }) }),
 };

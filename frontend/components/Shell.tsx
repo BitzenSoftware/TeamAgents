@@ -17,7 +17,10 @@ const NAV = [
   { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
 ];
 
-const NAV_ADMIN = [{ href: "/planos", label: "Planos", hint: "Admin / Stripe" }];
+const NAV_ADMIN = [
+  { href: "/planos", label: "Planos", hint: "Admin / Stripe" },
+  { href: "/pacotes", label: "Pacotes", hint: "Créditos avulsos" },
+];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

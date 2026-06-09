@@ -72,6 +72,77 @@ def criar_preco_para_plano(plano: dict) -> dict:
     return upd[0] if upd else {**plano, "stripe_price_id": preco["id"], "stripe_product_id": product_id}
 
 
+# ===================== Admin: registar pacote na Stripe =====================
+def criar_preco_para_pacote(pacote: dict) -> dict:
+    """Cria (ou recria) o Produto + Preço de COMPRA ÚNICA (sem recurring) na Stripe."""
+    s = _init()
+    db = get_db()
+
+    product_id = pacote.get("stripe_product_id")
+    if product_id:
+        try:
+            stripe.Product.modify(product_id, name=pacote["nome"])
+        except stripe.error.InvalidRequestError:
+            product_id = None
+    if not product_id:
+        prod = stripe.Product.create(name=pacote["nome"], metadata={"pacote_id": pacote["id"]})
+        product_id = prod["id"]
+
+    preco = stripe.Price.create(
+        product=product_id,
+        currency=s.stripe_currency,
+        unit_amount=int(round(float(pacote["preco"]) * 100)),
+        metadata={"pacote_id": pacote["id"], "creditos": pacote["creditos"]},
+    )  # sem 'recurring' => preço de compra única
+
+    upd = (
+        db.table("pacotes_creditos")
+        .update({"stripe_price_id": preco["id"], "stripe_product_id": product_id})
+        .eq("id", pacote["id"])
+        .execute()
+        .data
+    )
+    return upd[0] if upd else {**pacote, "stripe_price_id": preco["id"], "stripe_product_id": product_id}
+
+
+def criar_checkout_pacote(cliente_id: str, pacote_id: str) -> str:
+    """Checkout em modo 'payment' (compra única) para um pacote de créditos."""
+    s = _init()
+    db = get_db()
+
+    pac = db.table("pacotes_creditos").select("*").eq("id", pacote_id).limit(1).execute().data
+    if not pac:
+        raise ValueError("Pacote não encontrado.")
+    pac = pac[0]
+    price_id = pac.get("stripe_price_id")
+    if not price_id:
+        raise ValueError("Este pacote ainda não está registado na Stripe.")
+
+    cli = db.table("clientes").select("stripe_customer_id").eq("id", cliente_id).limit(1).execute().data
+    customer_id = cli[0].get("stripe_customer_id") if cli else None
+
+    params: dict = {
+        "mode": "payment",
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "client_reference_id": cliente_id,
+        "metadata": {
+            "tipo": "pacote",
+            "cliente_id": cliente_id,
+            "pacote_id": pacote_id,
+            "creditos": str(pac["creditos"]),
+            "valor": str(pac["preco"]),
+        },
+        "success_url": f"{s.frontend_url}/consumo?compra=sucesso",
+        "cancel_url": f"{s.frontend_url}/consumo?compra=cancelado",
+        "allow_promotion_codes": True,
+    }
+    if customer_id:
+        params["customer"] = customer_id
+
+    sess = stripe.checkout.Session.create(**params)
+    return sess["url"]
+
+
 # ===================== Cliente: Checkout (assinar) =====================
 def criar_checkout(cliente_id: str, plano_id: str) -> str:
     """Cria uma sessão de Checkout (modo subscription) e devolve a URL."""
@@ -136,9 +207,22 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
     obj = event["data"]["object"]
 
     if tipo == "checkout.session.completed":
-        cliente_id = obj.get("client_reference_id") or (obj.get("metadata") or {}).get("cliente_id")
-        plano_id = (obj.get("metadata") or {}).get("plano_id")
-        if cliente_id:
+        meta = obj.get("metadata") or {}
+        cliente_id = obj.get("client_reference_id") or meta.get("cliente_id")
+        if cliente_id and (obj.get("mode") == "payment" or meta.get("tipo") == "pacote"):
+            # Compra única de pacote de créditos avulsos.
+            try:
+                creditos = int(meta.get("creditos") or 0)
+                valor = float(meta.get("valor") or 0)
+            except (TypeError, ValueError):
+                creditos, valor = 0, 0.0
+            if obj.get("customer"):
+                _guardar_ids(cliente_id, obj.get("customer"), None)
+            if creditos > 0:
+                flow.creditar_compra_avulsa(cliente_id, creditos, valor, meta.get("pacote_id"), obj.get("id"))
+        elif cliente_id:
+            # Assinatura de plano.
+            plano_id = meta.get("plano_id")
             _guardar_ids(cliente_id, obj.get("customer"), obj.get("subscription"))
             if plano_id:
                 _set_plano(cliente_id, plano_id)
