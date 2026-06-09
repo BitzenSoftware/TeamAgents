@@ -25,6 +25,7 @@ from .schemas import (
     ItemProcessado,
     PlanoExecucao,
     SinteseExecutiva,
+    TipoItem,
 )
 
 _AGENT_ID = "assistente-executivo"
@@ -69,7 +70,7 @@ async def _planear(client: anthropic.AsyncAnthropic, entrada: str) -> PlanoExecu
     s = get_settings()
     resp = await client.messages.parse(
         model=s.model_exec_orchestrator,
-        max_tokens=4000,
+        max_tokens=8000,
         system=_sys(_INSTR_PLANEAR),
         messages=[{"role": "user", "content": entrada}],
         output_format=PlanoExecucao,
@@ -130,32 +131,54 @@ async def _sintetizar(
     return resp.parsed_output
 
 
+async def _engine(
+    client: anthropic.AsyncAnthropic, itens: list[ItemBruto], habilidades: str
+) -> ExecutivoResultado:
+    """Fan-out resiliente sobre itens JÁ discretos + síntese. Sem passo de planeamento."""
+    itens = itens[:_MAX_ITENS]
+    if not itens:
+        vazio = SinteseExecutiva(resumo_geral="Não foi detetado conteúdo processável no texto fornecido.")
+        return ExecutivoResultado(sintese=vazio, itens=[], n_itens=0, n_falhas=0)
+
+    sem = asyncio.Semaphore(_WORKER_CONCURRENCY)
+    resultados = await asyncio.gather(
+        *(_processar_item(client, sem, it, habilidades) for it in itens),
+        return_exceptions=True,
+    )
+    ok = [r for r in resultados if isinstance(r, ItemProcessado)]
+    n_falhas = len(resultados) - len(ok)
+
+    if ok:
+        sintese = await _sintetizar(client, ok, n_falhas)
+    else:
+        sintese = SinteseExecutiva(
+            resumo_geral="Não foi possível processar nenhum dos itens detetados. Tenta novamente."
+        )
+    return ExecutivoResultado(sintese=sintese, itens=ok, n_itens=len(itens), n_falhas=n_falhas)
+
+
+async def processar_itens(itens: list[ItemBruto], habilidades: str = "") -> ExecutivoResultado:
+    """Processa itens JÁ discretos (ex.: cada email do Gmail) — SEM planeamento.
+
+    Evita o orquestrador re-emitir o conteúdo (que truncava o JSON com muitos
+    emails) e é mais barato: o fan-out de workers é determinístico.
+    """
+    async with anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key) as client:
+        return await _engine(client, itens, habilidades)
+
+
 async def processar(entrada: str, habilidades: str = "") -> ExecutivoResultado:
-    """Orquestra o processamento completo. Devolve síntese + itens + nº de falhas.
+    """Processa um texto colado/carregado. Tenta separar em itens; se o plano falhar
+    (ex.: texto enorme que trunca o JSON), trata tudo como um único item — robusto.
 
     Cria um cliente async novo por chamada (cada request corre o seu próprio
     event loop via ``asyncio.run``); reutilizar um cliente entre loops fechados
     daria "Event loop is closed".
     """
     async with anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key) as client:
-        plano = await _planear(client, entrada)
-        itens = plano.itens[:_MAX_ITENS]
-        if not itens:
-            vazio = SinteseExecutiva(resumo_geral="Não foi detetado conteúdo processável no texto fornecido.")
-            return ExecutivoResultado(sintese=vazio, itens=[], n_itens=0, n_falhas=0)
-
-        sem = asyncio.Semaphore(_WORKER_CONCURRENCY)
-        resultados = await asyncio.gather(
-            *(_processar_item(client, sem, it, habilidades) for it in itens),
-            return_exceptions=True,
-        )
-        ok = [r for r in resultados if isinstance(r, ItemProcessado)]
-        n_falhas = len(resultados) - len(ok)
-
-        if ok:
-            sintese = await _sintetizar(client, ok, n_falhas)
-        else:
-            sintese = SinteseExecutiva(
-                resumo_geral="Não foi possível processar nenhum dos itens detetados. Tenta novamente."
-            )
-        return ExecutivoResultado(sintese=sintese, itens=ok, n_itens=len(itens), n_falhas=n_falhas)
+        try:
+            plano = await _planear(client, entrada)
+            itens = plano.itens
+        except Exception:
+            itens = [ItemBruto(tipo=TipoItem.ATA, titulo="Conteúdo", conteudo=entrada)]
+        return await _engine(client, itens, habilidades)

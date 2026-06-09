@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from . import email_ingest, executivo, llm, whatsapp
 from .config import get_settings
 from .db import get_db
-from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, OnboardingPayload, SdrAction, SdrStatus
+from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
 
 # O SDR responde em enum legível (inglês); a BD usa o enum status_qualificacao
 # em português. Mapeamos na fronteira BD.
@@ -164,19 +164,22 @@ def processar_executivo(cliente_id: str, req: ExecutivoRequest) -> dict:
     verificar_limite(cliente_id, CREDITOS_EXEC_BASE)  # bloqueia ANTES de gastar API
     habilidades = _habilidades_texto(cliente_id, agente="assistente")
     resultado = asyncio.run(executivo.processar(req.entrada, habilidades))
+    return _persistir_executivo(cliente_id, req.titulo, req.entrada, resultado)
 
-    titulo = (req.titulo or "").strip() or _titulo_automatico(resultado)
+
+def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, resultado) -> dict:
+    """Persiste o resultado do Agente Executivo e desconta créditos (só itens com êxito)."""
+    titulo = (titulo_in or "").strip() or _titulo_automatico(resultado)
     row = {
         "cliente_id": cliente_id,
         "titulo": titulo,
-        "entrada": req.entrada,
+        "entrada": entrada,
         "sintese": resultado.sintese.model_dump(),
         "itens": [i.model_dump() for i in resultado.itens],
         "n_itens": resultado.n_itens,
         "n_falhas": resultado.n_falhas,
     }
     saved = get_db().table("processamentos_executivo").insert(row).execute().data[0]
-    # Só os itens com êxito cobram (falhas não descontam).
     consumir_creditos(cliente_id, CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM)
     return saved
 
@@ -286,9 +289,20 @@ def sincronizar_email(cliente_id: str, provider: str = "gmail", max_results: int
     if not emails:
         get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
         return {"processamento": None, "n_emails": 0}
-    entrada = email_ingest.construir_entrada(emails)
+    # Cada email é um item discreto — processamos sem o passo de planeamento do Opus
+    # (que re-emitia todo o conteúdo e truncava o JSON com vários emails).
+    itens = [
+        ItemBruto(
+            tipo=TipoItem.EMAIL,
+            titulo=(e.get("subject") or "(sem assunto)")[:120],
+            conteudo=f"De: {e.get('from', '')}\nAssunto: {e.get('subject', '')}\n\n{e.get('body', '')}".strip(),
+        )
+        for e in emails
+    ]
+    habilidades = _habilidades_texto(cliente_id, agente="assistente")
+    resultado = asyncio.run(executivo.processar_itens(itens, habilidades))
     titulo = f"Gmail — {datetime.now(timezone.utc).strftime('%d/%m %H:%M')}"
-    proc = processar_executivo(cliente_id, ExecutivoRequest(entrada=entrada, titulo=titulo))
+    proc = _persistir_executivo(cliente_id, titulo, email_ingest.construir_entrada(emails), resultado)
     get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
     return {"processamento": proc, "n_emails": len(emails)}
 
