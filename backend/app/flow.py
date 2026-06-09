@@ -366,7 +366,6 @@ def sincronizar_email(
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
 
     access = _access_token_valido(account)
-    habilidades = _habilidades_texto(cliente_id, agente="assistente")
     criados: list[dict] = []
     total_emails = 0
     for t in tarefas:
@@ -378,7 +377,14 @@ def sincronizar_email(
         _marcar_tarefa_run(t["id"])
         if not emails:
             continue
-        resultado = asyncio.run(executivo.processar_itens(_itens_de_emails(emails), habilidades))
+        # Habilidades por tarefa: as escolhidas, ou todas as do agente se nenhuma escolhida.
+        hab_ids = t.get("habilidade_ids") or None
+        habilidades = _habilidades_texto(
+            cliente_id, ids=hab_ids, agente=None if hab_ids else "assistente"
+        )
+        resultado = asyncio.run(
+            executivo.processar_itens(_itens_de_emails(emails), habilidades, t.get("instrucoes") or "")
+        )
         proc = _persistir_executivo(cliente_id, t["nome"], email_ingest.construir_entrada(emails), resultado)
         criados.append(proc)
         total_emails += len(emails)

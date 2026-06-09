@@ -6,6 +6,7 @@ import {
   api,
   type AcaoItem,
   type EmailAccount,
+  type Habilidade,
   type ItemProcessado,
   type Processamento,
   type TarefaExecutivo,
@@ -37,6 +38,7 @@ export default function ExecutivoPage() {
   const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
   const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
   const [syncPicker, setSyncPicker] = useState(false);
+  const [skills, setSkills] = useState<Habilidade[]>([]);
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -53,6 +55,11 @@ export default function ExecutivoPage() {
     carregar();
     carregarContas();
     carregarTarefas();
+    // Skills disponíveis para o Agente Executivo: as 'assistente' + as 'global', ativas.
+    api
+      .habilidades()
+      .then((hs) => setSkills(hs.filter((h) => h.ativo && (h.agente === "assistente" || h.agente === "global"))))
+      .catch(() => {});
   }, [carregar, carregarContas, carregarTarefas]);
 
   // Anima os passos da barra de progresso enquanto sincroniza.
@@ -294,6 +301,7 @@ export default function ExecutivoPage() {
       {tarefaModal && (
         <ModalTarefa
           tarefa={tarefaModal === "nova" ? null : tarefaModal}
+          skills={skills}
           onClose={() => setTarefaModal(null)}
           onSaved={() => {
             setTarefaModal(null);
@@ -516,10 +524,12 @@ function ModalEscolherSync({
 /* ---------------- Modal: nova/editar tarefa ---------------- */
 function ModalTarefa({
   tarefa,
+  skills,
   onClose,
   onSaved,
 }: {
   tarefa: TarefaExecutivo | null;
+  skills: Habilidade[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -528,8 +538,14 @@ function ModalTarefa({
   const [palavras, setPalavras] = useState(tarefa?.palavras_chave ?? "");
   const [janela, setJanela] = useState(tarefa?.janela_dias ?? 1);
   const [frequencia, setFrequencia] = useState<"manual" | "diaria">(tarefa?.frequencia ?? "manual");
+  const [instrucoes, setInstrucoes] = useState(tarefa?.instrucoes ?? "");
+  const [habIds, setHabIds] = useState<string[]>(tarefa?.habilidade_ids ?? []);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  function toggleHab(id: string) {
+    setHabIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
@@ -542,6 +558,8 @@ function ModalTarefa({
       palavras_chave: palavras.trim() || undefined,
       janela_dias: janela,
       frequencia,
+      instrucoes: instrucoes.trim() || undefined,
+      habilidade_ids: habIds,
     };
     try {
       if (tarefa) await api.atualizarTarefaExecutivo(tarefa.id, body);
@@ -580,6 +598,39 @@ function ModalTarefa({
                 <option value="diaria">Diária (automática)</option>
               </select>
             </Campo>
+          </div>
+          <Campo label="O que extrair destes emails — opcional">
+            <textarea
+              value={instrucoes}
+              onChange={(e) => setInstrucoes(e.target.value)}
+              className="campoexec h-20 resize-none"
+              placeholder="Ex: Foca em prazos, valores e pedidos do cliente. Ignora newsletters."
+            />
+          </Campo>
+          <div className="block">
+            <span className="mb-1 block text-xs font-medium text-black/60">Habilidades a usar — opcional</span>
+            {skills.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-black/15 p-2.5 text-xs text-black/40">
+                Sem habilidades para o Agente Executivo. Cria no menu Habilidades (agente “Agente Executivo” ou “Global”).
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {skills.map((h) => {
+                  const sel = habIds.includes(h.id);
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => toggleHab(h.id)}
+                      title={h.conteudo}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${sel ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/5"}`}
+                    >
+                      {h.titulo}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex justify-end gap-2 pt-1">

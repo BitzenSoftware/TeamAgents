@@ -184,6 +184,8 @@ export type TarefaExecutivo = {
   janela_dias: number;
   frequencia: "manual" | "diaria";
   ativo: boolean;
+  instrucoes: string | null;
+  habilidade_ids: string[];
   last_run: string | null;
   created_at: string;
 };
@@ -195,6 +197,8 @@ export type TarefaInput = {
   janela_dias?: number;
   frequencia?: "manual" | "diaria";
   ativo?: boolean;
+  instrucoes?: string;
+  habilidade_ids?: string[];
 };
 
 export type SocialConfig = {

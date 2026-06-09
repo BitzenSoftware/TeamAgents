@@ -79,11 +79,19 @@ async def _planear(client: anthropic.AsyncAnthropic, entrada: str) -> PlanoExecu
 
 
 async def _processar_item(
-    client: anthropic.AsyncAnthropic, sem: asyncio.Semaphore, item: ItemBruto, habilidades: str
+    client: anthropic.AsyncAnthropic,
+    sem: asyncio.Semaphore,
+    item: ItemBruto,
+    habilidades: str,
+    instrucoes: str = "",
 ) -> ItemProcessado:
     """Processa um item com timeout + 1 retry curto, sob o semáforo de concorrência."""
     s = get_settings()
-    instr = _INSTR_WORKER + (("\n\n" + habilidades) if habilidades else "")
+    instr = _INSTR_WORKER
+    if instrucoes:
+        instr += f"\n\n## Foco pedido pelo utilizador para esta tarefa\n{instrucoes}"
+    if habilidades:
+        instr += "\n\n" + habilidades
     user = f"Tipo: {item.tipo.value}\nTítulo: {item.titulo}\n\n{item.conteudo}"
     async with sem:
         for tentativa in range(2):
@@ -132,7 +140,7 @@ async def _sintetizar(
 
 
 async def _engine(
-    client: anthropic.AsyncAnthropic, itens: list[ItemBruto], habilidades: str
+    client: anthropic.AsyncAnthropic, itens: list[ItemBruto], habilidades: str, instrucoes: str = ""
 ) -> ExecutivoResultado:
     """Fan-out resiliente sobre itens JÁ discretos + síntese. Sem passo de planeamento."""
     itens = itens[:_MAX_ITENS]
@@ -142,7 +150,7 @@ async def _engine(
 
     sem = asyncio.Semaphore(_WORKER_CONCURRENCY)
     resultados = await asyncio.gather(
-        *(_processar_item(client, sem, it, habilidades) for it in itens),
+        *(_processar_item(client, sem, it, habilidades, instrucoes) for it in itens),
         return_exceptions=True,
     )
     ok = [r for r in resultados if isinstance(r, ItemProcessado)]
@@ -157,14 +165,16 @@ async def _engine(
     return ExecutivoResultado(sintese=sintese, itens=ok, n_itens=len(itens), n_falhas=n_falhas)
 
 
-async def processar_itens(itens: list[ItemBruto], habilidades: str = "") -> ExecutivoResultado:
+async def processar_itens(
+    itens: list[ItemBruto], habilidades: str = "", instrucoes: str = ""
+) -> ExecutivoResultado:
     """Processa itens JÁ discretos (ex.: cada email do Gmail) — SEM planeamento.
 
     Evita o orquestrador re-emitir o conteúdo (que truncava o JSON com muitos
     emails) e é mais barato: o fan-out de workers é determinístico.
     """
     async with anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key) as client:
-        return await _engine(client, itens, habilidades)
+        return await _engine(client, itens, habilidades, instrucoes)
 
 
 async def processar(entrada: str, habilidades: str = "") -> ExecutivoResultado:

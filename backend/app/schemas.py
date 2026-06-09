@@ -236,6 +236,8 @@ class TarefaExecutivoCreate(BaseModel):
     janela_dias: int = Field(default=1, ge=1, le=30)
     frequencia: str = "manual"  # 'manual' | 'diaria'
     ativo: bool = True
+    instrucoes: str | None = None  # o que extrair desses emails
+    habilidade_ids: list[str] = Field(default_factory=list)
 
 
 class TarefaExecutivoUpdate(BaseModel):
@@ -245,6 +247,8 @@ class TarefaExecutivoUpdate(BaseModel):
     janela_dias: int | None = Field(default=None, ge=1, le=30)
     frequencia: str | None = None
     ativo: bool | None = None
+    instrucoes: str | None = None
+    habilidade_ids: list[str] | None = None
 
 
 # ===================== Webhook do WhatsApp =====================
