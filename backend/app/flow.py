@@ -338,11 +338,11 @@ def _access_token_valido(account: dict) -> str:
 
 
 def sincronizar_email(
-    cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False, tarefa_id: str | None = None
+    cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False, tarefa_ids: list[str] | None = None
 ) -> dict:
     """Corre tarefas: busca só os emails que batem nos filtros e resume.
 
-    - `tarefa_id`: corre só essa tarefa (escolha do utilizador).
+    - `tarefa_ids`: corre só essas tarefas (escolha do utilizador, mesmo inativas).
     - `apenas_diarias=True`: só as tarefas 'diaria' (usado pelo cron).
     - caso contrário: todas as ativas.
     Uma síntese (processamento) por tarefa.
@@ -355,8 +355,9 @@ def sincronizar_email(
         todas = listar_tarefas_executivo(cliente_id)
     except Exception:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}  # migração 014 ainda não corrida
-    if tarefa_id:
-        tarefas = [t for t in todas if t["id"] == tarefa_id]  # escolha explícita: corre mesmo se inativa
+    if tarefa_ids:
+        escolhidas = set(tarefa_ids)
+        tarefas = [t for t in todas if t["id"] in escolhidas]  # escolha explícita: corre mesmo se inativa
     else:
         tarefas = [t for t in todas if t.get("ativo")]
         if apenas_diarias:

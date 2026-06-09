@@ -65,11 +65,11 @@ export default function ExecutivoPage() {
 
   const gmail = contas.find((c) => c.provider === "gmail") ?? null;
 
-  async function sincronizar(tarefaId?: string) {
+  async function sincronizar(tarefaIds?: string[]) {
     setSyncing(true);
     setEmailMsg(null);
     try {
-      const res = await api.sincronizarEmail("gmail", tarefaId);
+      const res = await api.sincronizarEmail("gmail", tarefaIds);
       if (res.sem_tarefas) {
         setEmailMsg({ ok: false, text: "Cria pelo menos uma tarefa ativa para o agente saber o que ler." });
       } else if (res.n_emails === 0) {
@@ -306,9 +306,9 @@ export default function ExecutivoPage() {
         <ModalEscolherSync
           tarefas={tarefas}
           onClose={() => setSyncPicker(false)}
-          onPick={(id) => {
+          onConfirmar={(ids) => {
             setSyncPicker(false);
-            sincronizar(id);
+            sincronizar(ids);
           }}
         />
       )}
@@ -433,49 +433,80 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
   );
 }
 
-/* ---------------- Janela: escolher o que sincronizar ---------------- */
+/* ---------------- Janela: escolher o que sincronizar (multi-seleção) ---------------- */
 function ModalEscolherSync({
   tarefas,
   onClose,
-  onPick,
+  onConfirmar,
 }: {
   tarefas: TarefaExecutivo[];
   onClose: () => void;
-  onPick: (tarefaId?: string) => void;
+  onConfirmar: (tarefaIds?: string[]) => void;
 }) {
-  const ativas = tarefas.filter((t) => t.ativo);
+  const ativasIds = tarefas.filter((t) => t.ativo).map((t) => t.id);
+  const [sel, setSel] = useState<string[]>(ativasIds); // por defeito, as ativas já vêm marcadas
+  const todasAtivas = ativasIds.length > 0 && ativasIds.every((id) => sel.includes(id));
+
+  function toggle(id: string) {
+    setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-          <span className="text-sm font-semibold text-white">O que queres sincronizar?</span>
+          <span className="text-sm font-semibold text-white">Que tarefas sincronizar?</span>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
         </div>
-        <div className="space-y-2 p-5">
-          <button
-            type="button"
-            onClick={() => onPick(undefined)}
-            disabled={ativas.length === 0}
-            className="w-full rounded-lg border border-brand/40 bg-brand/10 px-3 py-2.5 text-left text-sm font-medium text-brand hover:bg-brand/20 disabled:opacity-40"
-          >
-            Todas as tarefas ativas {ativas.length > 0 && `(${ativas.length})`}
-          </button>
-          <div className="pt-1 text-xs font-medium text-black/40">ou uma específica:</div>
-          {tarefas.map((t) => (
+        <div className="p-5">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-black/50">Marca as que queres correr</span>
             <button
-              key={t.id}
               type="button"
-              onClick={() => onPick(t.id)}
-              className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-left text-sm hover:bg-black/[0.03]"
+              onClick={() => setSel(todasAtivas ? [] : ativasIds)}
+              className="text-xs font-medium text-brand hover:underline"
             >
-              <span className="font-medium">{t.nome}</span>
-              {!t.ativo && <span className="ml-2 text-[11px] text-black/40">(inativa)</span>}
-              <div className="mt-0.5 text-[11px] text-black/40">
-                {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
-                {t.palavras_chave && ` · "${t.palavras_chave}"`} · últimos {t.janela_dias}d
-              </div>
+              {todasAtivas ? "Desmarcar todas" : "Selecionar todas as ativas"}
             </button>
-          ))}
+          </div>
+          <div className="max-h-72 space-y-1.5 overflow-y-auto">
+            {tarefas.map((t) => {
+              const marcada = sel.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggle(t.id)}
+                  className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition ${marcada ? "border-brand/40 bg-brand/10" : "border-black/10 hover:bg-black/[0.03]"}`}
+                >
+                  <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border ${marcada ? "border-brand bg-brand text-white" : "border-black/25"}`}>
+                    {marcada && <span className="text-[10px] leading-none">✓</span>}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="text-sm font-medium">{t.nome}</span>
+                    {!t.ativo && <span className="ml-2 text-[11px] text-black/40">(inativa)</span>}
+                    <span className="mt-0.5 block text-[11px] text-black/40">
+                      {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
+                      {t.palavras_chave && ` · "${t.palavras_chave}"`} · últimos {t.janela_dias}d
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirmar(sel)}
+              disabled={sel.length === 0}
+              className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+            >
+              Sincronizar{sel.length > 0 ? ` (${sel.length})` : ""}
+            </button>
+          </div>
         </div>
       </div>
     </div>
