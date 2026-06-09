@@ -225,6 +225,7 @@ class OAuthGoogleExchange(BaseModel):
 class EmailSyncRequest(BaseModel):
     provider: str = "gmail"
     max_results: int = Field(default=10, ge=1, le=25)
+    tarefa_id: str | None = None  # se vier, corre só essa tarefa; senão todas as ativas
 
 
 # --- Tarefas dirigidas do Agente Executivo ---

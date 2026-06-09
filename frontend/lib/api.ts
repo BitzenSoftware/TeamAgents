@@ -340,10 +340,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ code, redirect_uri }),
     }),
-  sincronizarEmail: (provider = "gmail", max_results = 10) =>
+  sincronizarEmail: (provider = "gmail", tarefa_id?: string) =>
     req<EmailSyncResult>("/me/email/sync", {
       method: "POST",
-      body: JSON.stringify({ provider, max_results }),
+      body: JSON.stringify({ provider, tarefa_id }),
     }),
   desligarEmail: (provider: string) =>
     req<void>(`/me/email-accounts/${provider}`, { method: "DELETE" }),

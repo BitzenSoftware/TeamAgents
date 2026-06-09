@@ -337,21 +337,30 @@ def _access_token_valido(account: dict) -> str:
     return novo_access
 
 
-def sincronizar_email(cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False) -> dict:
-    """Corre as TAREFAS ativas: busca só os emails que batem nos filtros e resume.
+def sincronizar_email(
+    cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False, tarefa_id: str | None = None
+) -> dict:
+    """Corre tarefas: busca só os emails que batem nos filtros e resume.
 
-    Uma síntese (processamento) por tarefa. `apenas_diarias=True` é usado pelo cron.
+    - `tarefa_id`: corre só essa tarefa (escolha do utilizador).
+    - `apenas_diarias=True`: só as tarefas 'diaria' (usado pelo cron).
+    - caso contrário: todas as ativas.
+    Uma síntese (processamento) por tarefa.
     """
     account = _get_email_account(cliente_id, provider)
     if not account:
         raise ValueError("Nenhuma conta de email ligada. Liga o Gmail primeiro.")
 
     try:
-        tarefas = [t for t in listar_tarefas_executivo(cliente_id) if t.get("ativo")]
+        todas = listar_tarefas_executivo(cliente_id)
     except Exception:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}  # migração 014 ainda não corrida
-    if apenas_diarias:
-        tarefas = [t for t in tarefas if t.get("frequencia") == "diaria"]
+    if tarefa_id:
+        tarefas = [t for t in todas if t["id"] == tarefa_id]  # escolha explícita: corre mesmo se inativa
+    else:
+        tarefas = [t for t in todas if t.get("ativo")]
+        if apenas_diarias:
+            tarefas = [t for t in tarefas if t.get("frequencia") == "diaria"]
     if not tarefas:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
 

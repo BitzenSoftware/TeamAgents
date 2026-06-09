@@ -215,7 +215,7 @@ def oauth_google_exchange(req: OAuthGoogleExchange, cliente_id: str = Depends(au
 @app.post("/me/email/sync")
 def sincronizar_email(req: EmailSyncRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     try:
-        return flow.sincronizar_email(cliente_id, req.provider)
+        return flow.sincronizar_email(cliente_id, req.provider, tarefa_id=req.tarefa_id)
     except flow.LimiteCreditosError as e:
         raise HTTPException(status_code=402, detail=str(e))
     except ValueError as e:

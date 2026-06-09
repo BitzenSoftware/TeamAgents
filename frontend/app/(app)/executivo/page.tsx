@@ -36,6 +36,7 @@ export default function ExecutivoPage() {
   const [syncPasso, setSyncPasso] = useState(0);
   const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
   const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
+  const [syncPicker, setSyncPicker] = useState(false);
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -64,11 +65,11 @@ export default function ExecutivoPage() {
 
   const gmail = contas.find((c) => c.provider === "gmail") ?? null;
 
-  async function sincronizar() {
+  async function sincronizar(tarefaId?: string) {
     setSyncing(true);
     setEmailMsg(null);
     try {
-      const res = await api.sincronizarEmail("gmail");
+      const res = await api.sincronizarEmail("gmail", tarefaId);
       if (res.sem_tarefas) {
         setEmailMsg({ ok: false, text: "Cria pelo menos uma tarefa ativa para o agente saber o que ler." });
       } else if (res.n_emails === 0) {
@@ -160,9 +161,9 @@ export default function ExecutivoPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={sincronizar}
+              onClick={() => (tarefas.length > 0 ? setSyncPicker(true) : sincronizar())}
               disabled={syncing || !gmail}
-              title={gmail ? "Correr as tarefas ativas agora" : "Liga o Gmail primeiro"}
+              title={gmail ? "Sincronizar tarefas" : "Liga o Gmail primeiro"}
               className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 disabled:opacity-40"
             >
               {syncing ? "A sincronizar…" : "Sincronizar agora"}
@@ -301,6 +302,17 @@ export default function ExecutivoPage() {
         />
       )}
 
+      {syncPicker && (
+        <ModalEscolherSync
+          tarefas={tarefas}
+          onClose={() => setSyncPicker(false)}
+          onPick={(id) => {
+            setSyncPicker(false);
+            sincronizar(id);
+          }}
+        />
+      )}
+
       <style>{`@keyframes ta-prog{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}.ta-prog{animation:ta-prog 1.1s ease-in-out infinite}`}</style>
     </div>
   );
@@ -415,6 +427,55 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
           <button type="button" onClick={onApagar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
             Apagar
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Janela: escolher o que sincronizar ---------------- */
+function ModalEscolherSync({
+  tarefas,
+  onClose,
+  onPick,
+}: {
+  tarefas: TarefaExecutivo[];
+  onClose: () => void;
+  onPick: (tarefaId?: string) => void;
+}) {
+  const ativas = tarefas.filter((t) => t.ativo);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+          <span className="text-sm font-semibold text-white">O que queres sincronizar?</span>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
+        </div>
+        <div className="space-y-2 p-5">
+          <button
+            type="button"
+            onClick={() => onPick(undefined)}
+            disabled={ativas.length === 0}
+            className="w-full rounded-lg border border-brand/40 bg-brand/10 px-3 py-2.5 text-left text-sm font-medium text-brand hover:bg-brand/20 disabled:opacity-40"
+          >
+            Todas as tarefas ativas {ativas.length > 0 && `(${ativas.length})`}
+          </button>
+          <div className="pt-1 text-xs font-medium text-black/40">ou uma específica:</div>
+          {tarefas.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onPick(t.id)}
+              className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-left text-sm hover:bg-black/[0.03]"
+            >
+              <span className="font-medium">{t.nome}</span>
+              {!t.ativo && <span className="ml-2 text-[11px] text-black/40">(inativa)</span>}
+              <div className="mt-0.5 text-[11px] text-black/40">
+                {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
+                {t.palavras_chave && ` · "${t.palavras_chave}"`} · últimos {t.janela_dias}d
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
