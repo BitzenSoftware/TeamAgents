@@ -13,6 +13,7 @@ RUN pip install -r requirements.txt
 
 COPY backend/app ./app
 COPY backend/cron_bi_reports.py .
+COPY backend/cron_executivo.py .
 COPY agents ./agents
 
 EXPOSE 8000
