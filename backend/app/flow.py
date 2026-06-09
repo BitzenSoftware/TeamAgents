@@ -899,7 +899,17 @@ async def verificar_facebook(page_id: str, token: str) -> dict:
         )
         if not r.is_success:
             body = r.json()
-            raise ValueError(body.get("error", {}).get("message", r.text))
+            erro = body.get("error", {})
+            msg = erro.get("message", r.text)
+            # Dá uma dica concreta (tipo de token / permissões / app em dev).
+            dica = await _diagnosticar_token_facebook(client, token)
+            if dica:
+                msg = f"{msg}\n\n→ {dica}"
+            elif erro.get("code") == 200:
+                msg = (f"{msg}\n\n→ A App não tem autorização para este utilizador. "
+                       "Confirma que a tua conta é Admin/Tester da App (se estiver em modo Desenvolvimento) "
+                       "e reconecta via \"Ligar com Facebook\" autorizando todas as permissões.")
+            raise ValueError(msg)
         return r.json()
 
 
