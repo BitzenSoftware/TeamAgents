@@ -25,6 +25,8 @@ from .schemas import (
     OAuthFacebookExchange,
     SocialConfigUpdate,
     SocialPostRequest,
+    TarefaExecutivoCreate,
+    TarefaExecutivoUpdate,
     TokenExchangeRequest,
 )
 
@@ -172,6 +174,30 @@ def apagar_processamento(pid: str, cliente_id: str = Depends(auth.current_client
     flow.apagar_processamento(cliente_id, pid)
 
 
+# ----- Tarefas dirigidas do Agente Executivo -----
+@app.get("/me/executivo/tarefas")
+def listar_tarefas_executivo(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.listar_tarefas_executivo(cliente_id)
+
+
+@app.post("/me/executivo/tarefas", status_code=201)
+def criar_tarefa_executivo(req: TarefaExecutivoCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.criar_tarefa_executivo(cliente_id, req.model_dump())
+
+
+@app.patch("/me/executivo/tarefas/{tid}")
+def atualizar_tarefa_executivo(tid: str, req: TarefaExecutivoUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.atualizar_tarefa_executivo(cliente_id, tid, req.model_dump(exclude_none=True))
+    if res is None:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada.")
+    return res
+
+
+@app.delete("/me/executivo/tarefas/{tid}", status_code=204)
+def apagar_tarefa_executivo(tid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.apagar_tarefa_executivo(cliente_id, tid)
+
+
 # ===================== Fase 2: integração de email (OAuth Gmail) =====================
 @app.get("/me/email-accounts")
 def listar_email_accounts(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
@@ -189,7 +215,7 @@ def oauth_google_exchange(req: OAuthGoogleExchange, cliente_id: str = Depends(au
 @app.post("/me/email/sync")
 def sincronizar_email(req: EmailSyncRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     try:
-        return flow.sincronizar_email(cliente_id, req.provider, req.max_results)
+        return flow.sincronizar_email(cliente_id, req.provider)
     except flow.LimiteCreditosError as e:
         raise HTTPException(status_code=402, detail=str(e))
     except ValueError as e:

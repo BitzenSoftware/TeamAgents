@@ -227,6 +227,25 @@ class EmailSyncRequest(BaseModel):
     max_results: int = Field(default=10, ge=1, le=25)
 
 
+# --- Tarefas dirigidas do Agente Executivo ---
+class TarefaExecutivoCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    remetente: str | None = None
+    palavras_chave: str | None = None
+    janela_dias: int = Field(default=1, ge=1, le=30)
+    frequencia: str = "manual"  # 'manual' | 'diaria'
+    ativo: bool = True
+
+
+class TarefaExecutivoUpdate(BaseModel):
+    nome: str | None = None
+    remetente: str | None = None
+    palavras_chave: str | None = None
+    janela_dias: int | None = Field(default=None, ge=1, le=30)
+    frequencia: str | None = None
+    ativo: bool | None = None
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

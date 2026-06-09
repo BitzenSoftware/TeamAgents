@@ -8,6 +8,7 @@ import {
   type EmailAccount,
   type ItemProcessado,
   type Processamento,
+  type TarefaExecutivo,
 } from "@/lib/api";
 
 const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
@@ -15,6 +16,13 @@ const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   media: "bg-amber-100 text-amber-700",
   baixa: "bg-emerald-100 text-emerald-700",
 };
+
+const SYNC_PASSOS = [
+  "A procurar os emails das tuas tarefas…",
+  "A resumir com a IA (workers em paralelo)…",
+  "A consolidar a síntese executiva…",
+  "Quase pronto…",
+];
 
 export default function ExecutivoPage() {
   const [lista, setLista] = useState<Processamento[]>([]);
@@ -25,38 +33,53 @@ export default function ExecutivoPage() {
   const [contas, setContas] = useState<EmailAccount[]>([]);
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncPasso, setSyncPasso] = useState(0);
+  const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
+  const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
 
   const carregar = useCallback(() => {
     setLoading(true);
-    api
-      .processamentos()
-      .then(setLista)
-      .catch((e) => setErro(e.message))
-      .finally(() => setLoading(false));
+    api.processamentos().then(setLista).catch((e) => setErro(e.message)).finally(() => setLoading(false));
   }, []);
-
   const carregarContas = useCallback(() => {
     api.emailAccounts().then(setContas).catch(() => {});
+  }, []);
+  const carregarTarefas = useCallback(() => {
+    api.tarefasExecutivo().then(setTarefas).catch(() => {});
   }, []);
 
   useEffect(() => {
     carregar();
     carregarContas();
-  }, [carregar, carregarContas]);
+    carregarTarefas();
+  }, [carregar, carregarContas, carregarTarefas]);
+
+  // Anima os passos da barra de progresso enquanto sincroniza.
+  useEffect(() => {
+    if (!syncing) return;
+    setSyncPasso(0);
+    const id = setInterval(() => setSyncPasso((p) => Math.min(p + 1, SYNC_PASSOS.length - 1)), 1400);
+    return () => clearInterval(id);
+  }, [syncing]);
+
+  const gmail = contas.find((c) => c.provider === "gmail") ?? null;
 
   async function sincronizar() {
     setSyncing(true);
     setEmailMsg(null);
     try {
       const res = await api.sincronizarEmail("gmail");
-      if (res.n_emails === 0) {
-        setEmailMsg({ ok: true, text: "Sem emails novos nos últimos 7 dias." });
+      if (res.sem_tarefas) {
+        setEmailMsg({ ok: false, text: "Cria pelo menos uma tarefa ativa para o agente saber o que ler." });
+      } else if (res.n_emails === 0) {
+        setEmailMsg({ ok: true, text: "Nenhum email novo correspondeu às tuas tarefas." });
       } else {
-        setEmailMsg({ ok: true, text: `${res.n_emails} email(s) processado(s).` });
-        if (res.processamento) setSelId(res.processamento.id);
+        setEmailMsg({ ok: true, text: `${res.n_emails} email(s) processado(s) em ${res.processamentos.length} tarefa(s).` });
+        if (res.processamentos[0]) setSelId(res.processamentos[0].id);
         carregar();
       }
       carregarContas();
+      carregarTarefas();
     } catch (e) {
       setEmailMsg({ ok: false, text: e instanceof Error ? e.message : "Erro ao sincronizar." });
     } finally {
@@ -64,7 +87,15 @@ export default function ExecutivoPage() {
     }
   }
 
-  const gmail = contas.find((c) => c.provider === "gmail") ?? null;
+  async function toggleTarefa(t: TarefaExecutivo) {
+    await api.atualizarTarefaExecutivo(t.id, { ativo: !t.ativo });
+    carregarTarefas();
+  }
+  async function apagarTarefa(t: TarefaExecutivo) {
+    if (!window.confirm(`Apagar a tarefa "${t.nome}"?`)) return;
+    await api.apagarTarefaExecutivo(t.id);
+    carregarTarefas();
+  }
 
   useEffect(() => {
     if (lista.length === 0) setSelId(null);
@@ -87,8 +118,8 @@ export default function ExecutivoPage() {
           <div>
             <h1 className="text-xl font-semibold">Agente Executivo</h1>
             <p className="mt-1 text-sm text-black/50">
-              Cola emails ou atas de reunião — mesmo vários de uma vez. O agente separa, resume e
-              extrai prioridades, ações e decisões.
+              Define <strong>tarefas</strong> (ex.: ler os emails do João e resumir) — o agente lê só o
+              que pedes, poupa tokens e entrega prioridades, ações e decisões. Também podes colar uma ata.
             </p>
           </div>
           <button
@@ -101,73 +132,115 @@ export default function ExecutivoPage() {
         </div>
       </header>
 
-      {/* Integração de email (Fase 2) */}
-      <div className="mb-5 rounded-xl border border-black/10 bg-white p-4">
-        {emailMsg && (
-          <div
-            className={`mb-3 flex items-start justify-between rounded-lg border p-2.5 text-sm ${
-              emailMsg.ok
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-rose-200 bg-rose-50 text-rose-700"
-            }`}
-          >
-            <span>
-              {emailMsg.ok ? "✓ " : "✗ "}
-              {emailMsg.text}
-            </span>
-            <button type="button" onClick={() => setEmailMsg(null)} className="ml-3 text-black/30 hover:text-black/60">
-              ×
-            </button>
-          </div>
-        )}
+      {/* Gmail — estado da ligação */}
+      <div className="mb-4 rounded-xl border border-black/10 bg-white p-4 text-sm">
         {gmail ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm">
-              <span className="font-medium">Gmail ligado:</span>{" "}
-              <span className="text-black/60">{gmail.email}</span>
-              {gmail.last_sync && (
-                <span className="ml-2 text-xs text-black/40">
-                  · última sync {new Date(gmail.last_sync).toLocaleString("pt-PT")}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={sincronizar}
-              disabled={syncing}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
-            >
-              {syncing ? "A sincronizar…" : "Sincronizar agora"}
-            </button>
-          </div>
+          <span>
+            <span className="font-medium">Gmail ligado:</span> <span className="text-black/60">{gmail.email}</span>
+            {gmail.last_sync && (
+              <span className="ml-2 text-xs text-black/40">
+                · última sync {new Date(gmail.last_sync).toLocaleString("pt-PT")}
+              </span>
+            )}
+          </span>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-black/55">
-              Liga a tua conta de Gmail para o agente buscar e resumir os emails recentes.
-            </p>
-            <Link
-              href="/configuracoes"
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5"
-            >
+            <span className="text-black/55">Liga a tua conta de Gmail para as tarefas poderem ler os emails.</span>
+            <Link href="/configuracoes" className="rounded-lg border border-black/15 px-4 py-2 font-medium hover:bg-black/5">
               Ligar Gmail em Configurações →
             </Link>
           </div>
         )}
       </div>
 
+      {/* Tarefas dirigidas */}
+      <div className="mb-5 overflow-hidden rounded-xl border border-black/10 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5">
+          <span className="text-sm font-semibold text-white">Tarefas {tarefas.length > 0 && `(${tarefas.length})`}</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={sincronizar}
+              disabled={syncing || !gmail}
+              title={gmail ? "Correr as tarefas ativas agora" : "Liga o Gmail primeiro"}
+              className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 disabled:opacity-40"
+            >
+              {syncing ? "A sincronizar…" : "Sincronizar agora"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTarefaModal("nova")}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-brand hover:opacity-90"
+            >
+              + Nova tarefa
+            </button>
+          </div>
+        </div>
+
+        {syncing && (
+          <div className="px-4 py-3">
+            <div className="relative h-1.5 overflow-hidden rounded-full bg-black/10">
+              <div className="ta-prog absolute inset-y-0 w-1/3 rounded-full bg-brand" />
+            </div>
+            <p className="mt-2 text-xs text-black/50">{SYNC_PASSOS[syncPasso]}</p>
+          </div>
+        )}
+
+        {emailMsg && (
+          <div className={`mx-4 mt-3 flex items-start justify-between rounded-lg border p-2.5 text-sm ${emailMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+            <span>{emailMsg.ok ? "✓ " : "✗ "}{emailMsg.text}</span>
+            <button type="button" onClick={() => setEmailMsg(null)} className="ml-3 text-black/30 hover:text-black/60">×</button>
+          </div>
+        )}
+
+        <div className="p-4">
+          {tarefas.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-black/40">
+              Sem tarefas. Cria uma — ex.: <em>“ler emails de joao@cliente.com, últimos 1 dia”</em> — e clica
+              “Sincronizar agora”.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {tarefas.map((t) => (
+                <div key={t.id} className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${t.ativo ? "border-black/10 bg-white" : "border-black/10 bg-black/[0.02] opacity-60"}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="break-words text-sm font-medium">{t.nome}</div>
+                    <div className="mt-0.5 break-words text-[11px] text-black/45">
+                      {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
+                      {t.palavras_chave && ` · "${t.palavras_chave}"`}
+                      {` · últimos ${t.janela_dias}d`}
+                      {` · ${t.frequencia === "diaria" ? "diária" : "manual"}`}
+                      {t.last_run && ` · corrida ${new Date(t.last_run).toLocaleDateString("pt-PT")}`}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => toggleTarefa(t)} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${t.ativo ? "bg-emerald-100 text-emerald-700" : "bg-black/10 text-black/50"}`}>
+                    {t.ativo ? "Ativa" : "Inativa"}
+                  </button>
+                  <button type="button" onClick={() => setTarefaModal(t)} className="rounded-lg border border-black/15 px-2.5 py-1 text-xs hover:bg-black/5">
+                    Editar
+                  </button>
+                  <button type="button" onClick={() => apagarTarefa(t)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50">
+                    Apagar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
 
       {!loading && lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não processaste nada. Clica em <strong>“+ Processar email / ata”</strong> e cola o
-          texto — o resumo executivo aparece aqui.
+          Ainda não há resultados. Cria uma tarefa e sincroniza, ou clica em{" "}
+          <strong>“+ Processar email / ata”</strong> para colar um texto.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-          {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
             <div className="mb-2 text-xs font-medium text-black/50">
-              Processamentos {lista.length > 0 && `(${lista.length})`}
+              Resultados {lista.length > 0 && `(${lista.length})`}
             </div>
             {loading ? (
               <p className="text-sm text-black/40">A carregar…</p>
@@ -180,18 +253,11 @@ export default function ExecutivoPage() {
                       key={p.id}
                       type="button"
                       onClick={() => setSelId(p.id)}
-                      className={`flex w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
-                        sel
-                          ? "border-brand/40 bg-brand/10"
-                          : "border-black/10 bg-white hover:bg-black/[0.03]"
-                      }`}
+                      className={`flex w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left text-sm transition ${sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
                     >
-                      <span className={`break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>
-                        {p.titulo}
-                      </span>
+                      <span className={`break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>{p.titulo}</span>
                       <span className="text-[11px] text-black/40">
-                        {p.n_itens} item(ns)
-                        {p.n_falhas > 0 && ` · ${p.n_falhas} falha(s)`} ·{" "}
+                        {p.n_itens} item(ns){p.n_falhas > 0 && ` · ${p.n_falhas} falha(s)`} ·{" "}
                         {new Date(p.created_at).toLocaleDateString("pt-PT")}
                       </span>
                     </button>
@@ -201,13 +267,12 @@ export default function ExecutivoPage() {
             )}
           </aside>
 
-          {/* Detalhe (detail) */}
           <section className="md:col-span-8 lg:col-span-9">
             {selecionado ? (
               <Detalhe p={selecionado} onApagar={() => apagar(selecionado)} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Seleciona um processamento à esquerda.
+                Seleciona um resultado à esquerda.
               </div>
             )}
           </section>
@@ -224,6 +289,19 @@ export default function ExecutivoPage() {
           }}
         />
       )}
+
+      {tarefaModal && (
+        <ModalTarefa
+          tarefa={tarefaModal === "nova" ? null : tarefaModal}
+          onClose={() => setTarefaModal(null)}
+          onSaved={() => {
+            setTarefaModal(null);
+            carregarTarefas();
+          }}
+        />
+      )}
+
+      <style>{`@keyframes ta-prog{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}.ta-prog{animation:ta-prog 1.1s ease-in-out infinite}`}</style>
     </div>
   );
 }
@@ -300,12 +378,9 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
           </section>
         )}
 
-        {/* Itens individuais */}
         {p.itens.length > 0 && (
           <section className="border-t border-black/5 pt-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/40">
-              Itens processados
-            </h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/40">Itens processados</h3>
             <div className="space-y-2.5">
               {p.itens.map((it, i) => (
                 <details key={i} className="rounded-lg border border-black/10 bg-black/[0.015] p-3">
@@ -313,9 +388,7 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
                     <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${PRIORIDADE_COR[it.prioridade]}`}>
                       {it.prioridade}
                     </span>
-                    <span className="rounded bg-black/10 px-1.5 py-0.5 text-[10px] uppercase text-black/50">
-                      {it.tipo}
-                    </span>
+                    <span className="rounded bg-black/10 px-1.5 py-0.5 text-[10px] uppercase text-black/50">{it.tipo}</span>
                     <span className="min-w-0 flex-1 break-words">{it.titulo}</span>
                   </summary>
                   <div className="mt-2 space-y-2 pl-1">
@@ -339,11 +412,7 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
         )}
 
         <div className="flex gap-2 border-t border-black/5 pt-4">
-          <button
-            type="button"
-            onClick={onApagar}
-            className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
-          >
+          <button type="button" onClick={onApagar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
             Apagar
           </button>
         </div>
@@ -352,7 +421,100 @@ function Detalhe({ p, onApagar }: { p: Processamento; onApagar: () => void }) {
   );
 }
 
-/* ---------------- Modal de processamento ---------------- */
+/* ---------------- Modal: nova/editar tarefa ---------------- */
+function ModalTarefa({
+  tarefa,
+  onClose,
+  onSaved,
+}: {
+  tarefa: TarefaExecutivo | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [nome, setNome] = useState(tarefa?.nome ?? "");
+  const [remetente, setRemetente] = useState(tarefa?.remetente ?? "");
+  const [palavras, setPalavras] = useState(tarefa?.palavras_chave ?? "");
+  const [janela, setJanela] = useState(tarefa?.janela_dias ?? 1);
+  const [frequencia, setFrequencia] = useState<"manual" | "diaria">(tarefa?.frequencia ?? "manual");
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nome.trim()) return;
+    setSaving(true);
+    setErro(null);
+    const body = {
+      nome: nome.trim(),
+      remetente: remetente.trim() || undefined,
+      palavras_chave: palavras.trim() || undefined,
+      janela_dias: janela,
+      frequencia,
+    };
+    try {
+      if (tarefa) await api.atualizarTarefaExecutivo(tarefa.id, body);
+      else await api.criarTarefaExecutivo(body);
+      onSaved();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+          <span className="text-sm font-semibold text-white">{tarefa ? "Editar tarefa" : "Nova tarefa"}</span>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
+        </div>
+        <form onSubmit={guardar} className="space-y-3 p-5">
+          <Campo label="Nome da tarefa">
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campoexec" placeholder="Ex: Resumo diário do João" />
+          </Campo>
+          <Campo label="Remetente(s) — opcional (separa por vírgula)">
+            <input value={remetente} onChange={(e) => setRemetente(e.target.value)} className="campoexec" placeholder="joao@cliente.com, equipa@empresa.com" />
+          </Campo>
+          <Campo label="Palavras-chave — opcional (assunto/corpo)">
+            <input value={palavras} onChange={(e) => setPalavras(e.target.value)} className="campoexec" placeholder="proposta, contrato" />
+          </Campo>
+          <div className="flex gap-3">
+            <Campo label="Janela (dias)">
+              <input type="number" min={1} max={30} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
+            </Campo>
+            <Campo label="Frequência">
+              <select value={frequencia} onChange={(e) => setFrequencia(e.target.value as "manual" | "diaria")} className="campoexec" aria-label="Frequência">
+                <option value="manual">Manual</option>
+                <option value="diaria">Diária (automática)</option>
+              </select>
+            </Campo>
+          </div>
+          {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || !nome.trim()} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
+              {saving ? "A guardar…" : "Guardar tarefa"}
+            </button>
+          </div>
+        </form>
+      </div>
+      <style>{`.campoexec{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.5rem .65rem;font-size:.875rem;background:#fff}`}</style>
+    </div>
+  );
+}
+
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block flex-1">
+      <span className="mb-1 block text-xs font-medium text-black/60">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/* ---------------- Modal de processamento manual (colar/upload) ---------------- */
 function ModalProcessar({
   onClose,
   onSaved,
@@ -393,9 +555,7 @@ function ModalProcessar({
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
           <span className="text-sm font-semibold text-white">Processar email / ata</span>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">
-            ×
-          </button>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
         </div>
         <form onSubmit={processar} className="space-y-3 p-5">
           <input
@@ -411,26 +571,15 @@ function ModalProcessar({
             className="h-56 w-full resize-none rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           />
           <label className="flex cursor-pointer items-center gap-2 text-xs text-black/50">
-            <span className="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-black/5">
-              Carregar ficheiro .txt
-            </span>
+            <span className="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-black/5">Carregar ficheiro .txt</span>
             <input type="file" accept=".txt,.md,text/plain" onChange={onFile} className="hidden" />
           </label>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40"
-            >
+            <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={saving || !entrada.trim()}
-              className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
-            >
+            <button type="submit" disabled={saving || !entrada.trim()} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
               {saving ? "A processar…" : "Processar"}
             </button>
           </div>

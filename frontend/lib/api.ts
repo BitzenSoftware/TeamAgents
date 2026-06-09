@@ -169,8 +169,32 @@ export type EmailAccount = {
 };
 
 export type EmailSyncResult = {
-  processamento: Processamento | null;
+  processamentos: Processamento[];
   n_emails: number;
+  sem_tarefas?: boolean;
+};
+
+// --- Tarefas dirigidas do Agente Executivo ---
+export type TarefaExecutivo = {
+  id: string;
+  cliente_id: string;
+  nome: string;
+  remetente: string | null;
+  palavras_chave: string | null;
+  janela_dias: number;
+  frequencia: "manual" | "diaria";
+  ativo: boolean;
+  last_run: string | null;
+  created_at: string;
+};
+
+export type TarefaInput = {
+  nome: string;
+  remetente?: string;
+  palavras_chave?: string;
+  janela_dias?: number;
+  frequencia?: "manual" | "diaria";
+  ativo?: boolean;
 };
 
 export type SocialConfig = {
@@ -299,6 +323,15 @@ export const api = {
     }),
   apagarProcessamento: (id: string) =>
     req<void>(`/me/executivo/${id}`, { method: "DELETE" }),
+
+  // --- Tarefas dirigidas do Agente Executivo ---
+  tarefasExecutivo: () => req<TarefaExecutivo[]>("/me/executivo/tarefas"),
+  criarTarefaExecutivo: (body: TarefaInput) =>
+    req<TarefaExecutivo>("/me/executivo/tarefas", { method: "POST", body: JSON.stringify(body) }),
+  atualizarTarefaExecutivo: (id: string, body: Partial<TarefaInput>) =>
+    req<TarefaExecutivo>(`/me/executivo/tarefas/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarTarefaExecutivo: (id: string) =>
+    req<void>(`/me/executivo/tarefas/${id}`, { method: "DELETE" }),
 
   // --- Fase 2: integração de email (OAuth Gmail) ---
   emailAccounts: () => req<EmailAccount[]>("/me/email-accounts"),

@@ -3,6 +3,7 @@
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
 import asyncio
+import re
 import time
 import httpx
 from datetime import datetime, timedelta, timezone
@@ -198,6 +199,64 @@ def apagar_processamento(cliente_id: str, pid: str) -> None:
     get_db().table("processamentos_executivo").delete().eq("id", pid).eq("cliente_id", cliente_id).execute()
 
 
+# ----- Tarefas dirigidas (o agente só lê o que estas tarefas pedem) -----
+def listar_tarefas_executivo(cliente_id: str) -> list[dict]:
+    return (
+        get_db()
+        .table("tarefas_executivo")
+        .select("*")
+        .eq("cliente_id", cliente_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+
+
+def criar_tarefa_executivo(cliente_id: str, fields: dict) -> dict:
+    return get_db().table("tarefas_executivo").insert({**fields, "cliente_id": cliente_id}).execute().data[0]
+
+
+def atualizar_tarefa_executivo(cliente_id: str, tid: str, fields: dict) -> dict | None:
+    res = (
+        get_db()
+        .table("tarefas_executivo")
+        .update(fields)
+        .eq("id", tid)
+        .eq("cliente_id", cliente_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def apagar_tarefa_executivo(cliente_id: str, tid: str) -> None:
+    get_db().table("tarefas_executivo").delete().eq("id", tid).eq("cliente_id", cliente_id).execute()
+
+
+def _gmail_query(t: dict) -> str:
+    """Constrói a query do Gmail a partir dos filtros da tarefa (poupa tokens)."""
+    partes = [f"newer_than:{int(t.get('janela_dias') or 1)}d"]
+    rem = (t.get("remetente") or "").strip()
+    if rem:
+        addrs = [a for a in re.split(r"[,\s]+", rem) if a]
+        if addrs:
+            partes.append("from:(" + " OR ".join(addrs) + ")")
+    kw = (t.get("palavras_chave") or "").strip()
+    if kw:
+        partes.append(kw)
+    return " ".join(partes)
+
+
+def _itens_de_emails(emails: list[dict]) -> list[ItemBruto]:
+    return [
+        ItemBruto(
+            tipo=TipoItem.EMAIL,
+            titulo=(e.get("subject") or "(sem assunto)")[:120],
+            conteudo=f"De: {e.get('from', '')}\nAssunto: {e.get('subject', '')}\n\n{e.get('body', '')}".strip(),
+        )
+        for e in emails
+    ]
+
+
 # ===================== Fase 2: contas de email (OAuth Gmail) =====================
 def _sanitizar_email_account(row: dict) -> dict:
     """Versão segura para o frontend — nunca devolve tokens."""
@@ -278,33 +337,48 @@ def _access_token_valido(account: dict) -> str:
     return novo_access
 
 
-def sincronizar_email(cliente_id: str, provider: str = "gmail", max_results: int = 10) -> dict:
-    """Busca os emails recentes e processa-os com o Agente Executivo (Fase 1)."""
+def sincronizar_email(cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False) -> dict:
+    """Corre as TAREFAS ativas: busca só os emails que batem nos filtros e resume.
+
+    Uma síntese (processamento) por tarefa. `apenas_diarias=True` é usado pelo cron.
+    """
     account = _get_email_account(cliente_id, provider)
     if not account:
         raise ValueError("Nenhuma conta de email ligada. Liga o Gmail primeiro.")
-    verificar_limite(cliente_id, CREDITOS_EXEC_BASE)  # bloqueia ANTES de gastar API
+
+    try:
+        tarefas = [t for t in listar_tarefas_executivo(cliente_id) if t.get("ativo")]
+    except Exception:
+        return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}  # migração 014 ainda não corrida
+    if apenas_diarias:
+        tarefas = [t for t in tarefas if t.get("frequencia") == "diaria"]
+    if not tarefas:
+        return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
+
     access = _access_token_valido(account)
-    emails = email_ingest.fetch_recent_google(access, max_results=max_results)
-    if not emails:
-        get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
-        return {"processamento": None, "n_emails": 0}
-    # Cada email é um item discreto — processamos sem o passo de planeamento do Opus
-    # (que re-emitia todo o conteúdo e truncava o JSON com vários emails).
-    itens = [
-        ItemBruto(
-            tipo=TipoItem.EMAIL,
-            titulo=(e.get("subject") or "(sem assunto)")[:120],
-            conteudo=f"De: {e.get('from', '')}\nAssunto: {e.get('subject', '')}\n\n{e.get('body', '')}".strip(),
-        )
-        for e in emails
-    ]
     habilidades = _habilidades_texto(cliente_id, agente="assistente")
-    resultado = asyncio.run(executivo.processar_itens(itens, habilidades))
-    titulo = f"Gmail — {datetime.now(timezone.utc).strftime('%d/%m %H:%M')}"
-    proc = _persistir_executivo(cliente_id, titulo, email_ingest.construir_entrada(emails), resultado)
+    criados: list[dict] = []
+    total_emails = 0
+    for t in tarefas:
+        try:
+            verificar_limite(cliente_id, CREDITOS_EXEC_BASE)  # bloqueia ANTES de gastar API
+        except LimiteCreditosError:
+            break  # sem créditos — para por aqui (as tarefas seguintes ficam para a próxima)
+        emails = email_ingest.fetch_recent_google(access, max_results=20, query=_gmail_query(t))
+        _marcar_tarefa_run(t["id"])
+        if not emails:
+            continue
+        resultado = asyncio.run(executivo.processar_itens(_itens_de_emails(emails), habilidades))
+        proc = _persistir_executivo(cliente_id, t["nome"], email_ingest.construir_entrada(emails), resultado)
+        criados.append(proc)
+        total_emails += len(emails)
+
     get_db().table("email_accounts").update({"last_sync": _now_iso()}).eq("id", account["id"]).execute()
-    return {"processamento": proc, "n_emails": len(emails)}
+    return {"processamentos": criados, "n_emails": total_emails}
+
+
+def _marcar_tarefa_run(tid: str) -> None:
+    get_db().table("tarefas_executivo").update({"last_run": _now_iso()}).eq("id", tid).execute()
 
 
 def _now_iso() -> str:
