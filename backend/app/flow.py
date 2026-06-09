@@ -1003,20 +1003,50 @@ def consumo_atual(cliente_id: str) -> int:
 
 
 def get_consumo(cliente_id: str) -> dict:
-    """Resumo de consumo para os cards do frontend."""
+    """Resumo de consumo para os cards do frontend (+ plano atual e assinatura)."""
     try:
         total = creditos_do_plano(cliente_id)
         usados = consumo_atual(cliente_id)
     except Exception:
         # Schema de consumo ainda não migrado — devolve um estado neutro.
-        return {"usados": 0, "total": _CREDITOS_FALLBACK, "restantes": _CREDITOS_FALLBACK, "percent": 0}
+        return {"usados": 0, "total": _CREDITOS_FALLBACK, "restantes": _CREDITOS_FALLBACK, "percent": 0,
+                "plano_id": None, "plano_nome": None, "tem_assinatura": False}
     percent = round(usados / total * 100) if total else 0
+    plano_id = plano_nome = None
+    tem_assinatura = False
+    try:
+        db = get_db()
+        row = db.table("clientes").select("plano_id, stripe_subscription_id").eq("id", cliente_id).limit(1).execute().data
+        if row:
+            plano_id = row[0].get("plano_id")
+            tem_assinatura = bool(row[0].get("stripe_subscription_id"))
+        if plano_id:
+            p = db.table("planos").select("nome").eq("id", plano_id).limit(1).execute().data
+            plano_nome = p[0]["nome"] if p else None
+    except Exception:
+        pass  # migração 017 ainda não aplicada
     return {
         "usados": usados,
         "total": total,
         "restantes": max(total - usados, 0),
         "percent": min(percent, 100),
+        "plano_id": plano_id,
+        "plano_nome": plano_nome,
+        "tem_assinatura": tem_assinatura,
     }
+
+
+def listar_planos_ativos() -> list[dict]:
+    """Planos ativos (para o cliente escolher/assinar)."""
+    return (
+        get_db()
+        .table("planos")
+        .select("id, nome, creditos_mensais, preco, stripe_price_id, ordem")
+        .eq("ativo", True)
+        .order("ordem")
+        .execute()
+        .data
+    )
 
 
 def verificar_limite(cliente_id: str, qtd: int) -> None:

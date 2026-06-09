@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type Consumo, type ConsumoDashboard } from "@/lib/api";
+import { api, type Consumo, type ConsumoDashboard, type PlanoAtivo } from "@/lib/api";
 
 type Gran = "dia" | "semana" | "mes" | "ano";
 
@@ -28,12 +28,40 @@ export default function ConsumoPage() {
   const [gran, setGran] = useState<Gran>("mes");
   const [ano, setAno] = useState(anoAtual);
   const [loading, setLoading] = useState(false);
+  const [planos, setPlanos] = useState<PlanoAtivo[]>([]);
+  const [billingBusy, setBillingBusy] = useState<string | null>(null);
+  const [billingErro, setBillingErro] = useState<string | null>(null);
 
   const anos = useMemo(() => Array.from({ length: 4 }, (_, i) => anoAtual - i), [anoAtual]);
 
   useEffect(() => {
     api.consumo().then(setConsumo).catch(() => {});
+    api.planosAtivos().then(setPlanos).catch(() => {});
   }, []);
+
+  async function assinar(planoId: string) {
+    setBillingBusy(planoId);
+    setBillingErro(null);
+    try {
+      const { url } = await api.checkout(planoId);
+      window.location.href = url;
+    } catch (e) {
+      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir o checkout.");
+      setBillingBusy(null);
+    }
+  }
+
+  async function gerirAssinatura() {
+    setBillingBusy("portal");
+    setBillingErro(null);
+    try {
+      const { url } = await api.portal();
+      window.location.href = url;
+    } catch (e) {
+      setBillingErro(e instanceof Error ? e.message : "Não foi possível abrir o portal.");
+      setBillingBusy(null);
+    }
+  }
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -71,6 +99,76 @@ export default function ConsumoPage() {
           <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
           <CardKpi titulo="Disponíveis" valor={`${consumo.restantes}`} />
           <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
+        </div>
+      )}
+
+      {/* Plano & assinatura */}
+      {planos.length > 0 && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-white">
+            <span className="text-xs font-semibold">
+              Plano & assinatura
+              {consumo?.plano_nome && (
+                <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
+                  Atual: {consumo.plano_nome}
+                </span>
+              )}
+            </span>
+            {consumo?.tem_assinatura && (
+              <button
+                type="button"
+                onClick={gerirAssinatura}
+                disabled={billingBusy === "portal"}
+                className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/25 disabled:opacity-50"
+              >
+                {billingBusy === "portal" ? "A abrir…" : "Gerir assinatura"}
+              </button>
+            )}
+          </div>
+          <div className="p-4">
+            {billingErro && (
+              <p className="mb-3 rounded-lg bg-rose-50 p-2.5 text-sm text-rose-700">{billingErro}</p>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {planos.map((p) => {
+                const atual = p.id === consumo?.plano_id;
+                const semStripe = !p.stripe_price_id;
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex flex-col rounded-xl border p-4 ${
+                      atual ? "border-brand/50 bg-brand/5" : "border-black/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{p.nome}</span>
+                      {atual && (
+                        <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-medium text-brand">
+                          Plano atual
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold">
+                      R$ {Number(p.preco).toFixed(2)}
+                      <span className="text-sm font-normal text-black/40"> /mês</span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-black/50">
+                      {p.creditos_mensais.toLocaleString("pt-BR")} créditos/mês
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => assinar(p.id)}
+                      disabled={atual || semStripe || billingBusy === p.id}
+                      title={semStripe ? "Plano ainda não disponível para assinatura." : undefined}
+                      className="mt-3 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+                    >
+                      {atual ? "Plano atual" : billingBusy === p.id ? "A abrir…" : semStripe ? "Indisponível" : "Assinar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

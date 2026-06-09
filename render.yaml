@@ -40,6 +40,16 @@ services:
       # (ex: https://teamagents.vercel.app). Em dev pode ficar "*".
       - key: ALLOWED_ORIGINS
         sync: false
+      # Stripe — assinaturas dos planos.
+      # STRIPE_SECRET_KEY: dashboard.stripe.com → Developers → API keys (sk_live_…).
+      # STRIPE_WEBHOOK_SECRET: criar endpoint /webhook/stripe e copiar o whsec_….
+      # FRONTEND_URL: domínio público do app (redirects do Checkout/Portal).
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
 
   # Cron do Agente 3 (Diretor de BI) — relatório semanal por tenant.
   # Render corre em UTC: "59 2 * * 1" = domingo 23:59 em São Paulo (UTC-3),

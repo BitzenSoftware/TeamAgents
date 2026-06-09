@@ -4,14 +4,15 @@ Fluxo crítico do WhatsApp (passo 3 do plano):
 o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 < 2s. O agente (que pode demorar) corre DEPOIS, fora da request.
 """
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
 
-from . import auth, evolution, flow
+from . import auth, billing, evolution, flow
 from .config import get_settings
 from .schemas import (
     CampanhaUpdate,
+    CheckoutRequest,
     ConfigUpdate,
     CopyRequest,
     EmailSyncRequest,
@@ -102,6 +103,55 @@ def atualizar_plano(pid: str, payload: PlanoUpdate, _: str = Depends(auth.requir
 @app.delete("/admin/planos/{pid}", status_code=204)
 def apagar_plano(pid: str, _: str = Depends(auth.require_superadmin)) -> None:
     flow.apagar_plano(pid)
+
+
+@app.post("/admin/planos/{pid}/stripe")
+def registar_plano_stripe(pid: str, _: str = Depends(auth.require_superadmin)) -> dict:
+    """Cria/recria o Produto + Preço recorrente na Stripe e guarda o price_id."""
+    planos = [p for p in flow.listar_planos() if p["id"] == pid]
+    if not planos:
+        raise HTTPException(status_code=404, detail="Plano não encontrado.")
+    try:
+        return billing.criar_preco_para_plano(planos[0])
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:  # erros da API Stripe
+        raise HTTPException(status_code=400, detail=f"Falha na Stripe: {e}")
+
+
+# ===================== Stripe: assinaturas do cliente =====================
+@app.post("/me/checkout")
+def criar_checkout(req: CheckoutRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Abre uma sessão de Checkout (assinar plano) e devolve a URL de redirect."""
+    try:
+        return {"url": billing.criar_checkout(cliente_id, req.plano_id)}
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/portal")
+def criar_portal(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Abre o Portal de Faturação da Stripe (gerir/cancelar) e devolve a URL."""
+    try:
+        return {"url": billing.criar_portal(cliente_id)}
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/webhook/stripe")
+async def webhook_stripe(request: Request, stripe_signature: str = Header(default="")) -> dict:
+    """Recebe eventos da Stripe (pagamento/renovação/cancelamento)."""
+    payload = await request.body()
+    try:
+        return billing.tratar_evento(payload, stripe_signature)
+    except billing.StripeNaoConfigurada as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ===================== Onboarding (criar tenant, autenticado) =====================
@@ -272,6 +322,12 @@ def listar_campanhas(cliente_id: str = Depends(auth.current_cliente_id)) -> list
 def get_consumo(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Consumo de créditos do mês atual vs o limite do plano (para os cards)."""
     return flow.get_consumo(cliente_id)
+
+
+@app.get("/me/planos")
+def listar_planos_ativos(_: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Planos ativos disponíveis para o cliente assinar."""
+    return flow.listar_planos_ativos()
 
 
 @app.get("/me/consumo/dashboard")

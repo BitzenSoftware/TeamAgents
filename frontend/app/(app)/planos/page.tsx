@@ -133,12 +133,29 @@ function PlanoEditor({ plano, onChanged }: { plano: Plano; onChanged: () => void
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
   const [showPid, setShowPid] = useState(false);
+  const [stripeBusy, setStripeBusy] = useState(false);
+  const [stripeMsg, setStripeMsg] = useState<string | null>(null);
 
   useEffect(() => setP(plano), [plano]);
 
   function set<K extends keyof Plano>(k: K, v: Plano[K]) {
     setP((x) => ({ ...x, [k]: v }));
     setOk(false);
+  }
+
+  async function registarStripe() {
+    setStripeBusy(true);
+    setStripeMsg(null);
+    try {
+      const atualizado = await api.registarPlanoStripe(p.id);
+      setP(atualizado);
+      setStripeMsg("✓ Registado na Stripe — price_id preenchido.");
+      onChanged();
+    } catch (e) {
+      setStripeMsg(`Erro: ${e instanceof Error ? e.message : "falha na Stripe"}`);
+    } finally {
+      setStripeBusy(false);
+    }
   }
 
   async function guardar() {
@@ -216,6 +233,30 @@ function PlanoEditor({ plano, onChanged }: { plano: Plano; onChanged: () => void
                 </button>
               </div>
             </Campo>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={registarStripe}
+                disabled={stripeBusy}
+                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-40"
+              >
+                {stripeBusy ? "A registar…" : p.stripe_price_id ? "↻ Recriar preço na Stripe" : "⚡ Criar na Stripe"}
+              </button>
+              {p.stripe_price_id ? (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  Stripe ✓
+                </span>
+              ) : (
+                <span className="text-[11px] text-black/40">
+                  Cria o produto/preço recorrente na Stripe automaticamente.
+                </span>
+              )}
+            </div>
+            {stripeMsg && (
+              <p className={`mt-1 text-xs ${stripeMsg.startsWith("Erro") ? "text-rose-600" : "text-emerald-700"}`}>
+                {stripeMsg}
+              </p>
+            )}
           </div>
         </div>
 

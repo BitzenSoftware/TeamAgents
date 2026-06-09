@@ -72,6 +72,18 @@ export type Consumo = {
   total: number;
   restantes: number;
   percent: number;
+  plano_id?: string | null;
+  plano_nome?: string | null;
+  tem_assinatura?: boolean;
+};
+
+export type PlanoAtivo = {
+  id: string;
+  nome: string;
+  creditos_mensais: number;
+  preco: number;
+  stripe_price_id: string | null;
+  ordem: number;
 };
 
 export type ConsumoDashboard = {
@@ -115,6 +127,7 @@ export type Plano = {
   creditos_mensais: number;
   preco: number;
   stripe_price_id: string | null;
+  stripe_product_id?: string | null;
   ativo: boolean;
   ordem: number;
 };
@@ -390,4 +403,12 @@ export const api = {
   atualizarPlano: (id: string, body: Partial<Plano>) =>
     req<Plano>(`/admin/planos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarPlano: (id: string) => req<void>(`/admin/planos/${id}`, { method: "DELETE" }),
+  registarPlanoStripe: (id: string) =>
+    req<Plano>(`/admin/planos/${id}/stripe`, { method: "POST" }),
+
+  // --- Stripe: assinaturas do cliente ---
+  planosAtivos: () => req<PlanoAtivo[]>("/me/planos"),
+  checkout: (planoId: string) =>
+    req<{ url: string }>("/me/checkout", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
+  portal: () => req<{ url: string }>("/me/portal", { method: "POST" }),
 };

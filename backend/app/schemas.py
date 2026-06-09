@@ -133,6 +133,10 @@ class PlanoUpdate(BaseModel):
     ordem: int | None = None
 
 
+class CheckoutRequest(BaseModel):
+    plano_id: str = Field(min_length=1)
+
+
 # ===================== Social Config =====================
 class SocialConfigUpdate(BaseModel):
     discord_webhook_url: str | None = None

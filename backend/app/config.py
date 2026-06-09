@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    # Stripe (assinaturas dos planos)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_currency: str = "brl"
+    # URL pública do frontend (para os redirects do Checkout/Portal)
+    frontend_url: str = "https://teamagents.bitzen.app"
+
     # Model IDs (exatos — não acrescentar sufixos de data)
     model_copywriting: str = "claude-sonnet-4-6"
     model_sdr: str = "claude-haiku-4-5"
