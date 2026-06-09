@@ -89,7 +89,7 @@ export default function AssinaturaPage() {
 
   function rotuloPlano(p: PlanoAtivo): { label: string; tipo: "atual" | "upgrade" | "downgrade" | "assinar" | "indisponivel" } {
     if (!p.stripe_price_id) return { label: "Indisponível", tipo: "indisponivel" };
-    if (temAssinatura && p.id === planoAtualId) return { label: "Plano atual", tipo: "atual" };
+    if (p.id === planoAtualId) return { label: "Plano atual", tipo: "atual" };
     if (!temAssinatura) return { label: "Assinar", tipo: "assinar" };
     return p.creditos_mensais > creditosAtuais
       ? { label: "Upgrade", tipo: "upgrade" }
