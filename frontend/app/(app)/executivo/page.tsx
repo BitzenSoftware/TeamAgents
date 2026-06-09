@@ -39,23 +39,23 @@ const FREQ_LABEL: Record<Frequencia, string> = {
   semestral: "Semestral",
 };
 
-// Opções combinadas período × modo para o select de Frequência.
-const FREQ_OPCOES: { v: string; l: string }[] = (
-  ["diaria", "semanal", "quinzenal", "mensal", "trimestral", "semestral"] as Frequencia[]
-).flatMap((f) => [
-  { v: `${f}|auto`, l: `${FREQ_LABEL[f]} (Automática)` },
-  { v: `${f}|man`, l: `${FREQ_LABEL[f]} (Manual)` },
-]);
+// Opções do select de Frequência: "Manual" (único — só ao sincronizar) + as
+// automáticas por período. No manual o período é irrelevante, por isso não se repete.
+const FREQ_OPCOES: { v: string; l: string }[] = [
+  { v: "manual", l: "Manual" },
+  ...(["diaria", "semanal", "quinzenal", "mensal", "trimestral", "semestral"] as Frequencia[]).map((f) => ({
+    v: `${f}|auto`,
+    l: `${FREQ_LABEL[f]} (Automática)`,
+  })),
+];
 
 function freqResumo(t: TarefaExecutivo): string {
-  const base = FREQ_LABEL[t.frequencia] ?? "Diária";
-  const modo = t.automatica ? "auto" : "manual";
+  if (!t.automatica) return "manual";
+  const base = (FREQ_LABEL[t.frequencia] ?? "Diária").toLowerCase();
   let quando = "";
-  if (t.automatica) {
-    if (t.frequencia === "semanal" || t.frequencia === "quinzenal") quando = ` · ${DIAS_SEMANA[t.dia_semana ?? 0]?.slice(0, 3)}`;
-    else if (t.frequencia === "mensal" || t.frequencia === "trimestral" || t.frequencia === "semestral") quando = ` · dia ${t.dia_mes ?? 1}`;
-  }
-  return `${base.toLowerCase()} ${modo}${quando}`;
+  if (t.frequencia === "semanal" || t.frequencia === "quinzenal") quando = ` · ${DIAS_SEMANA[t.dia_semana ?? 0]?.slice(0, 3)}`;
+  else if (t.frequencia === "mensal" || t.frequencia === "trimestral" || t.frequencia === "semestral") quando = ` · dia ${t.dia_mes ?? 1}`;
+  return `${base} auto${quando} · ${String(t.hora ?? 7).padStart(2, "0")}h`;
 }
 
 export default function ExecutivoPage() {
@@ -574,8 +574,8 @@ function ModalTarefa({
     if (!nome.trim()) return;
     setSaving(true);
     setErro(null);
-    const usaDiaSemana = frequencia === "semanal" || frequencia === "quinzenal";
-    const usaDiaMes = frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral";
+    const usaDiaSemana = automatica && (frequencia === "semanal" || frequencia === "quinzenal");
+    const usaDiaMes = automatica && (frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral");
     const body = {
       nome: nome.trim(),
       remetente: remetente.trim() || undefined,
@@ -653,11 +653,16 @@ function ModalTarefa({
             <div className="space-y-3">
               <Campo label="Frequência">
                 <select
-                  value={`${frequencia}|${automatica ? "auto" : "man"}`}
+                  value={automatica ? `${frequencia}|auto` : "manual"}
                   onChange={(e) => {
-                    const [f, a] = e.target.value.split("|");
-                    setFrequencia(f as Frequencia);
-                    setAutomatica(a === "auto");
+                    const v = e.target.value;
+                    if (v === "manual") {
+                      setAutomatica(false);
+                      setFrequencia("diaria");
+                    } else {
+                      setFrequencia(v.split("|")[0] as Frequencia);
+                      setAutomatica(true);
+                    }
                   }}
                   className="campoexec"
                   aria-label="Frequência"
@@ -667,7 +672,7 @@ function ModalTarefa({
                   ))}
                 </select>
               </Campo>
-              {(frequencia === "semanal" || frequencia === "quinzenal") && (
+              {automatica && (frequencia === "semanal" || frequencia === "quinzenal") && (
                 <Campo label="Dia da semana">
                   <select value={diaSemana} onChange={(e) => setDiaSemana(Number(e.target.value))} className="campoexec" aria-label="Dia da semana">
                     {DIAS_SEMANA.map((d, i) => (
@@ -676,7 +681,7 @@ function ModalTarefa({
                   </select>
                 </Campo>
               )}
-              {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && (
+              {automatica && (frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && (
                 <Campo label="Dia do mês (1–31)">
                   <input type="number" min={1} max={31} value={diaMes} onChange={(e) => setDiaMes(Number(e.target.value))} className="campoexec" aria-label="Dia do mês" placeholder="10" />
                 </Campo>
