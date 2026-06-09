@@ -19,9 +19,15 @@ update tarefas_executivo set frequencia = 'diaria', automatica = false where fre
 
 alter table tarefas_executivo alter column frequencia set default 'diaria';
 
+-- Idempotente: largar antes de criar (caso a migração tenha sido corrida em parte).
+alter table tarefas_executivo drop constraint if exists tarefas_exec_freq_chk;
 alter table tarefas_executivo add constraint tarefas_exec_freq_chk
   check (frequencia in ('diaria', 'semanal', 'quinzenal', 'mensal', 'trimestral', 'semestral'));
+
+alter table tarefas_executivo drop constraint if exists tarefas_exec_dia_semana_chk;
 alter table tarefas_executivo add constraint tarefas_exec_dia_semana_chk
   check (dia_semana is null or dia_semana between 0 and 6);
+
+alter table tarefas_executivo drop constraint if exists tarefas_exec_dia_mes_chk;
 alter table tarefas_executivo add constraint tarefas_exec_dia_mes_chk
   check (dia_mes is null or dia_mes between 1 and 31);
