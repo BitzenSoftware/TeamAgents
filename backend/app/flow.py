@@ -8,6 +8,7 @@ import re
 import time
 import httpx
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from . import email_ingest, executivo, llm, whatsapp
 from .config import get_settings
@@ -338,31 +339,42 @@ def _access_token_valido(account: dict) -> str:
     return novo_access
 
 
-def _due_hoje(t: dict, agora: datetime) -> bool:
-    """True se a tarefa automática deve correr hoje, conforme o período + dia escolhido.
+def _due_agora(t: dict, agora_utc: datetime) -> bool:
+    """True se a tarefa automática deve correr AGORA (hora + dia, no fuso da tarefa).
 
-    Usa last_run para respeitar a cadência (evita correr 2x e dá conta de quinzenal/
-    trimestral/semestral). dia_semana: 0=Seg..6=Dom; dia_mes: 1..31 (ajusta a meses curtos).
+    O cron corre de hora a hora; aqui confirmamos: tarefa automática, hora local
+    == hora escolhida, e o dia bate certo no período. last_run garante a cadência
+    (evita repetir e dá conta de quinzenal/trimestral/semestral).
     """
+    if not t.get("automatica"):
+        return False
+    try:
+        local = agora_utc.astimezone(ZoneInfo(t.get("fuso") or "America/Sao_Paulo"))
+    except Exception:
+        local = agora_utc
+    hora_alvo = 7 if t.get("hora") is None else int(t["hora"])
+    if local.hour != hora_alvo:
+        return False
+
     freq = (t.get("frequencia") or "diaria").lower()
     last = t.get("last_run")
     try:
         last_dt = datetime.fromisoformat(last.replace("Z", "+00:00")) if last else None
     except Exception:
         last_dt = None
-    dias = (agora - last_dt).days if last_dt else 99999
+    dias = (agora_utc - last_dt).days if last_dt else 99999
 
     if freq == "diaria":
         return dias >= 1
     if freq in ("semanal", "quinzenal"):
         dw = t.get("dia_semana")
-        if agora.weekday() != (0 if dw is None else int(dw)):
+        if local.weekday() != (0 if dw is None else int(dw)):
             return False
         return dias >= (6 if freq == "semanal" else 13)
     if freq in ("mensal", "trimestral", "semestral"):
         dm = 1 if t.get("dia_mes") is None else int(t["dia_mes"])
-        ultimo = calendar.monthrange(agora.year, agora.month)[1]
-        if agora.day != min(dm, ultimo):
+        ultimo = calendar.monthrange(local.year, local.month)[1]
+        if local.day != min(dm, ultimo):
             return False
         return dias >= {"mensal": 27, "trimestral": 85, "semestral": 175}[freq]
     return False
@@ -393,7 +405,7 @@ def sincronizar_email(
         tarefas = [t for t in todas if t.get("ativo")]
         if apenas_automaticas:
             agora = datetime.now(timezone.utc)
-            tarefas = [t for t in tarefas if t.get("automatica") and _due_hoje(t, agora)]
+            tarefas = [t for t in tarefas if _due_agora(t, agora)]
     if not tarefas:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
 

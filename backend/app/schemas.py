@@ -269,6 +269,8 @@ class TarefaExecutivoCreate(BaseModel):
     automatica: bool = False        # True = corre no cron; False = só ao sincronizar
     dia_semana: int | None = Field(default=None, ge=0, le=6)  # semanal/quinzenal (0=Seg)
     dia_mes: int | None = Field(default=None, ge=1, le=31)    # mensal/trimestral/semestral
+    hora: int = Field(default=7, ge=0, le=23)                 # hora local de execução (automática)
+    fuso: str = "America/Sao_Paulo"                           # fuso horário da hora
     ativo: bool = True
     instrucoes: str | None = None  # o que extrair desses emails
     habilidade_ids: list[str] = Field(default_factory=list)
@@ -283,6 +285,8 @@ class TarefaExecutivoUpdate(BaseModel):
     automatica: bool | None = None
     dia_semana: int | None = Field(default=None, ge=0, le=6)
     dia_mes: int | None = Field(default=None, ge=1, le=31)
+    hora: int | None = Field(default=None, ge=0, le=23)
+    fuso: str | None = None
     ativo: bool | None = None
     instrucoes: str | None = None
     habilidade_ids: list[str] | None = None

@@ -269,6 +269,8 @@ export type TarefaExecutivo = {
   automatica: boolean;
   dia_semana: number | null;
   dia_mes: number | null;
+  hora: number;
+  fuso: string;
   ativo: boolean;
   instrucoes: string | null;
   habilidade_ids: string[];
@@ -287,6 +289,8 @@ export type TarefaInput = {
   automatica?: boolean;
   dia_semana?: number | null;
   dia_mes?: number | null;
+  hora?: number;
+  fuso?: string;
   ativo?: boolean;
   instrucoes?: string;
   habilidade_ids?: string[];

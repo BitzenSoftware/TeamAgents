@@ -22,6 +22,14 @@ const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
 
 const DIAS_SEMANA = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
+const FUSOS: { v: string; l: string }[] = [
+  { v: "America/Sao_Paulo", l: "Brasília (BRT)" },
+  { v: "America/Manaus", l: "Manaus (AMT)" },
+  { v: "America/Rio_Branco", l: "Acre (ACT)" },
+  { v: "Europe/Lisbon", l: "Lisboa (WET)" },
+  { v: "UTC", l: "UTC" },
+];
+
 const FREQ_LABEL: Record<Frequencia, string> = {
   diaria: "Diária",
   semanal: "Semanal",
@@ -549,6 +557,8 @@ function ModalTarefa({
   const [automatica, setAutomatica] = useState<boolean>(tarefa?.automatica ?? false);
   const [diaSemana, setDiaSemana] = useState<number>(tarefa?.dia_semana ?? 0);
   const [diaMes, setDiaMes] = useState<number>(tarefa?.dia_mes ?? 1);
+  const [hora, setHora] = useState<number>(tarefa?.hora ?? 7);
+  const [fuso, setFuso] = useState<string>(tarefa?.fuso ?? "America/Sao_Paulo");
   const [instrucoes, setInstrucoes] = useState(tarefa?.instrucoes ?? "");
   const [habIds, setHabIds] = useState<string[]>(tarefa?.habilidade_ids ?? []);
   const [saving, setSaving] = useState(false);
@@ -575,6 +585,8 @@ function ModalTarefa({
       automatica,
       dia_semana: usaDiaSemana ? diaSemana : null,
       dia_mes: usaDiaMes ? diaMes : null,
+      hora,
+      fuso,
       instrucoes: instrucoes.trim() || undefined,
       habilidade_ids: habIds,
     };
@@ -669,13 +681,32 @@ function ModalTarefa({
                   <input type="number" min={1} max={31} value={diaMes} onChange={(e) => setDiaMes(Number(e.target.value))} className="campoexec" aria-label="Dia do mês" placeholder="10" />
                 </Campo>
               )}
+              {automatica && (
+                <div className="flex gap-3">
+                  <Campo label="Hora">
+                    <select value={hora} onChange={(e) => setHora(Number(e.target.value))} className="campoexec" aria-label="Hora">
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </Campo>
+                  <Campo label="Fuso horário">
+                    <select value={fuso} onChange={(e) => setFuso(e.target.value)} className="campoexec" aria-label="Fuso horário">
+                      {FUSOS.map((f) => (
+                        <option key={f.v} value={f.v}>{f.l}</option>
+                      ))}
+                    </select>
+                  </Campo>
+                </div>
+              )}
               <p className="rounded-lg bg-black/[0.03] p-2.5 text-[11px] text-black/50">
                 {automatica ? (
                   <>
                     ⚙️ <strong>Automática</strong> — o sistema corre esta tarefa sozinho.{" "}
-                    {frequencia === "diaria" && "Todos os dias."}
-                    {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}${frequencia === "quinzenal" ? " (de 15 em 15 dias)" : ""}.`}
-                    {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes}, a cada ${frequencia === "mensal" ? "mês" : frequencia === "trimestral" ? "trimestre" : "semestre"}.`}
+                    {frequencia === "diaria" && "Todos os dias"}
+                    {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}${frequencia === "quinzenal" ? " (de 15 em 15 dias)" : ""}`}
+                    {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes}, a cada ${frequencia === "mensal" ? "mês" : frequencia === "trimestral" ? "trimestre" : "semestre"}`}
+                    {` às ${String(hora).padStart(2, "0")}:00 (${FUSOS.find((f) => f.v === fuso)?.l ?? fuso}).`}
                   </>
                 ) : (
                   <>✋ <strong>Manual</strong> — só corre quando clicas em <em>Sincronizar</em>.</>

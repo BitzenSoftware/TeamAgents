@@ -75,14 +75,15 @@ services:
       - key: WHATSAPP_INSTANCE
         sync: false
 
-  # Cron diário do Agente Executivo — corre as tarefas 'diaria' (Gmail) de cada
-  # tenant. "0 6 * * *" = 06:00 UTC (≈ 03:00 São Paulo / 07:00 Lisboa).
+  # Cron do Agente Executivo — corre DE HORA A HORA e dispara cada tarefa
+  # automática à sua hora local (campo hora+fuso). "5 * * * *" = ao minuto 5 de
+  # cada hora. (Se ainda estiver "0 6 * * *" no dashboard, atualiza para "5 * * * *".)
   - type: cron
     name: teamagents-executivo-cron
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    schedule: "0 6 * * *"
+    schedule: "5 * * * *"
     dockerCommand: python cron_executivo.py
     envVars:
       - key: ANTHROPIC_API_KEY
