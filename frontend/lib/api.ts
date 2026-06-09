@@ -265,7 +265,10 @@ export type TarefaExecutivo = {
   remetente: string | null;
   palavras_chave: string | null;
   janela_dias: number;
-  frequencia: "manual" | "diaria";
+  frequencia: Frequencia;
+  automatica: boolean;
+  dia_semana: number | null;
+  dia_mes: number | null;
   ativo: boolean;
   instrucoes: string | null;
   habilidade_ids: string[];
@@ -273,12 +276,17 @@ export type TarefaExecutivo = {
   created_at: string;
 };
 
+export type Frequencia = "diaria" | "semanal" | "quinzenal" | "mensal" | "trimestral" | "semestral";
+
 export type TarefaInput = {
   nome: string;
   remetente?: string;
   palavras_chave?: string;
   janela_dias?: number;
-  frequencia?: "manual" | "diaria";
+  frequencia?: Frequencia;
+  automatica?: boolean;
+  dia_semana?: number | null;
+  dia_mes?: number | null;
   ativo?: boolean;
   instrucoes?: string;
   habilidade_ids?: string[];

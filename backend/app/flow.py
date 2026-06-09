@@ -3,6 +3,7 @@
 A BD é o "quadro-negro": os agentes não falam diretamente, trocam estado aqui.
 """
 import asyncio
+import calendar
 import re
 import time
 import httpx
@@ -337,13 +338,43 @@ def _access_token_valido(account: dict) -> str:
     return novo_access
 
 
+def _due_hoje(t: dict, agora: datetime) -> bool:
+    """True se a tarefa automática deve correr hoje, conforme o período + dia escolhido.
+
+    Usa last_run para respeitar a cadência (evita correr 2x e dá conta de quinzenal/
+    trimestral/semestral). dia_semana: 0=Seg..6=Dom; dia_mes: 1..31 (ajusta a meses curtos).
+    """
+    freq = (t.get("frequencia") or "diaria").lower()
+    last = t.get("last_run")
+    try:
+        last_dt = datetime.fromisoformat(last.replace("Z", "+00:00")) if last else None
+    except Exception:
+        last_dt = None
+    dias = (agora - last_dt).days if last_dt else 99999
+
+    if freq == "diaria":
+        return dias >= 1
+    if freq in ("semanal", "quinzenal"):
+        dw = t.get("dia_semana")
+        if agora.weekday() != (0 if dw is None else int(dw)):
+            return False
+        return dias >= (6 if freq == "semanal" else 13)
+    if freq in ("mensal", "trimestral", "semestral"):
+        dm = 1 if t.get("dia_mes") is None else int(t["dia_mes"])
+        ultimo = calendar.monthrange(agora.year, agora.month)[1]
+        if agora.day != min(dm, ultimo):
+            return False
+        return dias >= {"mensal": 27, "trimestral": 85, "semestral": 175}[freq]
+    return False
+
+
 def sincronizar_email(
-    cliente_id: str, provider: str = "gmail", apenas_diarias: bool = False, tarefa_ids: list[str] | None = None
+    cliente_id: str, provider: str = "gmail", apenas_automaticas: bool = False, tarefa_ids: list[str] | None = None
 ) -> dict:
     """Corre tarefas: busca só os emails que batem nos filtros e resume.
 
     - `tarefa_ids`: corre só essas tarefas (escolha do utilizador, mesmo inativas).
-    - `apenas_diarias=True`: só as tarefas 'diaria' (usado pelo cron).
+    - `apenas_automaticas=True`: só as tarefas automáticas que estão "due" hoje (cron).
     - caso contrário: todas as ativas.
     Uma síntese (processamento) por tarefa.
     """
@@ -360,8 +391,9 @@ def sincronizar_email(
         tarefas = [t for t in todas if t["id"] in escolhidas]  # escolha explícita: corre mesmo se inativa
     else:
         tarefas = [t for t in todas if t.get("ativo")]
-        if apenas_diarias:
-            tarefas = [t for t in tarefas if t.get("frequencia") == "diaria"]
+        if apenas_automaticas:
+            agora = datetime.now(timezone.utc)
+            tarefas = [t for t in tarefas if t.get("automatica") and _due_hoje(t, agora)]
     if not tarefas:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
 

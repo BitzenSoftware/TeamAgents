@@ -6,6 +6,7 @@ import {
   api,
   type AcaoItem,
   type EmailAccount,
+  type Frequencia,
   type Habilidade,
   type ItemProcessado,
   type Processamento,
@@ -18,6 +19,36 @@ const PRIORIDADE_COR: Record<ItemProcessado["prioridade"], string> = {
   media: "bg-amber-100 text-amber-700",
   baixa: "bg-emerald-100 text-emerald-700",
 };
+
+const DIAS_SEMANA = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+const FREQ_LABEL: Record<Frequencia, string> = {
+  diaria: "Diária",
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
+  mensal: "Mensal",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+};
+
+// Opções combinadas período × modo para o select de Frequência.
+const FREQ_OPCOES: { v: string; l: string }[] = (
+  ["diaria", "semanal", "quinzenal", "mensal", "trimestral", "semestral"] as Frequencia[]
+).flatMap((f) => [
+  { v: `${f}|auto`, l: `${FREQ_LABEL[f]} (Automática)` },
+  { v: `${f}|man`, l: `${FREQ_LABEL[f]} (Manual)` },
+]);
+
+function freqResumo(t: TarefaExecutivo): string {
+  const base = FREQ_LABEL[t.frequencia] ?? "Diária";
+  const modo = t.automatica ? "auto" : "manual";
+  let quando = "";
+  if (t.automatica) {
+    if (t.frequencia === "semanal" || t.frequencia === "quinzenal") quando = ` · ${DIAS_SEMANA[t.dia_semana ?? 0]?.slice(0, 3)}`;
+    else if (t.frequencia === "mensal" || t.frequencia === "trimestral" || t.frequencia === "semestral") quando = ` · dia ${t.dia_mes ?? 1}`;
+  }
+  return `${base.toLowerCase()} ${modo}${quando}`;
+}
 
 export default function ExecutivoPage() {
   const [lista, setLista] = useState<Processamento[]>([]);
@@ -195,7 +226,7 @@ export default function ExecutivoPage() {
                       {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
                       {t.palavras_chave && ` · "${t.palavras_chave}"`}
                       {` · últimos ${t.janela_dias}d`}
-                      {` · ${t.frequencia === "diaria" ? "diária" : "manual"}`}
+                      {` · ${freqResumo(t)}`}
                       {t.last_run && ` · corrida ${new Date(t.last_run).toLocaleDateString("pt-PT")}`}
                     </div>
                   </div>
@@ -514,7 +545,10 @@ function ModalTarefa({
   const [remetente, setRemetente] = useState(tarefa?.remetente ?? "");
   const [palavras, setPalavras] = useState(tarefa?.palavras_chave ?? "");
   const [janela, setJanela] = useState(tarefa?.janela_dias ?? 1);
-  const [frequencia, setFrequencia] = useState<"manual" | "diaria">(tarefa?.frequencia ?? "manual");
+  const [frequencia, setFrequencia] = useState<Frequencia>(tarefa?.frequencia ?? "diaria");
+  const [automatica, setAutomatica] = useState<boolean>(tarefa?.automatica ?? false);
+  const [diaSemana, setDiaSemana] = useState<number>(tarefa?.dia_semana ?? 0);
+  const [diaMes, setDiaMes] = useState<number>(tarefa?.dia_mes ?? 1);
   const [instrucoes, setInstrucoes] = useState(tarefa?.instrucoes ?? "");
   const [habIds, setHabIds] = useState<string[]>(tarefa?.habilidade_ids ?? []);
   const [saving, setSaving] = useState(false);
@@ -529,12 +563,17 @@ function ModalTarefa({
     if (!nome.trim()) return;
     setSaving(true);
     setErro(null);
+    const usaDiaSemana = frequencia === "semanal" || frequencia === "quinzenal";
+    const usaDiaMes = frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral";
     const body = {
       nome: nome.trim(),
       remetente: remetente.trim() || undefined,
       palavras_chave: palavras.trim() || undefined,
       janela_dias: janela,
       frequencia,
+      automatica,
+      dia_semana: usaDiaSemana ? diaSemana : null,
+      dia_mes: usaDiaMes ? diaMes : null,
       instrucoes: instrucoes.trim() || undefined,
       habilidade_ids: habIds,
     };
@@ -570,12 +609,44 @@ function ModalTarefa({
               <input type="number" min={1} max={30} value={janela} onChange={(e) => setJanela(Number(e.target.value))} className="campoexec" aria-label="Janela em dias" placeholder="1" />
             </Campo>
             <Campo label="Frequência">
-              <select value={frequencia} onChange={(e) => setFrequencia(e.target.value as "manual" | "diaria")} className="campoexec" aria-label="Frequência">
-                <option value="manual">Manual</option>
-                <option value="diaria">Diária (automática)</option>
+              <select
+                value={`${frequencia}|${automatica ? "auto" : "man"}`}
+                onChange={(e) => {
+                  const [f, a] = e.target.value.split("|");
+                  setFrequencia(f as Frequencia);
+                  setAutomatica(a === "auto");
+                }}
+                className="campoexec"
+                aria-label="Frequência"
+              >
+                {FREQ_OPCOES.map((o) => (
+                  <option key={o.v} value={o.v}>{o.l}</option>
+                ))}
               </select>
             </Campo>
           </div>
+          {(frequencia === "semanal" || frequencia === "quinzenal") && (
+            <Campo label="Dia da semana">
+              <select value={diaSemana} onChange={(e) => setDiaSemana(Number(e.target.value))} className="campoexec" aria-label="Dia da semana">
+                {DIAS_SEMANA.map((d, i) => (
+                  <option key={d} value={i}>{d}</option>
+                ))}
+              </select>
+            </Campo>
+          )}
+          {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && (
+            <Campo label="Dia do mês (1–31)">
+              <input type="number" min={1} max={31} value={diaMes} onChange={(e) => setDiaMes(Number(e.target.value))} className="campoexec" aria-label="Dia do mês" placeholder="10" />
+            </Campo>
+          )}
+          {automatica && (
+            <p className="-mt-1 text-[11px] text-black/45">
+              ⚙️ Automática: o sistema corre esta tarefa sozinho conforme a frequência.{" "}
+              {frequencia === "diaria" && "Todos os dias."}
+              {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}.`}
+              {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes} do mês.`}
+            </p>
+          )}
           <Campo label="O que extrair destes emails — opcional">
             <textarea
               value={instrucoes}

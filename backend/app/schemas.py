@@ -256,12 +256,19 @@ class EmailSyncRequest(BaseModel):
 
 
 # --- Tarefas dirigidas do Agente Executivo ---
+# Períodos válidos da frequência de uma tarefa do Agente Executivo.
+FREQUENCIAS = ("diaria", "semanal", "quinzenal", "mensal", "trimestral", "semestral")
+
+
 class TarefaExecutivoCreate(BaseModel):
     nome: str = Field(min_length=1)
     remetente: str | None = None
     palavras_chave: str | None = None
     janela_dias: int = Field(default=1, ge=1, le=30)
-    frequencia: str = "manual"  # 'manual' | 'diaria'
+    frequencia: str = "diaria"      # período (ver FREQUENCIAS)
+    automatica: bool = False        # True = corre no cron; False = só ao sincronizar
+    dia_semana: int | None = Field(default=None, ge=0, le=6)  # semanal/quinzenal (0=Seg)
+    dia_mes: int | None = Field(default=None, ge=1, le=31)    # mensal/trimestral/semestral
     ativo: bool = True
     instrucoes: str | None = None  # o que extrair desses emails
     habilidade_ids: list[str] = Field(default_factory=list)
@@ -273,6 +280,9 @@ class TarefaExecutivoUpdate(BaseModel):
     palavras_chave: str | None = None
     janela_dias: int | None = Field(default=None, ge=1, le=30)
     frequencia: str | None = None
+    automatica: bool | None = None
+    dia_semana: int | None = Field(default=None, ge=0, le=6)
+    dia_mes: int | None = Field(default=None, ge=1, le=31)
     ativo: bool | None = None
     instrucoes: str | None = None
     habilidade_ids: list[str] | None = None

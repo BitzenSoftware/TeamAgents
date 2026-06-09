@@ -24,9 +24,9 @@ def main() -> None:
     for c in clientes:
         nome = c.get("nome", c["id"])
         try:
-            res = flow.sincronizar_email(c["id"], "gmail", apenas_diarias=True)
+            res = flow.sincronizar_email(c["id"], "gmail", apenas_automaticas=True)
             if res.get("sem_tarefas"):
-                continue  # sem tarefas diárias ativas — salta silenciosamente
+                continue  # sem tarefas automáticas "due" hoje — salta silenciosamente
             print(f"  [ok]   {nome}: {res['n_emails']} email(s) em {len(res['processamentos'])} tarefa(s)")
         except ValueError:
             continue  # sem conta de email ligada — salta
