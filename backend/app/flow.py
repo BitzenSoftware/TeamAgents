@@ -1160,6 +1160,31 @@ def creditar_compra_avulsa(cliente_id: str, creditos: int, valor: float, pacote_
     return True
 
 
+def registar_faturamento(cliente_id: str | None, tipo: str, valor: float, descricao: str | None, stripe_ref: str | None) -> bool:
+    """Regista um pagamento no livro de faturamento. Idempotente por stripe_ref.
+
+    Devolve False se já existia (evento reentregue) ou se valor <= 0.
+    """
+    if not valor or valor <= 0:
+        return False
+    db = get_db()
+    try:
+        if stripe_ref:
+            ja = db.table("faturamento").select("id").eq("stripe_ref", stripe_ref).limit(1).execute().data
+            if ja:
+                return False
+        db.table("faturamento").insert({
+            "cliente_id": cliente_id,
+            "tipo": tipo,
+            "valor": valor,
+            "descricao": descricao,
+            "stripe_ref": stripe_ref,
+        }).execute()
+        return True
+    except Exception:
+        return False  # migração 020 pode ainda não ter corrido
+
+
 def verificar_limite(cliente_id: str, qtd: int) -> None:
     """Levanta LimiteCreditosError se a ação exceder mesada do plano + saldo avulso.
 
@@ -1275,6 +1300,197 @@ def consumo_dashboard(cliente_id: str, de: str, ate: str, gran: str = "dia") -> 
         "total": total,
         "por_origem": por_origem,
         "series": [{"bucket": k, "total": v} for k, v in sorted(series.items())],
+    }
+
+
+# ===================== Painel do superadmin: Empresas =====================
+def _mapa_emails() -> dict[str, str]:
+    """user_id -> email, via GoTrue admin (best-effort, paginado)."""
+    out: dict[str, str] = {}
+    try:
+        s = get_settings()
+        headers = {"apikey": s.supabase_service_role_key, "Authorization": f"Bearer {s.supabase_service_role_key}"}
+        page = 1
+        while page <= 25:  # teto de segurança
+            r = httpx.get(f"{s.supabase_url}/auth/v1/admin/users", headers=headers, params={"page": page, "per_page": 200}, timeout=15)
+            if r.status_code != 200:
+                break
+            data = r.json()
+            users = data.get("users", []) if isinstance(data, dict) else data
+            if not users:
+                break
+            for u in users:
+                if u.get("id"):
+                    out[u["id"]] = u.get("email") or ""
+            if len(users) < 200:
+                break
+            page += 1
+    except Exception:
+        pass
+    return out
+
+
+def _fim_do_dia(ate: str) -> str:
+    """Torna 'ate' inclusivo até ao fim do dia (para comparações de timestamptz)."""
+    return ate if "T" in ate else f"{ate}T23:59:59.999Z"
+
+
+def admin_empresas() -> list[dict]:
+    """Lista todas as empresas (clientes) com plano, email e consumo do mês atual."""
+    db = get_db()
+    clientes = (
+        db.table("clientes")
+        .select("id, nome, auth_user_id, plano_id, stripe_subscription_id, creditos_avulsos, assinatura_cancela_em, created_at")
+        .order("created_at")
+        .execute()
+        .data
+    )
+    planos = {p["id"]: p for p in db.table("planos").select("id, nome, creditos_mensais, preco").execute().data}
+    emails = _mapa_emails()
+    consumo_mes: dict[str, int] = {}
+    try:
+        for r in db.table("consumo_mensal").select("cliente_id, creditos_usados").eq("periodo", _periodo_atual()).execute().data:
+            consumo_mes[r["cliente_id"]] = r["creditos_usados"]
+    except Exception:
+        pass
+    out = []
+    for c in clientes:
+        plano = planos.get(c.get("plano_id"))
+        out.append({
+            "id": c["id"],
+            "nome": c.get("nome"),
+            "email": emails.get(c.get("auth_user_id"), ""),
+            "plano_nome": plano["nome"] if plano else None,
+            "creditos_mensais": plano["creditos_mensais"] if plano else None,
+            "preco": float(plano["preco"]) if plano else 0,
+            "creditos_avulsos": c.get("creditos_avulsos") or 0,
+            "tem_assinatura": bool(c.get("stripe_subscription_id")),
+            "assinatura_cancela_em": c.get("assinatura_cancela_em"),
+            "consumo_mes": consumo_mes.get(c["id"], 0),
+            "created_at": c.get("created_at"),
+        })
+    return out
+
+
+def admin_empresas_consumo(de: str, ate: str) -> list[dict]:
+    """Consumo de tokens por empresa no intervalo [de, ate], com repartição por origem."""
+    db = get_db()
+    agg: dict[str, dict] = {}
+    try:
+        rows = (
+            db.table("consumo_log")
+            .select("cliente_id, origem, creditos, created_at")
+            .gte("created_at", de)
+            .lte("created_at", _fim_do_dia(ate))
+            .execute()
+            .data
+        )
+        for r in rows:
+            cid = r["cliente_id"]
+            q = int(r.get("creditos") or 0)
+            a = agg.setdefault(cid, {"total": 0, "campanhas": 0, "sdr": 0, "bi": 0, "executivo": 0, "outro": 0})
+            a["total"] += q
+            o = r.get("origem") or "outro"
+            a[o] = a.get(o, 0) + q
+    except Exception:
+        pass
+    clientes = db.table("clientes").select("id, nome, plano_id").execute().data
+    planos = {p["id"]: p for p in db.table("planos").select("id, nome, creditos_mensais").execute().data}
+    out = []
+    for c in clientes:
+        a = agg.get(c["id"], {})
+        plano = planos.get(c.get("plano_id"))
+        out.append({
+            "id": c["id"],
+            "nome": c.get("nome"),
+            "plano_nome": plano["nome"] if plano else None,
+            "creditos_mensais": plano["creditos_mensais"] if plano else None,
+            "total": a.get("total", 0),
+            "campanhas": a.get("campanhas", 0),
+            "sdr": a.get("sdr", 0),
+            "bi": a.get("bi", 0),
+            "executivo": a.get("executivo", 0),
+            "outro": a.get("outro", 0),
+        })
+    out.sort(key=lambda x: x["total"], reverse=True)
+    return out
+
+
+def admin_dashboard(de: str, ate: str, gran: str = "mes") -> dict:
+    """Séries agregadas (todas as empresas): consumo, faturamento e crescimento."""
+    db = get_db()
+    ate_fim = _fim_do_dia(ate)
+
+    def bk(iso: str) -> str:
+        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        if gran == "ano":
+            return d.strftime("%Y")
+        if gran == "trimestre":
+            return f"{d.year}-T{(d.month - 1) // 3 + 1}"
+        if gran == "semana":
+            y, w, _ = d.isocalendar()
+            return f"{y}-S{w:02d}"
+        return d.strftime("%Y-%m")  # mensal
+
+    consumo_series: dict[str, int] = {}
+    consumo_total = 0
+    try:
+        for r in db.table("consumo_log").select("creditos, created_at").gte("created_at", de).lte("created_at", ate_fim).execute().data:
+            q = int(r.get("creditos") or 0)
+            consumo_total += q
+            consumo_series[bk(r["created_at"])] = consumo_series.get(bk(r["created_at"]), 0) + q
+    except Exception:
+        pass
+
+    fat_series: dict[str, float] = {}
+    fat_total = 0.0
+    fat_por_tipo: dict[str, float] = {"assinatura": 0.0, "pacote": 0.0}
+    try:
+        for r in db.table("faturamento").select("valor, tipo, created_at").gte("created_at", de).lte("created_at", ate_fim).execute().data:
+            v = float(r.get("valor") or 0)
+            fat_total += v
+            fat_series[bk(r["created_at"])] = fat_series.get(bk(r["created_at"]), 0.0) + v
+            t = r.get("tipo") or "outro"
+            fat_por_tipo[t] = fat_por_tipo.get(t, 0.0) + v
+    except Exception:
+        pass
+
+    cresc_series: dict[str, int] = {}
+    total_empresas = 0
+    try:
+        rows = db.table("clientes").select("created_at").execute().data
+        total_empresas = len(rows)
+        for r in rows:
+            ca = r.get("created_at")
+            if ca and de <= ca <= ate_fim:
+                cresc_series[bk(ca)] = cresc_series.get(bk(ca), 0) + 1
+    except Exception:
+        pass
+
+    ativas = 0
+    mrr = 0.0
+    try:
+        precos = {p["id"]: float(p["preco"]) for p in db.table("planos").select("id, preco").execute().data}
+        for c in db.table("clientes").select("plano_id, stripe_subscription_id").execute().data:
+            if c.get("stripe_subscription_id"):
+                ativas += 1
+                mrr += precos.get(c.get("plano_id"), 0.0)
+    except Exception:
+        pass
+
+    def serie(d: dict) -> list[dict]:
+        return [{"bucket": k, "total": round(v, 2)} for k, v in sorted(d.items())]
+
+    return {
+        "consumo_series": serie(consumo_series),
+        "faturamento_series": serie(fat_series),
+        "crescimento_series": serie(cresc_series),
+        "consumo_total": consumo_total,
+        "faturamento_total": round(fat_total, 2),
+        "faturamento_por_tipo": {k: round(v, 2) for k, v in fat_por_tipo.items()},
+        "total_empresas": total_empresas,
+        "empresas_ativas": ativas,
+        "mrr": round(mrr, 2),
     }
 
 

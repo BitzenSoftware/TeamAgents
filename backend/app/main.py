@@ -146,6 +146,25 @@ def apagar_pacote(pid: str, _: str = Depends(auth.require_superadmin)) -> None:
     flow.apagar_pacote(pid)
 
 
+# ===================== Painel do superadmin: Empresas =====================
+@app.get("/admin/empresas")
+def admin_empresas(_: str = Depends(auth.require_superadmin)) -> list[dict]:
+    """Cadastro de todas as empresas (clientes) com plano, email e consumo do mês."""
+    return flow.admin_empresas()
+
+
+@app.get("/admin/empresas/consumo")
+def admin_empresas_consumo(de: str, ate: str, _: str = Depends(auth.require_superadmin)) -> list[dict]:
+    """Consumo de tokens por empresa no intervalo [de, ate]."""
+    return flow.admin_empresas_consumo(de, ate)
+
+
+@app.get("/admin/dashboards")
+def admin_dashboards(de: str, ate: str, gran: str = "mes", _: str = Depends(auth.require_superadmin)) -> dict:
+    """Séries agregadas (todas as empresas): consumo, faturamento e crescimento."""
+    return flow.admin_dashboard(de, ate, gran)
+
+
 @app.post("/admin/pacotes/{pid}/stripe")
 def registar_pacote_stripe(pid: str, _: str = Depends(auth.require_superadmin)) -> dict:
     """Cria/recria o Produto + Preço de compra única na Stripe e guarda o price_id."""

@@ -19,6 +19,7 @@ const NAV = [
 ];
 
 const NAV_ADMIN = [
+  { href: "/empresas", label: "Empresas", hint: "Cadastro / Métricas" },
   { href: "/planos", label: "Planos", hint: "Admin / Stripe" },
   { href: "/pacotes", label: "Pacotes", hint: "Créditos avulsos" },
 ];

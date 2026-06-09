@@ -290,6 +290,7 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
                 _guardar_ids(cliente_id, obj.get("customer"), None)
             if creditos > 0:
                 flow.creditar_compra_avulsa(cliente_id, creditos, valor, meta.get("pacote_id"), obj.get("id"))
+            flow.registar_faturamento(cliente_id, "pacote", valor, "Pacote de créditos", obj.get("id"))
         elif cliente_id:
             # Assinatura de plano.
             plano_id = meta.get("plano_id")
@@ -300,8 +301,11 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
 
     elif tipo == "invoice.paid":
         cliente_id = _cliente_por_customer(obj.get("customer"))
-        if cliente_id and obj.get("billing_reason") in ("subscription_cycle", "subscription_create", None):
-            _reset_consumo(cliente_id)
+        if cliente_id:
+            valor = (obj.get("amount_paid") or 0) / 100.0
+            flow.registar_faturamento(cliente_id, "assinatura", valor, obj.get("number") or "Assinatura", obj.get("id"))
+            if obj.get("billing_reason") in ("subscription_cycle", "subscription_create", None):
+                _reset_consumo(cliente_id)
 
     elif tipo == "customer.subscription.updated":
         cliente_id = _cliente_por_customer(obj.get("customer"))

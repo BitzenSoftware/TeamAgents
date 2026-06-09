@@ -90,6 +90,45 @@ export type PlanoAtivo = {
   ordem: number;
 };
 
+export type Empresa = {
+  id: string;
+  nome: string | null;
+  email: string;
+  plano_nome: string | null;
+  creditos_mensais: number | null;
+  preco: number;
+  creditos_avulsos: number;
+  tem_assinatura: boolean;
+  assinatura_cancela_em: string | null;
+  consumo_mes: number;
+  created_at: string | null;
+};
+
+export type EmpresaConsumo = {
+  id: string;
+  nome: string | null;
+  plano_nome: string | null;
+  creditos_mensais: number | null;
+  total: number;
+  campanhas: number;
+  sdr: number;
+  bi: number;
+  executivo: number;
+  outro: number;
+};
+
+export type AdminDashboard = {
+  consumo_series: { bucket: string; total: number }[];
+  faturamento_series: { bucket: string; total: number }[];
+  crescimento_series: { bucket: string; total: number }[];
+  consumo_total: number;
+  faturamento_total: number;
+  faturamento_por_tipo: Record<string, number>;
+  total_empresas: number;
+  empresas_ativas: number;
+  mrr: number;
+};
+
 export type Pacote = {
   id: string;
   nome: string;
@@ -449,6 +488,13 @@ export const api = {
   apagarPacote: (id: string) => req<void>(`/admin/pacotes/${id}`, { method: "DELETE" }),
   registarPacoteStripe: (id: string) =>
     req<Pacote>(`/admin/pacotes/${id}/stripe`, { method: "POST" }),
+
+  // --- Painel do superadmin: Empresas ---
+  empresas: () => req<Empresa[]>("/admin/empresas"),
+  empresasConsumo: (de: string, ate: string) =>
+    req<EmpresaConsumo[]>(`/admin/empresas/consumo?de=${de}&ate=${ate}`),
+  adminDashboards: (de: string, ate: string, gran: "semana" | "mes" | "trimestre" | "ano") =>
+    req<AdminDashboard>(`/admin/dashboards?de=${de}&ate=${ate}&gran=${gran}`),
   pacotesAtivos: () => req<PacoteAtivo[]>("/me/pacotes"),
   comprarCreditos: (pacoteId: string) =>
     req<{ url: string }>("/me/comprar-creditos", { method: "POST", body: JSON.stringify({ pacote_id: pacoteId }) }),
