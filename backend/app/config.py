@@ -14,10 +14,16 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
 
-    # WhatsApp provider
+    # WhatsApp provider (Evolution central — modo gerido).
+    # whatsapp_api_url + whatsapp_api_key apontam para UM servidor Evolution que
+    # tu hospedas; a app cria a instância de cada cliente e mostra o QR. Sem isto,
+    # cai no modo manual (o cliente põe a sua própria instância/token).
     whatsapp_api_url: str = ""
     whatsapp_api_key: str = ""
     whatsapp_instance: str = "default"
+    # URL pública DESTE backend (alvo do webhook das instâncias). Ex.:
+    # https://teamagents.onrender.com
+    backend_url: str = ""
 
     # App
     webhook_verify_token: str = ""

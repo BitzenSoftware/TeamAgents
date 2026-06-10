@@ -292,33 +292,45 @@ function AbaWhatsApp() {
     <div className="grid grid-cols-5 gap-6">
       <div className="col-span-2">
         <Instrucoes steps={[
-          "Instala a Evolution API no teu servidor (VPS ou Railway)",
-          "Cria uma instância e copia o nome e o token gerado",
-          "Liga o WhatsApp lendo o QR Code na interface da Evolution API",
-          "Cola o Webhook URL do TeamAgents nas definições da instância",
-          "Preenche o teu número de WhatsApp para receber os relatórios de BI",
+          "Clica em “Ligar WhatsApp” — nós tratamos do resto",
+          "Lê o QR Code com o teu telemóvel (WhatsApp › Aparelhos ligados)",
+          "Pronto! O Agente SDR começa a responder aos teus leads",
+          "Preenche o teu número em “WhatsApp do dono” para receber os relatórios de BI",
+          "Tens a tua própria Evolution API? Usa a “Configuração avançada”",
         ]} />
       </div>
-      <div className="col-span-3">
+      <div className="col-span-3 space-y-4">
         {erro && <Erro msg={erro} />}
+
+        {/* Ligação simples por QR Code (modo gerido) */}
+        <WhatsAppGerido />
+
         {cfg && (
           <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
+            <details className="group rounded-lg border border-black/10 bg-paper open:bg-white">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium text-black/60 [&::-webkit-details-marker]:hidden">
+                Configuração avançada (instância manual)
+                <span className="text-xs text-black/35 group-open:hidden">mostrar ▾</span>
+              </summary>
+              <div className="grid grid-cols-2 gap-4 p-3 pt-1">
+                <Campo label="Instância do WhatsApp (Evolution)">
+                  <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
+                    title="Instância do WhatsApp (Evolution)" placeholder="instancia_prod_01"
+                    autoComplete="off" name="instancia-whatsapp" data-1p-ignore data-lpignore="true"
+                    onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
+                </Campo>
+                <Campo label="Token da instância">
+                  <CampoSecreto value={cfg.whatsapp_token ?? ""}
+                    onChange={(v) => set("whatsapp_token", v)} />
+                </Campo>
+                <Campo label="URL da Evolution API (opcional)" className="col-span-2">
+                  <CampoSecreto value={cfg.whatsapp_api_url ?? ""}
+                    onChange={(v) => set("whatsapp_api_url", v)}
+                    placeholder="https://api.evolution..." />
+                </Campo>
+              </div>
+            </details>
             <div className="grid grid-cols-2 gap-4">
-              <Campo label="Instância do WhatsApp (Evolution)">
-                <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
-                  title="Instância do WhatsApp (Evolution)" placeholder="instancia_prod_01"
-                  autoComplete="off" name="instancia-whatsapp" data-1p-ignore data-lpignore="true"
-                  onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
-              </Campo>
-              <Campo label="Token da instância">
-                <CampoSecreto value={cfg.whatsapp_token ?? ""}
-                  onChange={(v) => set("whatsapp_token", v)} />
-              </Campo>
-              <Campo label="URL da Evolution API (opcional)" className="col-span-2">
-                <CampoSecreto value={cfg.whatsapp_api_url ?? ""}
-                  onChange={(v) => set("whatsapp_api_url", v)}
-                  placeholder="https://api.evolution..." />
-              </Campo>
               <Campo label="Link de calendário" className="col-span-2">
                 <input className="campo" value={cfg.calendario_link ?? ""}
                   onChange={(e) => set("calendario_link", e.target.value)}
@@ -341,6 +353,118 @@ function AbaWhatsApp() {
     </div>
   );
 }
+
+/* ─── WhatsApp gerido (QR Code, 1 clique) ──────────────────────────── */
+function WhatsAppGerido() {
+  const [estado, setEstado] = useState<{ gerido: boolean; ligado: boolean; estado: string | null } | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [conectando, setConectando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregarEstado = () => api.whatsappEstado().then(setEstado).catch(() => setEstado(null));
+  useEffect(() => { carregarEstado(); }, []);
+
+  // Enquanto há QR e ainda não ligou, faz polling do estado a cada 3s.
+  useEffect(() => {
+    if (!qr || estado?.ligado) return;
+    const id = setInterval(async () => {
+      const e = await api.whatsappEstado().catch(() => null);
+      if (e) {
+        setEstado(e);
+        if (e.ligado) { setQr(null); clearInterval(id); }
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [qr, estado?.ligado]);
+
+  async function conectar() {
+    setConectando(true);
+    setErro(null);
+    try {
+      const r = await api.whatsappConectar();
+      setQr(r.qr);
+      if (!r.qr) await carregarEstado(); // já ligado ou QR não disponível
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível iniciar a ligação.");
+    } finally {
+      setConectando(false);
+    }
+  }
+
+  async function desligar() {
+    if (!window.confirm("Desligar o WhatsApp? Os agentes deixam de responder até voltares a ligar.")) return;
+    setQr(null);
+    await api.whatsappDesligar().catch(() => {});
+    await carregarEstado();
+  }
+
+  if (!estado) return null;
+
+  // Modo manual (servidor central não configurado): não mostra este card.
+  if (!estado.gerido) return null;
+
+  const qrSrc = qr ? (qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`) : null;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+      <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-white">
+        <span className="text-sm font-semibold">Ligar o teu WhatsApp</span>
+        {estado.ligado && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">● Ligado</span>}
+      </div>
+
+      <div className="p-5">
+        {erro && <div className="mb-3 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</div>}
+
+        {estado.ligado ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-emerald-700">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-base">✓</span>
+              <span><strong>WhatsApp ligado.</strong> O Agente SDR já responde aos teus leads.</span>
+            </div>
+            <button type="button" onClick={desligar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
+              Desligar
+            </button>
+          </div>
+        ) : qrSrc ? (
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrSrc} alt="QR Code para ligar o WhatsApp" className="h-44 w-44 shrink-0 rounded-lg border border-black/10" />
+            <div className="text-sm text-black/60">
+              <p className="mb-2 font-medium text-ink">Lê este QR Code com o teu telemóvel:</p>
+              <ol className="space-y-1.5 text-[13px]">
+                <li>1. Abre o <strong>WhatsApp</strong> no telemóvel</li>
+                <li>2. <strong>Definições</strong> → <strong>Aparelhos ligados</strong></li>
+                <li>3. <strong>Ligar um aparelho</strong> e aponta a câmara aqui</li>
+              </ol>
+              <p className="mt-3 flex items-center gap-2 text-xs text-black/40">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                À espera da leitura… (atualiza sozinho quando ligares)
+              </p>
+              <button type="button" onClick={conectar} disabled={conectando} className="mt-2 text-xs font-medium text-brand hover:underline disabled:opacity-50">
+                Gerar novo QR Code
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-black/55">
+              Liga a tua conta de WhatsApp em segundos — sem instalar nada. Clica e lê um QR Code.
+            </p>
+            <button
+              type="button"
+              onClick={conectar}
+              disabled={conectando}
+              className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {conectando ? "A preparar…" : "Ligar WhatsApp"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 /* ─── Discord ──────────────────────────────────────────────────────── */
 function AbaDiscord() {

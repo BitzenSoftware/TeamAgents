@@ -468,6 +468,13 @@ export const api = {
   apagarTarefaExecutivo: (id: string) =>
     req<void>(`/me/executivo/tarefas/${id}`, { method: "DELETE" }),
 
+  // --- WhatsApp gerido (QR Code, 1 clique) ---
+  whatsappEstado: () =>
+    req<{ gerido: boolean; instance: string | null; estado: string | null; ligado: boolean }>("/me/whatsapp/estado"),
+  whatsappConectar: () =>
+    req<{ qr: string | null; instance: string }>("/me/whatsapp/conectar", { method: "POST" }),
+  whatsappDesligar: () => req<{ ok: boolean }>("/me/whatsapp/desligar", { method: "POST" }),
+
   // --- Fase 2: integração de email (OAuth Gmail) ---
   emailAccounts: () => req<EmailAccount[]>("/me/email-accounts"),
   oauthGoogle: (code: string, redirect_uri: string) =>

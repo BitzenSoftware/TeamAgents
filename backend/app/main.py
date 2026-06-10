@@ -90,6 +90,25 @@ def update_config(payload: ConfigUpdate, cliente_id: str = Depends(auth.current_
     return updated
 
 
+# ===================== WhatsApp gerido (QR Code, 1 clique) =====================
+@app.get("/me/whatsapp/estado")
+def whatsapp_estado(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.whatsapp_estado(cliente_id)
+
+
+@app.post("/me/whatsapp/conectar")
+def whatsapp_conectar(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        return flow.whatsapp_conectar(cliente_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/me/whatsapp/desligar")
+def whatsapp_desligar(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.whatsapp_desligar(cliente_id)
+
+
 # ===================== Planos (apenas superadmin) =====================
 @app.get("/admin/planos")
 def listar_planos(_: str = Depends(auth.require_superadmin)) -> list[dict]:

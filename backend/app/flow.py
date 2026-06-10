@@ -10,7 +10,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import email_ingest, executivo, llm, pricing, whatsapp
+from . import email_ingest, evolution, executivo, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
@@ -73,6 +73,35 @@ def get_config_by_cliente(cliente_id: str) -> dict | None:
         .execute()
     )
     return res.data[0] if res.data else None
+
+
+# ===================== WhatsApp gerido (provisionamento automático) =====================
+def whatsapp_estado(cliente_id: str) -> dict:
+    """Estado da ligação WhatsApp do cliente + se o modo gerido está disponível."""
+    cfg = get_config_by_cliente(cliente_id) or {}
+    inst = cfg.get("whatsapp_instance_name")
+    gerido = evolution.central_disponivel()
+    estado = evolution.estado_instancia(inst) if (gerido and inst) else None
+    return {"gerido": gerido, "instance": inst, "estado": estado, "ligado": estado == "open"}
+
+
+def whatsapp_conectar(cliente_id: str) -> dict:
+    """Cria/reusa a instância do cliente no servidor central e devolve o QR Code."""
+    res = evolution.criar_ou_conectar(cliente_id)  # ValueError se modo gerido indisponível
+    update_config(cliente_id, {
+        "whatsapp_instance_name": res["instance"],
+        "whatsapp_token": res.get("token") or get_settings().whatsapp_api_key,
+        "whatsapp_api_url": res.get("api_url"),
+    })
+    return {"qr": res.get("qr"), "instance": res["instance"]}
+
+
+def whatsapp_desligar(cliente_id: str) -> dict:
+    """Desliga e remove a instância do cliente."""
+    cfg = get_config_by_cliente(cliente_id) or {}
+    evolution.apagar_instancia(cfg.get("whatsapp_instance_name"))
+    update_config(cliente_id, {"whatsapp_instance_name": None, "whatsapp_token": None})
+    return {"ok": True}
 
 
 def update_config(cliente_id: str, fields: dict) -> dict | None:
