@@ -143,6 +143,13 @@ export default function ExecutivoPage() {
     carregar();
   }
 
+  async function apagarTodos() {
+    if (!window.confirm(`Apagar TODOS os ${lista.length} resultados? Esta ação não pode ser desfeita.`)) return;
+    await api.apagarTodosProcessamentos();
+    setSelId(null);
+    carregar();
+  }
+
   return (
     <div className="p-6">
       <header className="mb-5">
@@ -264,8 +271,19 @@ export default function ExecutivoPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           <aside className="md:col-span-4 lg:col-span-3">
-            <div className="mb-2 text-xs font-medium text-black/50">
-              Resultados {lista.length > 0 && `(${lista.length})`}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-black/50">
+                Resultados {lista.length > 0 && `(${lista.length})`}
+              </span>
+              {lista.length > 0 && (
+                <button
+                  type="button"
+                  onClick={apagarTodos}
+                  className="rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50"
+                >
+                  Apagar todos
+                </button>
+              )}
             </div>
             {loading ? (
               <p className="text-sm text-black/40">A carregar…</p>

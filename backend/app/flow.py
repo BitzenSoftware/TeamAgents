@@ -212,6 +212,14 @@ def apagar_processamento(cliente_id: str, pid: str) -> None:
     get_db().table("processamentos_executivo").delete().eq("id", pid).eq("cliente_id", cliente_id).execute()
 
 
+def apagar_todos_processamentos(cliente_id: str) -> int:
+    """Apaga TODOS os processamentos do cliente (na BD). Devolve quantos havia."""
+    db = get_db()
+    n = len(db.table("processamentos_executivo").select("id").eq("cliente_id", cliente_id).execute().data or [])
+    db.table("processamentos_executivo").delete().eq("cliente_id", cliente_id).execute()
+    return n
+
+
 # ----- Tarefas dirigidas (o agente só lê o que estas tarefas pedem) -----
 def listar_tarefas_executivo(cliente_id: str) -> list[dict]:
     return (

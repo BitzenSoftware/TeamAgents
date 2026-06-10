@@ -450,6 +450,8 @@ export const api = {
     }),
   apagarProcessamento: (id: string) =>
     req<void>(`/me/executivo/${id}`, { method: "DELETE" }),
+  apagarTodosProcessamentos: () =>
+    req<{ apagados: number }>("/me/executivo", { method: "DELETE" }),
 
   // --- Tarefas dirigidas do Agente Executivo ---
   tarefasExecutivo: () => req<TarefaExecutivo[]>("/me/executivo/tarefas"),

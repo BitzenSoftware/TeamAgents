@@ -329,6 +329,12 @@ def processar_executivo(req: ExecutivoRequest, cliente_id: str = Depends(auth.cu
         raise HTTPException(status_code=402, detail=str(e))
 
 
+@app.delete("/me/executivo", status_code=200)
+def apagar_todos_processamentos(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Apaga TODOS os processamentos do tenant autenticado (também na BD)."""
+    return {"apagados": flow.apagar_todos_processamentos(cliente_id)}
+
+
 @app.delete("/me/executivo/{pid}", status_code=204)
 def apagar_processamento(pid: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.apagar_processamento(cliente_id, pid)
