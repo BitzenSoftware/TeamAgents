@@ -69,6 +69,7 @@ export default function ExecutivoPage() {
   const [syncing, setSyncing] = useState(false);
   const [apagandoTodos, setApagandoTodos] = useState(false);
   const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
+  const [tarefaSel, setTarefaSel] = useState<string | null>(null);
   const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
   const [syncPicker, setSyncPicker] = useState(false);
   const [skills, setSkills] = useState<Habilidade[]>([]);
@@ -130,10 +131,17 @@ export default function ExecutivoPage() {
     carregarTarefas();
   }
 
+  // Mantém a seleção de resultado válida (não auto-abre detalhe; começa na lista).
   useEffect(() => {
-    if (lista.length === 0) setSelId(null);
-    else if (!lista.some((p) => p.id === selId)) setSelId(lista[0].id);
+    if (selId && !lista.some((p) => p.id === selId)) setSelId(null);
   }, [lista, selId]);
+
+  // Auto-seleciona a primeira tarefa (master) quando a seleção é inválida.
+  useEffect(() => {
+    if (tarefas.length === 0) return;
+    if (tarefaSel === "__avulsos__") return;
+    if (tarefaSel === null || !tarefas.some((t) => t.id === tarefaSel)) setTarefaSel(tarefas[0].id);
+  }, [tarefas, tarefaSel]);
 
   const selecionado = lista.find((p) => p.id === selId) ?? null;
 
@@ -160,6 +168,15 @@ export default function ExecutivoPage() {
       setApagandoTodos(false);
     }
   }
+
+  // Resultados agrupados por tarefa (ligação por título == nome da tarefa).
+  const nomesTarefas = new Set(tarefas.map((t) => t.nome));
+  const avulsos = lista.filter((p) => !nomesTarefas.has(p.titulo));
+  const tarefaAtual = tarefaSel && tarefaSel !== "__avulsos__" ? tarefas.find((t) => t.id === tarefaSel) ?? null : null;
+  const resultadosTarefa =
+    tarefaSel === "__avulsos__" ? avulsos : tarefaAtual ? lista.filter((p) => p.titulo === tarefaAtual.nome) : [];
+  const nomeSelecionado = tarefaSel === "__avulsos__" ? "Avulsos / colados" : tarefaAtual?.nome ?? "";
+  const verDetalhe = !!selecionado && resultadosTarefa.some((p) => p.id === selId);
 
   return (
     <div className="p-6">
@@ -203,142 +220,166 @@ export default function ExecutivoPage() {
         )}
       </div>
 
-      {/* Tarefas dirigidas */}
-      <div className="mb-5 overflow-hidden rounded-xl border border-black/10 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5">
-          <span className="text-sm font-semibold text-white">Tarefas {tarefas.length > 0 && `(${tarefas.length})`}</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => (tarefas.length > 0 ? setSyncPicker(true) : sincronizar())}
-              disabled={syncing || !gmail}
-              title={gmail ? "Sincronizar tarefas" : "Liga o Gmail primeiro"}
-              className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/30 disabled:opacity-40"
-            >
-              {syncing ? "A sincronizar…" : "Sincronizar agora"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTarefaModal("nova")}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-brand hover:opacity-90"
-            >
-              + Nova tarefa
-            </button>
-          </div>
+      {/* Progresso da sincronização + mensagens (largura total) */}
+      <FluxoAgentes ativo={syncing} />
+      {emailMsg && (
+        <div className={`mb-4 flex items-start justify-between rounded-lg border p-2.5 text-sm ${emailMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+          <span>{emailMsg.ok ? "✓ " : "✗ "}{emailMsg.text}</span>
+          <button type="button" onClick={() => setEmailMsg(null)} className="ml-3 text-black/30 hover:text-black/60">×</button>
         </div>
-
-        <FluxoAgentes ativo={syncing} />
-
-        {emailMsg && (
-          <div className={`mx-4 mt-3 flex items-start justify-between rounded-lg border p-2.5 text-sm ${emailMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-            <span>{emailMsg.ok ? "✓ " : "✗ "}{emailMsg.text}</span>
-            <button type="button" onClick={() => setEmailMsg(null)} className="ml-3 text-black/30 hover:text-black/60">×</button>
-          </div>
-        )}
-
-        <div className="p-4">
-          {tarefas.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-black/40">
-              Sem tarefas. Cria uma — ex.: <em>“ler emails de joao@cliente.com, últimos 1 dia”</em> — e clica
-              “Sincronizar agora”.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {tarefas.map((t) => (
-                <div key={t.id} className={`flex flex-wrap items-center gap-3 rounded-lg border p-3 ${t.ativo ? "border-black/10 bg-white" : "border-black/10 bg-black/[0.02] opacity-60"}`}>
-                  <div className="min-w-0 flex-1">
-                    <div className="break-words text-sm font-medium">{t.nome}</div>
-                    <div className="mt-0.5 break-words text-[11px] text-black/45">
-                      {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
-                      {t.palavras_chave && ` · "${t.palavras_chave}"`}
-                      {` · últimos ${t.janela_dias}d`}
-                      {` · ${freqResumo(t)}`}
-                      {t.last_run && ` · corrida ${new Date(t.last_run).toLocaleDateString("pt-PT")}`}
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => toggleTarefa(t)} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${t.ativo ? "bg-emerald-100 text-emerald-700" : "bg-black/10 text-black/50"}`}>
-                    {t.ativo ? "Ativa" : "Inativa"}
-                  </button>
-                  <button type="button" onClick={() => setTarefaModal(t)} className="rounded-lg border border-black/15 px-2.5 py-1 text-xs hover:bg-black/5">
-                    Editar
-                  </button>
-                  <button type="button" onClick={() => apagarTarefa(t)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-rose-50">
-                    Apagar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
+      )}
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
 
-      {!loading && lista.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há resultados. Cria uma tarefa e sincroniza, ou clica em{" "}
-          <strong>“+ Processar email / ata”</strong> para colar um texto.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-          <aside className="md:col-span-4 lg:col-span-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-black/50">
-                Resultados {lista.length > 0 && `(${lista.length})`}
-              </span>
-              {lista.length > 0 && (
+      {/* Master-detail: tarefas (esquerda) → resultados da tarefa (direita) */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+        {/* MASTER — tarefas */}
+        <aside className="md:col-span-5 lg:col-span-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-black/50">Tarefas {tarefas.length > 0 && `(${tarefas.length})`}</span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => (tarefas.length > 0 ? setSyncPicker(true) : sincronizar())}
+                disabled={syncing || !gmail}
+                title={gmail ? "Sincronizar tarefas" : "Liga o Gmail primeiro"}
+                className="rounded-md bg-brand px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:opacity-40"
+              >
+                {syncing ? "A sincronizar…" : "Sincronizar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTarefaModal("nova")}
+                className="rounded-md border border-black/15 px-2.5 py-1 text-[11px] font-medium hover:bg-black/5"
+              >
+                + Nova
+              </button>
+            </div>
+          </div>
+
+          {tarefas.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-black/40">
+              Sem tarefas. Clica em <strong>+ Nova</strong> — ex.: <em>“ler emails de joao@cliente.com”</em>.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {tarefas.map((t) => {
+                const sel = tarefaSel === t.id;
+                const n = lista.filter((p) => p.titulo === t.nome).length;
+                return (
+                  <div key={t.id} className={`overflow-hidden rounded-lg border ${sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white"} ${t.ativo ? "" : "opacity-60"}`}>
+                    <button
+                      type="button"
+                      onClick={() => { setTarefaSel(t.id); setSelId(null); }}
+                      className="block w-full px-3 py-2.5 text-left hover:bg-black/[0.02]"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`break-words text-sm ${sel ? "font-semibold text-brand" : "font-medium"}`}>{t.nome}</span>
+                        <span className="shrink-0 text-[10px] text-black/40">{n} result.</span>
+                      </div>
+                      <div className="mt-0.5 break-words text-[11px] text-black/45">
+                        {t.remetente ? `de: ${t.remetente}` : "qualquer remetente"}
+                        {t.palavras_chave && ` · "${t.palavras_chave}"`}
+                        {` · últimos ${t.janela_dias}d · ${freqResumo(t)}`}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1.5 border-t border-black/5 px-3 py-1.5">
+                      <button type="button" onClick={() => toggleTarefa(t)} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${t.ativo ? "bg-emerald-100 text-emerald-700" : "bg-black/10 text-black/50"}`}>
+                        {t.ativo ? "Ativa" : "Inativa"}
+                      </button>
+                      <button type="button" onClick={() => setTarefaModal(t)} className="ml-auto rounded-md border border-black/15 px-2 py-0.5 text-[11px] hover:bg-black/5">Editar</button>
+                      <button type="button" onClick={() => apagarTarefa(t)} className="rounded-md border border-rose-200 px-2 py-0.5 text-[11px] text-rose-600 hover:bg-rose-50">Apagar</button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {avulsos.length > 0 && (
                 <button
                   type="button"
-                  onClick={apagarTodos}
-                  disabled={apagandoTodos}
-                  className="flex items-center gap-1.5 rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                  onClick={() => { setTarefaSel("__avulsos__"); setSelId(null); }}
+                  className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${tarefaSel === "__avulsos__" ? "border-brand/40 bg-brand/10" : "border-dashed border-black/15 bg-white hover:bg-black/[0.03]"}`}
                 >
-                  {apagandoTodos && <span className="ta-spin h-3 w-3 rounded-full border-2 border-rose-300 border-t-rose-600" />}
-                  {apagandoTodos ? "A apagar…" : "Apagar todos"}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-sm ${tarefaSel === "__avulsos__" ? "font-semibold text-brand" : "font-medium"}`}>Avulsos / colados</span>
+                    <span className="shrink-0 text-[10px] text-black/40">{avulsos.length} result.</span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-black/45">Resultados sem tarefa (ex.: “Processar email / ata”).</div>
                 </button>
               )}
             </div>
-            {apagandoTodos && (
-              <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-black/10">
-                <div className="ta-prog2 h-full w-1/3 rounded-full bg-rose-500" />
+          )}
+        </aside>
+
+        {/* DETALHE — resultados da tarefa selecionada */}
+        <section className="md:col-span-7 lg:col-span-8">
+          {tarefaSel === null ? (
+            <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
+              Seleciona uma tarefa à esquerda para ver os seus resultados.
+            </div>
+          ) : verDetalhe && selecionado ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setSelId(null)}
+                className="mb-2 inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1 text-xs hover:bg-black/5"
+              >
+                ← Resultados de {nomeSelecionado}
+              </button>
+              <Detalhe p={selecionado} onApagar={() => apagar(selecionado)} />
+            </div>
+          ) : (
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-black/50">
+                  Resultados de <strong className="text-ink">{nomeSelecionado}</strong> {resultadosTarefa.length > 0 && `(${resultadosTarefa.length})`}
+                </span>
+                {lista.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={apagarTodos}
+                    disabled={apagandoTodos}
+                    className="flex items-center gap-1.5 rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                    title="Apagar TODOS os resultados (de todas as tarefas)"
+                  >
+                    {apagandoTodos && <span className="ta-spin h-3 w-3 rounded-full border-2 border-rose-300 border-t-rose-600" />}
+                    {apagandoTodos ? "A apagar…" : "Apagar todos"}
+                  </button>
+                )}
               </div>
-            )}
-            {loading ? (
-              <p className="text-sm text-black/40">A carregar…</p>
-            ) : (
-              <div className="space-y-1.5">
-                {lista.map((p) => {
-                  const sel = p.id === selId;
-                  return (
+              {apagandoTodos && (
+                <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-black/10">
+                  <div className="ta-prog2 h-full w-1/3 rounded-full bg-rose-500" />
+                </div>
+              )}
+              {loading ? (
+                <p className="text-sm text-black/40">A carregar…</p>
+              ) : resultadosTarefa.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-black/15 p-8 text-center text-sm text-black/40">
+                  Sem resultados para esta tarefa ainda.
+                  {tarefaSel !== "__avulsos__" && " Clica em “Sincronizar” para o agente ler e resumir."}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  {resultadosTarefa.map((p) => (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => setSelId(p.id)}
-                      className={`flex w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left text-sm transition ${sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
+                      className="flex flex-col items-start gap-0.5 rounded-lg border border-black/10 bg-white px-3 py-2.5 text-left text-sm transition hover:border-brand/40 hover:bg-brand/5"
                     >
-                      <span className={`break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>{p.titulo}</span>
+                      <span className="break-words font-medium">{p.titulo}</span>
                       <span className="text-[11px] text-black/40">
                         {p.n_itens} item(ns){p.n_falhas > 0 && ` · ${p.n_falhas} falha(s)`} ·{" "}
-                        {new Date(p.created_at).toLocaleDateString("pt-PT")}
+                        {new Date(p.created_at).toLocaleString("pt-PT")}
                       </span>
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </aside>
-
-          <section className="md:col-span-8 lg:col-span-9">
-            {selecionado ? (
-              <Detalhe p={selecionado} onApagar={() => apagar(selecionado)} />
-            ) : (
-              <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Seleciona um resultado à esquerda.
-              </div>
-            )}
-          </section>
-        </div>
-      )}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
 
       {modalAberto && (
         <ModalProcessar
