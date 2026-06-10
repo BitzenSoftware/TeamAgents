@@ -359,44 +359,59 @@ def _access_token_valido(account: dict) -> str:
 
 
 def _due_agora(t: dict, agora_utc: datetime) -> bool:
-    """True se a tarefa automática deve correr AGORA (hora + dia, no fuso da tarefa).
+    """True se a tarefa automática deve correr AGORA, com recuperação no mesmo dia.
 
-    O cron corre de hora a hora; aqui confirmamos: tarefa automática, hora local
-    == hora escolhida, e o dia bate certo no período. last_run garante a cadência
-    (evita repetir e dá conta de quinzenal/trimestral/semestral).
+    Regra: hoje tem de ser um dia ELEGÍVEL para a frequência (dia da semana / dia
+    do mês exato), já tem de ter passado a HORA agendada (>=, não ==) e a tarefa
+    ainda não pode ter corrido desde essa hora hoje. Assim, se a janela falhar
+    (serviço em baixo), o próximo tick do cron no mesmo dia recupera. Nunca corre
+    num dia diferente do agendado.
     """
     if t.get("automatica") is not True:
         return False  # 'Manual' nunca corre sozinho
+
+    fuso = t.get("fuso") or "America/Sao_Paulo"
     try:
-        local = agora_utc.astimezone(ZoneInfo(t.get("fuso") or "America/Sao_Paulo"))
+        tz = ZoneInfo(fuso)
     except Exception:
-        local = agora_utc
+        tz = timezone.utc
+    local = agora_utc.astimezone(tz)
     hora_alvo = 7 if t.get("hora") is None else int(t["hora"])
-    if local.hour != hora_alvo:
+    freq = (t.get("frequencia") or "diaria").lower()
+
+    # 1) Hoje é um dia elegível para esta frequência?
+    if freq in ("semanal", "quinzenal"):
+        dw = 0 if t.get("dia_semana") is None else int(t["dia_semana"])
+        if local.weekday() != dw:
+            return False
+    elif freq in ("mensal", "trimestral", "semestral"):
+        dm = 1 if t.get("dia_mes") is None else int(t["dia_mes"])
+        ultimo = calendar.monthrange(local.year, local.month)[1]
+        if local.day != min(dm, ultimo):  # dia exato (ajusta a meses curtos)
+            return False
+    # 'diaria': todos os dias são elegíveis
+
+    # 2) Já passou a hora agendada de hoje? (>= permite recuperar na hora seguinte)
+    agendado = local.replace(hour=hora_alvo, minute=0, second=0, microsecond=0)
+    if local < agendado:
         return False
 
-    freq = (t.get("frequencia") or "diaria").lower()
+    # 3) Já correu desde a hora agendada de hoje? (não repete no mesmo dia)
     last = t.get("last_run")
     try:
         last_dt = datetime.fromisoformat(last.replace("Z", "+00:00")) if last else None
     except Exception:
         last_dt = None
-    dias = (agora_utc - last_dt).days if last_dt else 99999
+    if last_dt is not None and last_dt.astimezone(tz) >= agendado:
+        return False
 
-    if freq == "diaria":
-        return dias >= 1
-    if freq in ("semanal", "quinzenal"):
-        dw = t.get("dia_semana")
-        if local.weekday() != (0 if dw is None else int(dw)):
+    # 4) Cadência mínima entre ciclos (quinzenal/trimestral/semestral)
+    minimo = {"quinzenal": 13, "trimestral": 85, "semestral": 175}.get(freq, 0)
+    if minimo and last_dt is not None:
+        if (agora_utc - last_dt).days < minimo:
             return False
-        return dias >= (6 if freq == "semanal" else 13)
-    if freq in ("mensal", "trimestral", "semestral"):
-        dm = 1 if t.get("dia_mes") is None else int(t["dia_mes"])
-        ultimo = calendar.monthrange(local.year, local.month)[1]
-        if local.day != min(dm, ultimo):
-            return False
-        return dias >= {"mensal": 27, "trimestral": 85, "semestral": 175}[freq]
-    return False
+
+    return True
 
 
 def sincronizar_email(
