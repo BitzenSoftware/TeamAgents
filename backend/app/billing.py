@@ -292,11 +292,12 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
                 flow.creditar_compra_avulsa(cliente_id, creditos, valor, meta.get("pacote_id"), obj.get("id"))
             flow.registar_faturamento(cliente_id, "pacote", valor, "Pacote de créditos", obj.get("id"))
         elif cliente_id:
-            # Assinatura de plano.
+            # Assinatura de plano — só aqui (pagamento confirmado) o plano é ativado.
             plano_id = meta.get("plano_id")
             _guardar_ids(cliente_id, obj.get("customer"), obj.get("subscription"))
             if plano_id:
                 _set_plano(cliente_id, plano_id)
+            _set_pagamento_falha(cliente_id, False)
             _reset_consumo(cliente_id)
 
     elif tipo == "invoice.paid":
@@ -304,8 +305,14 @@ def tratar_evento(payload: bytes, sig_header: str) -> dict:
         if cliente_id:
             valor = (obj.get("amount_paid") or 0) / 100.0
             flow.registar_faturamento(cliente_id, "assinatura", valor, obj.get("number") or "Assinatura", obj.get("id"))
+            _set_pagamento_falha(cliente_id, False)  # pagamento confirmado — limpa o aviso
             if obj.get("billing_reason") in ("subscription_cycle", "subscription_create", None):
                 _reset_consumo(cliente_id)
+
+    elif tipo == "invoice.payment_failed":
+        cliente_id = _cliente_por_customer(obj.get("customer"))
+        if cliente_id:
+            _set_pagamento_falha(cliente_id, True)  # o menu Assinatura mostra o aviso
 
     elif tipo == "customer.subscription.updated":
         cliente_id = _cliente_por_customer(obj.get("customer"))
@@ -341,6 +348,13 @@ def _guardar_ids(cliente_id: str, customer_id: str | None, subscription_id: str 
 
 def _set_plano(cliente_id: str, plano_id: str | None) -> None:
     get_db().table("clientes").update({"plano_id": plano_id}).eq("id", cliente_id).execute()
+
+
+def _set_pagamento_falha(cliente_id: str, em_falha: bool) -> None:
+    try:
+        get_db().table("clientes").update({"pagamento_em_falha": em_falha}).eq("id", cliente_id).execute()
+    except Exception:
+        pass  # migração 026 pode ainda não ter corrido
 
 
 def _set_cancelamento(cliente_id: str, quando_iso: str | None) -> None:

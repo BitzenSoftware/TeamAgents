@@ -1062,7 +1062,9 @@ CREDITOS_BI = 12        # relatório do Diretor de BI (Opus)
 CREDITOS_EXEC_BASE = 10  # Agente Executivo: orquestração + síntese (Opus)
 CREDITOS_EXEC_ITEM = 1   # + por cada item processado com ÊXITO (worker Haiku)
 
-_CREDITOS_FALLBACK = 500  # se não houver plano Starter na BD
+# Sem plano pago => 0 créditos. Nenhum crédito é liberado antes da confirmação
+# financeira (o plano_id só é atribuído pelo webhook da Stripe após pagamento).
+_CREDITOS_FALLBACK = 0
 
 
 class LimiteCreditosError(Exception):
@@ -1074,7 +1076,7 @@ def _periodo_atual() -> str:
 
 
 def creditos_do_plano(cliente_id: str) -> int:
-    """Créditos mensais do plano do cliente (NULL/sem plano => Starter)."""
+    """Créditos mensais do plano do cliente. Sem plano (não pagou) => 0."""
     db = get_db()
     row = db.table("clientes").select("plano_id").eq("id", cliente_id).limit(1).execute().data
     plano_id = row[0]["plano_id"] if row else None
@@ -1082,8 +1084,7 @@ def creditos_do_plano(cliente_id: str) -> int:
         p = db.table("planos").select("creditos_mensais").eq("id", plano_id).limit(1).execute().data
         if p:
             return p[0]["creditos_mensais"]
-    s = db.table("planos").select("creditos_mensais").eq("nome", "Starter").order("ordem").limit(1).execute().data
-    return s[0]["creditos_mensais"] if s else _CREDITOS_FALLBACK
+    return 0
 
 
 def consumo_atual(cliente_id: str) -> int:
@@ -1156,19 +1157,21 @@ def get_consumo(cliente_id: str) -> dict:
     tem_assinatura = False
     avulsos = 0
     cancela_em = None
+    pagamento_em_falha = False
     try:
         db = get_db()
-        row = db.table("clientes").select("plano_id, stripe_subscription_id, creditos_avulsos, assinatura_cancela_em").eq("id", cliente_id).limit(1).execute().data
+        row = db.table("clientes").select("*").eq("id", cliente_id).limit(1).execute().data
         if row:
             plano_id = row[0].get("plano_id")
             tem_assinatura = bool(row[0].get("stripe_subscription_id"))
             avulsos = int(row[0].get("creditos_avulsos") or 0)
             cancela_em = row[0].get("assinatura_cancela_em")
+            pagamento_em_falha = bool(row[0].get("pagamento_em_falha"))
         if plano_id:
             p = db.table("planos").select("nome").eq("id", plano_id).limit(1).execute().data
             plano_nome = p[0]["nome"] if p else None
     except Exception:
-        pass  # migração 017/018/019 ainda não aplicada
+        pass  # migração 017/018/019/026 ainda não aplicada
     restantes_plano = max(total - usados, 0)
     return {
         "usados": usados,
@@ -1179,9 +1182,27 @@ def get_consumo(cliente_id: str) -> dict:
         "disponivel_total": restantes_plano + avulsos,
         "plano_id": plano_id,
         "plano_nome": plano_nome,
+        "sem_plano": plano_id is None,
+        "pagamento_em_falha": pagamento_em_falha,
         "tem_assinatura": tem_assinatura,
         "assinatura_cancela_em": cancela_em,
     }
+
+
+def listar_planos_publicos() -> list[dict]:
+    """Planos ativos para a landing page (público — sem auth, sem ids Stripe)."""
+    try:
+        return (
+            get_db()
+            .table("planos")
+            .select("nome, creditos_mensais, preco, ordem")
+            .eq("ativo", True)
+            .order("ordem")
+            .execute()
+            .data
+        )
+    except Exception:
+        return []
 
 
 def listar_planos_ativos() -> list[dict]:
@@ -1298,11 +1319,18 @@ def verificar_limite(cliente_id: str, qtd: int) -> None:
     except Exception:
         return  # migração 011 ainda não aplicada — não impõe limite
     restante_mensal = max(total - usados, 0)
-    disponivel = restante_mensal + saldo_avulso(cliente_id)
+    avulsos = saldo_avulso(cliente_id)
+    disponivel = restante_mensal + avulsos
     if qtd > disponivel:
+        if total == 0 and avulsos == 0:
+            # Conta sem plano pago — orienta para a assinatura.
+            raise LimiteCreditosError(
+                "A tua conta ainda não tem créditos. Vai ao menu Assinatura, escolhe um plano "
+                "e conclui o pagamento para ativar os agentes."
+            )
         raise LimiteCreditosError(
             f"Créditos insuficientes ({disponivel} disponíveis: {restante_mensal} do plano "
-            f"+ {saldo_avulso(cliente_id)} avulsos). Faz upgrade ou compra um pacote de créditos."
+            f"+ {avulsos} avulsos). Faz upgrade no menu Assinatura ou compra um pacote de créditos."
         )
 
 

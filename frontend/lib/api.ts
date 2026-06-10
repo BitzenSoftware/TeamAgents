@@ -77,9 +77,14 @@ export type Consumo = {
   ilimitado?: boolean;
   plano_id?: string | null;
   plano_nome?: string | null;
+  sem_plano?: boolean;
+  pagamento_em_falha?: boolean;
   tem_assinatura?: boolean;
   assinatura_cancela_em?: string | null;
 };
+
+// Base pública da API (usada também pela landing, sem auth).
+export const API_BASE = BASE;
 
 export type PlanoAtivo = {
   id: string;

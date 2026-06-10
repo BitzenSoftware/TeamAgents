@@ -50,6 +50,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/planos/publicos")
+def planos_publicos() -> list[dict]:
+    """Planos ativos para a landing page (público — sem dados sensíveis)."""
+    return flow.listar_planos_publicos()
+
+
 # ===================== Identidade do tenant autenticado =====================
 @app.get("/me")
 def me(user_id: str = Depends(auth.verify_user)) -> dict:

@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
-import { SUPERADMIN_EMAIL } from "@/lib/api";
+import { api, SUPERADMIN_EMAIL, type Consumo } from "@/lib/api";
 
 const NAV = [
   { href: "/pipeline", label: "Agente SDR", hint: "Comercial / Pipeline" },
@@ -30,6 +31,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { cliente } = useCliente();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   const nav = isAdmin ? [...NAV, ...NAV_ADMIN] : NAV;
+
+  // Aviso global: conta sem créditos (sem plano pago e sem avulsos) → Assinatura.
+  const [consumo, setConsumo] = useState<Consumo | null>(null);
+  useEffect(() => {
+    if (cliente) api.consumo().then(setConsumo).catch(() => {});
+  }, [cliente, pathname]);
+  const semCreditos =
+    !!consumo &&
+    !consumo.ilimitado &&
+    (consumo.total ?? 0) === 0 &&
+    (consumo.creditos_avulsos ?? 0) === 0;
+  const mostrarAviso = semCreditos && !pathname.startsWith("/assinatura") && !pathname.startsWith("/onboarding");
 
   return (
     <div className="flex min-h-screen">
@@ -68,7 +81,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto">
+        {mostrarAviso && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
+            <span className="text-sm text-amber-900">
+              <strong>A tua conta ainda não tem créditos.</strong> Escolhe um plano para ativar os agentes.
+            </span>
+            <Link
+              href="/assinatura"
+              className="shrink-0 rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              Escolher plano →
+            </Link>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

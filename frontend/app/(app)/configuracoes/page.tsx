@@ -306,6 +306,8 @@ function AbaWhatsApp() {
             <div className="grid grid-cols-2 gap-4">
               <Campo label="Instância do WhatsApp (Evolution)">
                 <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
+                  title="Instância do WhatsApp (Evolution)" placeholder="instancia_prod_01"
+                  autoComplete="off" name="instancia-whatsapp" data-1p-ignore data-lpignore="true"
                   onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
               </Campo>
               <Campo label="Token da instância">
@@ -882,6 +884,13 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        title="Valor secreto da integração"
+        // Impede o gestor de passwords do browser de preencher isto com o
+        // login do utilizador (não é um campo de password de conta).
+        autoComplete="new-password"
+        name="token-integracao"
+        data-1p-ignore
+        data-lpignore="true"
       />
       <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
         <button

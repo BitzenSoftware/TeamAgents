@@ -60,6 +60,18 @@ export default function AssinaturaPage() {
     }
   }
 
+  async function gerirAssinatura() {
+    setErro(null);
+    setBusy("portal");
+    try {
+      const { url } = await api.portal();
+      window.location.href = url;
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível abrir o portal de pagamento.");
+      setBusy(null);
+    }
+  }
+
   async function cancelar() {
     if (!confirm("Cancelar a assinatura? Mantens o acesso até ao fim do período já pago; depois não renova.")) return;
     setErro(null);
@@ -105,6 +117,30 @@ export default function AssinaturaPage() {
         </p>
       </header>
 
+      {consumo?.pagamento_em_falha && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+          <span className="text-sm text-rose-800">
+            <strong>O último pagamento falhou.</strong> Verifica o teu método de pagamento e tenta novamente
+            para não perderes o acesso aos agentes.
+          </span>
+          {consumo.tem_assinatura && (
+            <button
+              type="button"
+              onClick={gerirAssinatura}
+              disabled={busy === "portal"}
+              className="shrink-0 rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {busy === "portal" ? "A abrir…" : "Atualizar pagamento"}
+            </button>
+          )}
+        </div>
+      )}
+      {consumo && !consumo.pagamento_em_falha && consumo.sem_plano && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <strong>Ainda não tens um plano ativo.</strong> Escolhe um plano abaixo e conclui o pagamento —
+          os créditos são libertados assim que o pagamento for confirmado.
+        </p>
+      )}
       {aviso && (
         <p className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{aviso}</p>
       )}

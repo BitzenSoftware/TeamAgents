@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { API_BASE } from "@/lib/api";
 import {
   ArrowRight,
   BarChart3,
@@ -70,32 +72,41 @@ const INTEGRACOES = [
   { nome: "Stripe", desc: "assinatura segura" },
 ];
 
-const PLANOS = [
-  {
-    nome: "Starter",
-    preco: "179",
-    creditos: "500",
-    destaque: false,
+type PlanoLanding = {
+  nome: string;
+  preco: string;
+  creditos: string;
+  destaque: boolean;
+  para: string;
+  extras: string[];
+};
+
+// Copy de marketing por plano (os números vêm da BD via /planos/publicos).
+const PLANO_COPY: Record<string, { para: string; extras: string[] }> = {
+  Starter: {
     para: "Para validar o funil com IA",
     extras: ["≈ 500 respostas do SDR", "≈ 80 campanhas de anúncios", "Upgrade a qualquer momento"],
   },
-  {
-    nome: "Pro",
-    preco: "329",
-    creditos: "2.000",
-    destaque: true,
+  Pro: {
     para: "Para operação comercial a sério",
     extras: ["≈ 2.000 respostas do SDR", "≈ 330 campanhas de anúncios", "Melhor custo por crédito p/ crescer"],
   },
-  {
-    nome: "Scale",
-    preco: "999",
-    creditos: "8.000",
-    destaque: false,
+  Scale: {
     para: "Para agências e alto volume",
     extras: ["≈ 8.000 respostas do SDR", "Volume para múltiplos funis", "O menor custo por crédito"],
   },
+};
+
+// Fallback se a API estiver fria/indisponível — substituído pelos valores da BD.
+const PLANOS_FALLBACK: PlanoLanding[] = [
+  { nome: "Starter", preco: "179", creditos: "500", destaque: false, ...PLANO_COPY.Starter },
+  { nome: "Pro", preco: "329", creditos: "2.000", destaque: true, ...PLANO_COPY.Pro },
+  { nome: "Scale", preco: "999", creditos: "8.000", destaque: false, ...PLANO_COPY.Scale },
 ];
+
+function formatarPreco(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(".", ",");
+}
 
 const FAQ = [
   {
@@ -127,6 +138,32 @@ const FAQ = [
 /* ============================== Página ============================== */
 
 export default function LandingPage() {
+  // Preços vêm da BD (endpoint público); fallback hardcoded enquanto carrega/se falhar.
+  const [planos, setPlanos] = useState<PlanoLanding[]>(PLANOS_FALLBACK);
+  useEffect(() => {
+    fetch(`${API_BASE}/planos/publicos`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: { nome: string; creditos_mensais: number; preco: number; ordem: number }[]) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        const meio = Math.floor(rows.length / 2);
+        setPlanos(
+          rows.map((p, i) => {
+            const copy = PLANO_COPY[p.nome];
+            const creditos = Number(p.creditos_mensais).toLocaleString("pt-BR");
+            return {
+              nome: p.nome,
+              preco: formatarPreco(Number(p.preco)),
+              creditos,
+              destaque: p.nome === "Pro" || (!rows.some((r) => r.nome === "Pro") && i === meio),
+              para: copy?.para ?? "Todos os agentes incluídos",
+              extras: copy?.extras ?? [`≈ ${creditos} respostas do SDR`],
+            };
+          }),
+        );
+      })
+      .catch(() => {}); // mantém o fallback
+  }, []);
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       {/* ====================== NAV ====================== */}
@@ -214,72 +251,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* coluna direita — centro de operações ao vivo */}
-          <div className="lp-anim lp-up [animation-delay:.2s]">
-            <div className="relative rounded-2xl border border-white/12 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/40 backdrop-blur-sm">
-              <div className="rounded-xl bg-[#0e0e26]">
-                <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
-                  <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
-                    <span className="relative flex h-2 w-2">
-                      <span className="lp-anim lp-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                    </span>
-                    Centro de operações — agora
-                  </span>
-                  <span className="text-[10px] text-white/35">teamagents</span>
-                </div>
-
-                <div className="space-y-2.5 p-4">
-                  <OpsRow
-                    delay=".5s"
-                    icon={<MessageCircle size={14} className="text-emerald-300" />}
-                    nome="Agente SDR"
-                    acao="a qualificar o lead Mariana · investimento confirmado"
-                    badge="reunião agendada"
-                    badgeCor="bg-emerald-400/15 text-emerald-300"
-                  />
-                  <OpsRow
-                    delay="1.1s"
-                    icon={<Megaphone size={14} className="text-violet-300" />}
-                    nome="Agente de Copywriting"
-                    acao="a gerar 2 variações de anúncio · nicho estética"
-                    badge="gatilho: urgência"
-                    badgeCor="bg-violet-400/15 text-violet-300"
-                  />
-                  <OpsRow
-                    delay="1.7s"
-                    icon={<Mail size={14} className="text-sky-300" />}
-                    nome="Agente Executivo"
-                    acao="a resumir 5 emails em paralelo · 3 workers ativos"
-                    badge="2 ações extraídas"
-                    badgeCor="bg-sky-400/15 text-sky-300"
-                  />
-                  <OpsRow
-                    delay="2.3s"
-                    icon={<BarChart3 size={14} className="text-amber-300" />}
-                    nome="Diretor de BI"
-                    acao="a fechar o relatório semanal · conversão 18%"
-                    badge="enviado no WhatsApp"
-                    badgeCor="bg-amber-400/15 text-amber-300"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between border-t border-white/8 px-4 py-2.5 text-[10px] text-white/35">
-                  <span className="flex items-center gap-1.5">
-                    <Cpu size={11} />
-                    Orquestrador + workers em paralelo
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Shield size={11} />
-                    Dados isolados por empresa
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className="mt-3 text-center text-[11px] text-white/30">
-              Representação do painel em tempo real — é isto que os teus agentes fazem enquanto dormes.
-            </p>
-          </div>
+          {/* coluna direita — vídeo real do produto (public/demo.mp4) ou mockup animado */}
+          <HeroMedia />
         </div>
 
         {/* marquee */}
@@ -598,7 +571,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {PLANOS.map((p) => (
+            {planos.map((p) => (
               <div
                 key={p.nome}
                 className={`relative flex flex-col rounded-2xl border p-7 ${
@@ -754,6 +727,99 @@ export default function LandingPage() {
 }
 
 /* ============================== Componentes ============================== */
+
+function HeroMedia() {
+  // Vídeo real do produto: basta adicionar o ficheiro frontend/public/demo.mp4
+  // ao repo e ele substitui automaticamente o mockup animado (que fica como
+  // fallback enquanto o vídeo não existe ou não carrega).
+  const [videoPronto, setVideoPronto] = useState(false);
+  return (
+    <div className="lp-anim lp-up [animation-delay:.2s]">
+      <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/40 backdrop-blur-sm">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          className={`${videoPronto ? "block" : "hidden"} w-full rounded-xl`}
+          src="/demo.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onCanPlay={() => setVideoPronto(true)}
+        />
+        {!videoPronto && <OpsMockup />}
+      </div>
+      <p className="mt-3 text-center text-[11px] text-white/30">
+        {videoPronto
+          ? "Demonstração real do produto — os agentes a trabalhar."
+          : "Representação do painel em tempo real — é isto que os teus agentes fazem enquanto dormes."}
+      </p>
+    </div>
+  );
+}
+
+function OpsMockup() {
+  return (
+    <div className="rounded-xl bg-[#0e0e26]">
+      <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+        <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
+          <span className="relative flex h-2 w-2">
+            <span className="lp-anim lp-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          Centro de operações — agora
+        </span>
+        <span className="text-[10px] text-white/35">teamagents</span>
+      </div>
+
+      <div className="space-y-2.5 p-4">
+        <OpsRow
+          delay=".5s"
+          icon={<MessageCircle size={14} className="text-emerald-300" />}
+          nome="Agente SDR"
+          acao="a qualificar o lead Mariana · investimento confirmado"
+          badge="reunião agendada"
+          badgeCor="bg-emerald-400/15 text-emerald-300"
+        />
+        <OpsRow
+          delay="1.1s"
+          icon={<Megaphone size={14} className="text-violet-300" />}
+          nome="Agente de Copywriting"
+          acao="a gerar 2 variações de anúncio · nicho estética"
+          badge="gatilho: urgência"
+          badgeCor="bg-violet-400/15 text-violet-300"
+        />
+        <OpsRow
+          delay="1.7s"
+          icon={<Mail size={14} className="text-sky-300" />}
+          nome="Agente Executivo"
+          acao="a resumir 5 emails em paralelo · 3 workers ativos"
+          badge="2 ações extraídas"
+          badgeCor="bg-sky-400/15 text-sky-300"
+        />
+        <OpsRow
+          delay="2.3s"
+          icon={<BarChart3 size={14} className="text-amber-300" />}
+          nome="Diretor de BI"
+          acao="a fechar o relatório semanal · conversão 18%"
+          badge="enviado no WhatsApp"
+          badgeCor="bg-amber-400/15 text-amber-300"
+        />
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/8 px-4 py-2.5 text-[10px] text-white/35">
+        <span className="flex items-center gap-1.5">
+          <Cpu size={11} />
+          Orquestrador + workers em paralelo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Shield size={11} />
+          Dados isolados por empresa
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function OpsRow({
   delay,

@@ -46,7 +46,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="grid min-h-screen place-items-center p-6">
-      <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl border border-black/10 bg-white p-6">
+      <form onSubmit={submit} autoComplete="off" className="w-full max-w-lg space-y-3 rounded-2xl border border-black/10 bg-white p-6">
         <div className="mb-2">
           <h1 className="text-xl font-semibold">Configurar a tua empresa</h1>
           <p className="text-sm text-black/50">Liga o WhatsApp e a agenda para ativar os agentes.</p>
