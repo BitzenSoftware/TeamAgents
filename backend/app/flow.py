@@ -365,8 +365,8 @@ def _due_agora(t: dict, agora_utc: datetime) -> bool:
     == hora escolhida, e o dia bate certo no período. last_run garante a cadência
     (evita repetir e dá conta de quinzenal/trimestral/semestral).
     """
-    if not t.get("automatica"):
-        return False
+    if t.get("automatica") is not True:
+        return False  # 'Manual' nunca corre sozinho
     try:
         local = agora_utc.astimezone(ZoneInfo(t.get("fuso") or "America/Sao_Paulo"))
     except Exception:
@@ -424,7 +424,8 @@ def sincronizar_email(
         tarefas = [t for t in todas if t.get("ativo")]
         if apenas_automaticas:
             agora = datetime.now(timezone.utc)
-            tarefas = [t for t in tarefas if _due_agora(t, agora)]
+            # GARANTIA DUPLA: 'Manual' (automatica != True) NUNCA corre no cron.
+            tarefas = [t for t in tarefas if t.get("automatica") is True and _due_agora(t, agora)]
     if not tarefas:
         return {"processamentos": [], "n_emails": 0, "sem_tarefas": True}
 
