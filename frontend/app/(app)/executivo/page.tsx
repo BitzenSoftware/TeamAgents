@@ -169,12 +169,15 @@ export default function ExecutivoPage() {
     }
   }
 
-  // Resultados agrupados por tarefa (ligação por título == nome da tarefa).
+  // Resultados ligados à tarefa por ID (fallback ao título só para registos antigos sem tarefa_id).
   const nomesTarefas = new Set(tarefas.map((t) => t.nome));
-  const avulsos = lista.filter((p) => !nomesTarefas.has(p.titulo));
+  const idsTarefas = new Set(tarefas.map((t) => t.id));
+  const pertenceA = (p: Processamento, t: TarefaExecutivo) =>
+    p.tarefa_id ? p.tarefa_id === t.id : p.titulo === t.nome;
+  const avulsos = lista.filter((p) => (p.tarefa_id ? !idsTarefas.has(p.tarefa_id) : !nomesTarefas.has(p.titulo)));
   const tarefaAtual = tarefaSel && tarefaSel !== "__avulsos__" ? tarefas.find((t) => t.id === tarefaSel) ?? null : null;
   const resultadosTarefa =
-    tarefaSel === "__avulsos__" ? avulsos : tarefaAtual ? lista.filter((p) => p.titulo === tarefaAtual.nome) : [];
+    tarefaSel === "__avulsos__" ? avulsos : tarefaAtual ? lista.filter((p) => pertenceA(p, tarefaAtual)) : [];
   const nomeSelecionado = tarefaSel === "__avulsos__" ? "Avulsos / colados" : tarefaAtual?.nome ?? "";
   const verDetalhe = !!selecionado && resultadosTarefa.some((p) => p.id === selId);
 
@@ -264,7 +267,7 @@ export default function ExecutivoPage() {
             <div className="space-y-1.5">
               {tarefas.map((t) => {
                 const sel = tarefaSel === t.id;
-                const n = lista.filter((p) => p.titulo === t.nome).length;
+                const n = lista.filter((p) => pertenceA(p, t)).length;
                 return (
                   <div key={t.id} className={`overflow-hidden rounded-lg border ${sel ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white"} ${t.ativo ? "" : "opacity-60"}`}>
                     <button

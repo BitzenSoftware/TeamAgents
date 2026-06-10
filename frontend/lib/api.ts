@@ -239,6 +239,7 @@ export type SinteseExecutiva = {
 export type Processamento = {
   id: string;
   cliente_id: string;
+  tarefa_id: string | null;
   titulo: string;
   entrada: string;
   sintese: SinteseExecutiva;

@@ -170,8 +170,11 @@ def processar_executivo(cliente_id: str, req: ExecutivoRequest) -> dict:
     return _persistir_executivo(cliente_id, req.titulo, req.entrada, resultado)
 
 
-def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, resultado) -> dict:
-    """Persiste o resultado do Agente Executivo e desconta créditos (só itens com êxito)."""
+def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, resultado, tarefa_id: str | None = None) -> dict:
+    """Persiste o resultado do Agente Executivo e desconta créditos (só itens com êxito).
+
+    `tarefa_id` liga o resultado à tarefa que o gerou (NULL nos colados/manuais).
+    """
     titulo = (titulo_in or "").strip() or _titulo_automatico(resultado)
     row = {
         "cliente_id": cliente_id,
@@ -181,8 +184,14 @@ def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, r
         "itens": [i.model_dump() for i in resultado.itens],
         "n_itens": resultado.n_itens,
         "n_falhas": resultado.n_falhas,
+        "tarefa_id": tarefa_id,
     }
-    saved = get_db().table("processamentos_executivo").insert(row).execute().data[0]
+    db = get_db()
+    try:
+        saved = db.table("processamentos_executivo").insert(row).execute().data[0]
+    except Exception:
+        row.pop("tarefa_id", None)  # migração 025 ainda não corrida
+        saved = db.table("processamentos_executivo").insert(row).execute().data[0]
     # Piso = fórmula antiga (base + itens); sobe se os tokens reais custarem mais.
     piso = CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM
     uso = pricing.UsoLLM(
@@ -464,7 +473,7 @@ def sincronizar_email(
         resultado = asyncio.run(
             executivo.processar_itens(_itens_de_emails(emails), habilidades, t.get("instrucoes") or "")
         )
-        proc = _persistir_executivo(cliente_id, t["nome"], email_ingest.construir_entrada(emails), resultado)
+        proc = _persistir_executivo(cliente_id, t["nome"], email_ingest.construir_entrada(emails), resultado, tarefa_id=t["id"])
         criados.append(proc)
         total_emails += len(emails)
 
