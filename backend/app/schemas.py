@@ -236,6 +236,11 @@ class ExecutivoResultado(BaseModel):
     itens: list[ItemProcessado] = Field(default_factory=list)
     n_itens: int = 0
     n_falhas: int = 0
+    # Custeio real (preenchido pelo engine a partir do usage de todas as chamadas).
+    custo_usd: float = 0.0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    modelo: str | None = None
 
 
 class ExecutivoRequest(BaseModel):

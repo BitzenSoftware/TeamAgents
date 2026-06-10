@@ -13,7 +13,9 @@ from pathlib import Path
 
 import anthropic
 
+from . import pricing
 from .config import get_settings
+from .pricing import UsoLLM
 from .schemas import BiOutput, CopyOutput, SdrOutput
 
 def _find_agents_dir() -> Path:
@@ -58,7 +60,7 @@ def _system_blocks(agent_id: str, extra: str = "") -> list[dict]:
 
 
 # ===================== Agente 1: Copywriting (Sonnet 4.6) =====================
-def gerar_anuncios(nicho: str, dor_latente: str, habilidades: str = "") -> CopyOutput:
+def gerar_anuncios(nicho: str, dor_latente: str, habilidades: str = "") -> tuple[CopyOutput, UsoLLM]:
     s = get_settings()
     resp = _client().messages.parse(
         model=s.model_copywriting,
@@ -72,7 +74,7 @@ def gerar_anuncios(nicho: str, dor_latente: str, habilidades: str = "") -> CopyO
         ],
         output_format=CopyOutput,
     )
-    return resp.parsed_output
+    return resp.parsed_output, pricing.from_usage(s.model_copywriting, resp.usage)
 
 
 # ===================== Agente 2: SDR (Haiku 4.5) =====================
@@ -85,7 +87,7 @@ def responder_sdr(
     palavra_chave_gatilho: str,
     link_calendario: str,
     habilidades: str = "",
-) -> SdrOutput:
+) -> tuple[SdrOutput, UsoLLM]:
     """Gera a resposta do SDR.
 
     ``historico`` é uma lista de mensagens no formato da API
@@ -109,7 +111,7 @@ def responder_sdr(
         messages=messages,
         output_format=SdrOutput,
     )
-    return resp.parsed_output
+    return resp.parsed_output, pricing.from_usage(s.model_sdr, resp.usage)
 
 
 # ===================== Agente 3: Diretor de BI (Opus 4.8) =====================
@@ -123,7 +125,7 @@ def gerar_relatorio(
     investimento_anuncios: float,
     taxa_conversao: float,
     custo_por_agendamento: float,
-) -> BiOutput:
+) -> tuple[BiOutput, UsoLLM]:
     """As métricas são calculadas em Python (determinístico) e passadas ao modelo,
     que produz o texto analítico do relatório."""
     s = get_settings()
@@ -147,4 +149,4 @@ def gerar_relatorio(
         messages=[{"role": "user", "content": dados}],
         output_format=BiOutput,
     )
-    return resp.parsed_output
+    return resp.parsed_output, pricing.from_usage(s.model_bi, resp.usage)

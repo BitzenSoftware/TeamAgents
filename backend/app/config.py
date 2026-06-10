@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    # Custeio por tokens: USD de custo de API que 1 crédito "absorve".
+    # Menor = cobra mais créditos (mais margem). A receita/crédito (mesmo no plano
+    # mais barato) é várias vezes este valor, por isso a margem fica garantida.
+    usd_por_credito: float = 0.004
+    # Câmbio USD→BRL para mostrar custo/margem em reais no painel Empresas.
+    usd_brl: float = 5.40
+
     # Stripe (assinaturas dos planos)
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

@@ -122,9 +122,14 @@ export type AdminDashboard = {
   consumo_series: { bucket: string; total: number }[];
   faturamento_series: { bucket: string; total: number }[];
   crescimento_series: { bucket: string; total: number }[];
+  custo_series: { bucket: string; total: number }[];
   consumo_total: number;
   faturamento_total: number;
   faturamento_por_tipo: Record<string, number>;
+  custo_usd_total: number;
+  custo_brl_total: number;
+  margem_brl: number;
+  margem_pct: number;
   total_empresas: number;
   empresas_ativas: number;
   mrr: number;

@@ -259,12 +259,17 @@ function AbaDashboards() {
       </div>
 
       {/* KPIs */}
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Kpi titulo="Empresas" valor={`${dash?.total_empresas ?? 0}`} />
-        <Kpi titulo="Com assinatura" valor={`${dash?.empresas_ativas ?? 0}`} />
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi titulo="Empresas" valor={`${dash?.total_empresas ?? 0}`} sub={`${dash?.empresas_ativas ?? 0} com assinatura`} />
         <Kpi titulo="MRR" valor={fmtMoeda(dash?.mrr ?? 0)} destaque />
         <Kpi titulo="Faturamento (período)" valor={fmtMoeda(dash?.faturamento_total ?? 0)} />
         <Kpi titulo="Consumo (período)" valor={`${(dash?.consumo_total ?? 0).toLocaleString("pt-BR")}`} sub="créditos" />
+      </div>
+      {/* Custo real & margem (no-prejuízo) */}
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Kpi titulo="Custo IA (período)" valor={fmtMoeda(dash?.custo_brl_total ?? 0)} sub={`$ ${(dash?.custo_usd_total ?? 0).toFixed(2)} em tokens`} />
+        <Kpi titulo="Margem (período)" valor={fmtMoeda(dash?.margem_brl ?? 0)} destaque />
+        <Kpi titulo="Margem %" valor={`${dash?.margem_pct ?? 0}%`} sub="receita − custo IA" />
       </div>
 
       {loading ? (
@@ -281,6 +286,7 @@ function AbaDashboards() {
             formato={(v) => fmtMoeda(v)}
           />
           <Grafico titulo="Crescimento" subtitulo="novas empresas por período" series={dash?.crescimento_series ?? []} cor="#db2777" gran={gran} formato={(v) => `${v}`} />
+          <Grafico titulo="Custo IA" subtitulo="custo real de tokens (R$)" series={dash?.custo_series ?? []} cor="#dc2626" gran={gran} formato={(v) => fmtMoeda(v)} />
         </div>
       )}
     </div>

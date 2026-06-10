@@ -10,7 +10,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import email_ingest, executivo, llm, whatsapp
+from . import email_ingest, executivo, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
@@ -183,7 +183,18 @@ def _persistir_executivo(cliente_id: str, titulo_in: str | None, entrada: str, r
         "n_falhas": resultado.n_falhas,
     }
     saved = get_db().table("processamentos_executivo").insert(row).execute().data[0]
-    consumir_creditos(cliente_id, CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM, "executivo")
+    # Piso = fórmula antiga (base + itens); sobe se os tokens reais custarem mais.
+    piso = CREDITOS_EXEC_BASE + len(resultado.itens) * CREDITOS_EXEC_ITEM
+    uso = pricing.UsoLLM(
+        modelo=getattr(resultado, "modelo", None) or "executivo",
+        input_tokens=getattr(resultado, "tokens_in", 0),
+        output_tokens=getattr(resultado, "tokens_out", 0),
+        cache_write=0,
+        cache_read=0,
+        custo_usd=getattr(resultado, "custo_usd", 0.0),
+    )
+    cr = pricing.creditos_de_custo(uso.custo_usd, minimo=piso)
+    consumir_creditos(cliente_id, cr, "executivo", uso=uso)
     return saved
 
 
@@ -480,7 +491,7 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
     """Gera os anúncios e persiste a campanha. cliente_id vem do token (auth)."""
     verificar_limite(cliente_id, CREDITOS_CAMPANHA)  # bloqueia ANTES de gastar API
     # Lista explícita: omitido/[] => nenhuma habilidade (poupa tokens); nunca cai no "todas".
-    out: CopyOutput = llm.gerar_anuncios(
+    out, uso = llm.gerar_anuncios(
         req.nicho,
         req.dor_latente,
         habilidades=_habilidades_texto(cliente_id, req.habilidade_ids or [], agente="copywriting"),
@@ -502,7 +513,8 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
         "status": "ATIVA",
     }
     res = db.table("campanhas").insert(row).execute()
-    consumir_creditos(cliente_id, CREDITOS_CAMPANHA, "campanhas")  # só desconta após êxito
+    cr = pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_CAMPANHA)  # piso = valor atual
+    consumir_creditos(cliente_id, cr, "campanhas", uso=uso)  # só desconta após êxito
     return res.data[0]
 
 
@@ -600,7 +612,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     # fallback para o da campanha.
     link_calendario = config.get("calendario_link") or campanha.get("link_calendario") or ""
 
-    out = llm.responder_sdr(
+    out, uso = llm.responder_sdr(
         lead_message=text,
         historico=historico,
         gatilho_principal=campanha.get("gatilho_principal") or "",
@@ -611,7 +623,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
-    consumir_creditos(cliente_id, CREDITOS_SDR, "sdr")
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_SDR), "sdr", uso=uso)
 
     # Atualiza estado do lead (mapeando o enum do SDR -> enum da BD)
     updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status]}
@@ -650,7 +662,7 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
     taxa = (reunioes / leads_totais * 100) if leads_totais else 0.0
     cpag = (investimento / reunioes) if reunioes else 0.0
 
-    out = llm.gerar_relatorio(
+    out, uso = llm.gerar_relatorio(
         nome_cliente=campanha["nome_cliente"],
         nome_campanha=campanha["nome_campanha"],
         leads_totais=leads_totais,
@@ -676,7 +688,7 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
     }
     rel = db.table("relatorios").insert(row).execute().data[0]
     if cliente_id:
-        consumir_creditos(cliente_id, CREDITOS_BI, "bi")
+        consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_BI), "bi", uso=uso)
     return rel
 
 
@@ -1261,11 +1273,11 @@ def verificar_limite(cliente_id: str, qtd: int) -> None:
         )
 
 
-def consumir_creditos(cliente_id: str, qtd: int, origem: str = "outro") -> None:
+def consumir_creditos(cliente_id: str, qtd: int, origem: str = "outro", uso=None) -> None:
     """Contabiliza o consumo: gasta a mesada do plano primeiro, depois o saldo avulso.
 
     Chamar após a ação ter êxito. `origem`: campanhas | sdr | bi | executivo.
-    O `consumo_log` regista sempre a quantidade total (para o dashboard).
+    O `consumo_log` regista a quantidade + tokens/custo/modelo reais (`uso`: UsoLLM).
     """
     try:
         db = get_db()
@@ -1307,10 +1319,22 @@ def consumir_creditos(cliente_id: str, qtd: int, origem: str = "outro") -> None:
                 pass  # migração 018 pode ainda não ter corrido
     except Exception:
         pass  # nunca falhar a ação principal por causa da contabilização de créditos
+    base = {"cliente_id": cliente_id, "origem": origem, "creditos": qtd}
+    extra = {}
+    if uso is not None:
+        extra = {
+            "tokens_in": getattr(uso, "input_tokens", 0),
+            "tokens_out": getattr(uso, "output_tokens", 0),
+            "custo_usd": round(getattr(uso, "custo_usd", 0.0), 6),
+            "modelo": getattr(uso, "modelo", None),
+        }
     try:
-        db.table("consumo_log").insert({"cliente_id": cliente_id, "origem": origem, "creditos": qtd}).execute()
+        db.table("consumo_log").insert({**base, **extra}).execute()
     except Exception:
-        pass  # log detalhado é best-effort (migração 016 pode ainda não ter corrido)
+        try:
+            db.table("consumo_log").insert(base).execute()  # migração 024 ainda não corrida
+        except Exception:
+            pass  # log detalhado é best-effort (migração 016 pode ainda não ter corrido)
 
 
 def consumo_dashboard(cliente_id: str, de: str, ate: str, gran: str = "dia") -> dict:
@@ -1492,11 +1516,22 @@ def admin_dashboard(de: str, ate: str, gran: str = "mes") -> dict:
 
     consumo_series: dict[str, int] = {}
     consumo_total = 0
+    custo_usd_total = 0.0
+    custo_series: dict[str, float] = {}
     try:
-        for r in db.table("consumo_log").select("creditos, created_at").gte("created_at", de).lte("created_at", ate_fim).execute().data:
+        # Tenta com custo_usd (migração 024); se a coluna não existir, cai no básico.
+        try:
+            rows = db.table("consumo_log").select("creditos, custo_usd, created_at").gte("created_at", de).lte("created_at", ate_fim).execute().data
+        except Exception:
+            rows = db.table("consumo_log").select("creditos, created_at").gte("created_at", de).lte("created_at", ate_fim).execute().data
+        for r in rows:
             q = int(r.get("creditos") or 0)
             consumo_total += q
-            consumo_series[bk(r["created_at"])] = consumo_series.get(bk(r["created_at"]), 0) + q
+            b = bk(r["created_at"])
+            consumo_series[b] = consumo_series.get(b, 0) + q
+            cu = float(r.get("custo_usd") or 0)
+            custo_usd_total += cu
+            custo_series[b] = custo_series.get(b, 0.0) + cu
     except Exception:
         pass
 
@@ -1539,13 +1574,23 @@ def admin_dashboard(de: str, ate: str, gran: str = "mes") -> dict:
     def serie(d: dict) -> list[dict]:
         return [{"bucket": k, "total": round(v, 2)} for k, v in sorted(d.items())]
 
+    usd_brl = get_settings().usd_brl or 5.4
+    custo_brl_total = custo_usd_total * usd_brl
+    margem_brl = round(fat_total - custo_brl_total, 2)
+    margem_pct = round((margem_brl / fat_total) * 100, 1) if fat_total else 0.0
+
     return {
         "consumo_series": serie(consumo_series),
         "faturamento_series": serie(fat_series),
         "crescimento_series": serie(cresc_series),
+        "custo_series": [{"bucket": k, "total": round(v * usd_brl, 2)} for k, v in sorted(custo_series.items())],
         "consumo_total": consumo_total,
         "faturamento_total": round(fat_total, 2),
         "faturamento_por_tipo": {k: round(v, 2) for k, v in fat_por_tipo.items()},
+        "custo_usd_total": round(custo_usd_total, 4),
+        "custo_brl_total": round(custo_brl_total, 2),
+        "margem_brl": margem_brl,
+        "margem_pct": margem_pct,
         "total_empresas": total_empresas,
         "empresas_ativas": ativas,
         "mrr": round(mrr, 2),
@@ -1652,7 +1697,7 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
     taxa = m["reunioes"] / m["leads_totais"] * 100 if m["leads_totais"] else 0.0
     cpag = m["investimento"] / m["reunioes"] if m["reunioes"] else 0.0
 
-    out = llm.gerar_relatorio(
+    out, uso = llm.gerar_relatorio(
         nome_cliente=cliente["nome"],
         nome_campanha="Resumo Semanal (todas as campanhas)",
         leads_totais=m["leads_totais"],
@@ -1679,5 +1724,5 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
         "relatorio_whatsapp": out.relatorio_whatsapp,
     }
     rel = get_db().table("relatorios").insert(row).execute().data[0]
-    consumir_creditos(cliente["id"], CREDITOS_BI, "bi")
+    consumir_creditos(cliente["id"], pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_BI), "bi", uso=uso)
     return rel

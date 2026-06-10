@@ -17,8 +17,10 @@ import asyncio
 
 import anthropic
 
+from . import pricing
 from .config import get_settings
 from .llm import _load_prompt  # reutiliza o loader de agents/<id>/prompt.md
+from .pricing import UsoLLM
 from .schemas import (
     ExecutivoResultado,
     ItemBruto,
@@ -66,7 +68,7 @@ def _sys(extra: str = "") -> list[dict]:
     return blocks
 
 
-async def _planear(client: anthropic.AsyncAnthropic, entrada: str) -> PlanoExecucao:
+async def _planear(client: anthropic.AsyncAnthropic, entrada: str) -> tuple[PlanoExecucao, UsoLLM]:
     s = get_settings()
     resp = await client.messages.parse(
         model=s.model_exec_orchestrator,
@@ -75,7 +77,7 @@ async def _planear(client: anthropic.AsyncAnthropic, entrada: str) -> PlanoExecu
         messages=[{"role": "user", "content": entrada}],
         output_format=PlanoExecucao,
     )
-    return resp.parsed_output
+    return resp.parsed_output, pricing.from_usage(s.model_exec_orchestrator, resp.usage)
 
 
 async def _processar_item(
@@ -84,7 +86,7 @@ async def _processar_item(
     item: ItemBruto,
     habilidades: str,
     instrucoes: str = "",
-) -> ItemProcessado:
+) -> tuple[ItemProcessado, UsoLLM]:
     """Processa um item com timeout + 1 retry curto, sob o semáforo de concorrência."""
     s = get_settings()
     instr = _INSTR_WORKER
@@ -106,7 +108,7 @@ async def _processar_item(
                     ),
                     timeout=_WORKER_TIMEOUT,
                 )
-                return resp.parsed_output
+                return resp.parsed_output, pricing.from_usage(s.model_exec_worker, resp.usage)
             except Exception:
                 if tentativa == 0:
                     await asyncio.sleep(1.5)
@@ -117,7 +119,7 @@ async def _processar_item(
 
 async def _sintetizar(
     client: anthropic.AsyncAnthropic, itens: list[ItemProcessado], n_falhas: int
-) -> SinteseExecutiva:
+) -> tuple[SinteseExecutiva, UsoLLM]:
     s = get_settings()
     partes = []
     for i, it in enumerate(itens, 1):
@@ -136,7 +138,7 @@ async def _sintetizar(
         messages=[{"role": "user", "content": "\n\n".join(partes) + nota}],
         output_format=SinteseExecutiva,
     )
-    return resp.parsed_output
+    return resp.parsed_output, pricing.from_usage(s.model_exec_orchestrator, resp.usage)
 
 
 async def _engine(
@@ -153,16 +155,27 @@ async def _engine(
         *(_processar_item(client, sem, it, habilidades, instrucoes) for it in itens),
         return_exceptions=True,
     )
-    ok = [r for r in resultados if isinstance(r, ItemProcessado)]
+    usos: list[UsoLLM] = []
+    ok: list[ItemProcessado] = []
+    for r in resultados:
+        if isinstance(r, tuple):
+            item, uso = r
+            ok.append(item)
+            usos.append(uso)
     n_falhas = len(resultados) - len(ok)
 
     if ok:
-        sintese = await _sintetizar(client, ok, n_falhas)
+        sintese, uso_s = await _sintetizar(client, ok, n_falhas)
+        usos.append(uso_s)
     else:
         sintese = SinteseExecutiva(
             resumo_geral="Não foi possível processar nenhum dos itens detetados. Tenta novamente."
         )
-    return ExecutivoResultado(sintese=sintese, itens=ok, n_itens=len(itens), n_falhas=n_falhas)
+    total = pricing.soma(usos)
+    return ExecutivoResultado(
+        sintese=sintese, itens=ok, n_itens=len(itens), n_falhas=n_falhas,
+        custo_usd=total.custo_usd, tokens_in=total.input_tokens, tokens_out=total.output_tokens, modelo=total.modelo,
+    )
 
 
 async def processar_itens(
@@ -187,7 +200,7 @@ async def processar(entrada: str, habilidades: str = "") -> ExecutivoResultado:
     """
     async with anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key) as client:
         try:
-            plano = await _planear(client, entrada)
+            plano, _ = await _planear(client, entrada)
             itens = plano.itens
         except Exception:
             itens = [ItemBruto(tipo=TipoItem.ATA, titulo="Conteúdo", conteudo=entrada)]
