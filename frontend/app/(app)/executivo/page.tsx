@@ -67,6 +67,7 @@ export default function ExecutivoPage() {
   const [contas, setContas] = useState<EmailAccount[]>([]);
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [apagandoTodos, setApagandoTodos] = useState(false);
   const [tarefas, setTarefas] = useState<TarefaExecutivo[]>([]);
   const [tarefaModal, setTarefaModal] = useState<TarefaExecutivo | "nova" | null>(null);
   const [syncPicker, setSyncPicker] = useState(false);
@@ -145,9 +146,19 @@ export default function ExecutivoPage() {
 
   async function apagarTodos() {
     if (!window.confirm(`Apagar TODOS os ${lista.length} resultados? Esta ação não pode ser desfeita.`)) return;
-    await api.apagarTodosProcessamentos();
-    setSelId(null);
-    carregar();
+    setApagandoTodos(true);
+    setErro(null);
+    try {
+      await api.apagarTodosProcessamentos();
+      setSelId(null);
+      await new Promise<void>((r) => {
+        api.processamentos().then(setLista).catch(() => {}).finally(() => r());
+      });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível apagar os resultados.");
+    } finally {
+      setApagandoTodos(false);
+    }
   }
 
   return (
@@ -279,12 +290,19 @@ export default function ExecutivoPage() {
                 <button
                   type="button"
                   onClick={apagarTodos}
-                  className="rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50"
+                  disabled={apagandoTodos}
+                  className="flex items-center gap-1.5 rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
                 >
-                  Apagar todos
+                  {apagandoTodos && <span className="ta-spin h-3 w-3 rounded-full border-2 border-rose-300 border-t-rose-600" />}
+                  {apagandoTodos ? "A apagar…" : "Apagar todos"}
                 </button>
               )}
             </div>
+            {apagandoTodos && (
+              <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-black/10">
+                <div className="ta-prog2 h-full w-1/3 rounded-full bg-rose-500" />
+              </div>
+            )}
             {loading ? (
               <p className="text-sm text-black/40">A carregar…</p>
             ) : (
@@ -356,6 +374,7 @@ export default function ExecutivoPage() {
         />
       )}
 
+      <style>{`@keyframes ta-spin{to{transform:rotate(360deg)}}.ta-spin{animation:ta-spin .7s linear infinite}@keyframes ta-prog2{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}.ta-prog2{animation:ta-prog2 1.1s ease-in-out infinite}`}</style>
     </div>
   );
 }
