@@ -222,8 +222,8 @@ export default function LandingPage() {
             </h1>
 
             <p className="lp-anim lp-up mb-9 max-w-xl text-lg leading-relaxed text-white/60 [animation-delay:.16s]">
-              O TeamAgents atende cada DM e mensagem da sua clínica em segundos, entende o procedimento,
-              responde o <strong className="text-white/85">“quanto custa?”</strong> sem assustar e agenda a avaliação —
+              O TeamAgents atende cada mensagem no WhatsApp da sua clínica em segundos, entende o procedimento,
+              responde o <strong className="text-white/85">“quanto custa?”</strong> sem assustar e conduz ao agendamento da avaliação —
               24 horas por dia, enquanto você cuida das suas pacientes.
             </p>
 
