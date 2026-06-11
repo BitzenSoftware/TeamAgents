@@ -82,7 +82,17 @@ def whatsapp_estado(cliente_id: str) -> dict:
     inst = cfg.get("whatsapp_instance_name")
     gerido = evolution.central_disponivel()
     estado = evolution.estado_instancia(inst) if (gerido and inst) else None
-    return {"gerido": gerido, "instance": inst, "estado": estado, "ligado": estado == "open"}
+    # Quando a linha fica ligada, captura o número (uma vez) para o link de captação.
+    numero = cfg.get("whatsapp_numero")
+    if estado == "open" and not numero and inst:
+        try:
+            num = evolution.numero_instancia(inst)
+            if num:
+                update_config(cliente_id, {"whatsapp_numero": num})
+                numero = num
+        except Exception:
+            pass
+    return {"gerido": gerido, "instance": inst, "estado": estado, "ligado": estado == "open", "numero": numero}
 
 
 def whatsapp_conectar(cliente_id: str) -> dict:

@@ -215,6 +215,46 @@ def estado_instancia(inst: str | None) -> str | None:
         return None
 
 
+def _num_de(it: object) -> str | None:
+    """Extrai o número (só dígitos) de um item de fetchInstances (cobre shapes v1/v2)."""
+    if not isinstance(it, dict):
+        return None
+    inst = it.get("instance") if isinstance(it.get("instance"), dict) else {}
+    for src in (it, inst):
+        for k in ("ownerJid", "owner", "number", "wuid", "wid"):
+            v = src.get(k) if isinstance(src, dict) else None
+            if isinstance(v, str) and v:
+                digits = re.sub(r"\D", "", v.split("@", 1)[0])
+                if 10 <= len(digits) <= 15:
+                    return digits
+    return None
+
+
+def numero_instancia(inst: str | None) -> str | None:
+    """Número de telefone (E.164, só dígitos) ligado à instância, ou None.
+
+    Usado para montar o link de captação wa.me. Só há número depois de o QR
+    ser lido (instância "open"); antes disso devolve None.
+    """
+    base, key = _central()
+    if not base or not inst:
+        return None
+    try:
+        with httpx.Client(timeout=15) as c:
+            r = c.get(f"{base}/instance/fetchInstances", headers=_h(key), params={"instanceName": inst})
+            if r.status_code >= 300:
+                return None
+            data = r.json()
+            itens = data if isinstance(data, list) else [data]
+            for it in itens:
+                num = _num_de(it)
+                if num:
+                    return num
+    except Exception:
+        return None
+    return None
+
+
 def apagar_instancia(inst: str | None) -> None:
     base, key = _central()
     if not base or not inst:

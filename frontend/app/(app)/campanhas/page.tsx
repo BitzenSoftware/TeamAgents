@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { QRCodeCanvas } from "qrcode.react";
 import { useCliente } from "@/components/cliente-context";
 import { api, type Campanha, type Cliente, type Habilidade, type SocialConfig } from "@/lib/api";
 
@@ -13,6 +14,7 @@ export default function CampanhasPage() {
 
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
   const [social, setSocial] = useState<SocialConfig | null>(null);
+  const [numeroEmpresa, setNumeroEmpresa] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
@@ -22,6 +24,7 @@ export default function CampanhasPage() {
     carregar();
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
     api.getSocialConfig().then(setSocial).catch(() => {});
+    api.getConfig().then((c) => setNumeroEmpresa(c.whatsapp_numero)).catch(() => {});
   }, [carregar]);
 
   // Mantém uma seleção válida (auto-seleciona a primeira).
@@ -83,7 +86,7 @@ export default function CampanhasPage() {
           {/* Detalhe (detail) */}
           <section className="md:col-span-8 lg:col-span-9">
             {selecionada ? (
-              <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} />
+              <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} numeroEmpresa={numeroEmpresa} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
                 Selecione uma campanha à esquerda.
@@ -112,7 +115,7 @@ export default function CampanhasPage() {
 }
 
 /* ---------------- Painel de detalhe da campanha ---------------- */
-function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () => void; social: SocialConfig | null }) {
+function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; onChange: () => void; social: SocialConfig | null; numeroEmpresa: string | null }) {
   const [editando, setEditando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apagando, setApagando] = useState(false);
@@ -218,6 +221,7 @@ function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () =>
           <Meta k="Desejo-alvo" v={c.desejo_alvo} />
           <Meta k="Palavra-chave" v={c.palavra_chave_gatilho} mono />
         </div>
+        <LinkCaptacao numero={numeroEmpresa} palavraChave={c.palavra_chave_gatilho} />
         {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
         <div className="flex gap-2 border-t border-black/5 pt-3">
           <button type="button" onClick={() => setEditando(true)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">
@@ -496,6 +500,68 @@ function Meta({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
     <div>
       <div className="text-[11px] text-black/40">{k}</div>
       <div className={mono ? "font-mono text-xs" : ""}>{v}</div>
+    </div>
+  );
+}
+
+/* ---------------- Link/QR de captação (a ponte anúncio → WhatsApp) ---------------- */
+function LinkCaptacao({ numero, palavraChave }: { numero: string | null; palavraChave: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  if (!numero) {
+    return (
+      <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+        <strong>Link de captação indisponível.</strong> Conecte o WhatsApp da clínica em{" "}
+        <Link href="/configuracoes" className="font-medium underline">Configurações</Link> — assim que
+        ligar, geramos aqui o link e o QR Code que trazem as clientes direto pra esta campanha.
+      </div>
+    );
+  }
+
+  const msg = `Oi! Vi o anúncio e quero saber mais sobre ${palavraChave} 💬`;
+  const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
+
+  function copiar() {
+    navigator.clipboard.writeText(link);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
+  function baixarQr() {
+    const canvas = qrRef.current?.querySelector("canvas");
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `captacao-${palavraChave.toLowerCase()}.png`;
+    a.click();
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
+      <div className="mb-2 text-xs font-semibold text-emerald-800">📲 Link de captação — leva direto pro WhatsApp da clínica</div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div ref={qrRef} className="mx-auto shrink-0 rounded-lg border border-emerald-200 bg-white p-2 sm:mx-0">
+          <QRCodeCanvas value={link} size={108} level="M" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="mb-2 text-[11px] leading-relaxed text-emerald-900/70">
+            Cole no botão do anúncio, na bio do Instagram, no story ou imprima o QR. Quem clicar já chega
+            no seu WhatsApp com a palavra-chave — e cai <strong>nesta campanha</strong> automaticamente.
+          </p>
+          <div className="mb-2 break-all rounded-md border border-emerald-200 bg-white px-2 py-1.5 font-mono text-[11px] text-black/55">
+            {link}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={copiar} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
+              {copiado ? "✓ Copiado" : "Copiar link"}
+            </button>
+            <button type="button" onClick={baixarQr} className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100">
+              Baixar QR Code
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

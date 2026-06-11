@@ -276,6 +276,7 @@ function AbaWhatsApp() {
         whatsapp_instance_name: cfg.whatsapp_instance_name,
         whatsapp_token: cfg.whatsapp_token,
         whatsapp_api_url: cfg.whatsapp_api_url ?? "",
+        whatsapp_numero: (cfg.whatsapp_numero ?? "").replace(/\D/g, ""),
         calendario_link: cfg.calendario_link,
         whatsapp_dono: cfg.whatsapp_dono ?? "",
         limite_mensal_leads: cfg.limite_mensal_leads,
@@ -331,6 +332,15 @@ function AbaWhatsApp() {
               </div>
             </details>
             <div className="grid grid-cols-2 gap-4">
+              <Campo label="Número do WhatsApp da clínica (para o link de captação)" className="col-span-2">
+                <input className="campo" value={cfg.whatsapp_numero ?? ""}
+                  inputMode="numeric"
+                  onChange={(e) => set("whatsapp_numero", e.target.value)}
+                  placeholder="5511999999999 (com DDI e DDD, só números)" />
+                <p className="mt-1 text-xs text-black/40">
+                  Preenchido sozinho quando você liga o WhatsApp pelo QR. É o número usado nos links/QR de captação das campanhas.
+                </p>
+              </Campo>
               <Campo label="Link de calendário" className="col-span-2">
                 <input className="campo" value={cfg.calendario_link ?? ""}
                   onChange={(e) => set("calendario_link", e.target.value)}

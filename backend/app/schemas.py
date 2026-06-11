@@ -78,6 +78,7 @@ class ConfigUpdate(BaseModel):
     whatsapp_instance_name: str | None = None
     whatsapp_token: str | None = None
     whatsapp_api_url: str | None = None
+    whatsapp_numero: str | None = None  # número da linha (E.164) p/ link de captação
     calendario_link: str | None = None
     whatsapp_dono: str | None = None
     limite_mensal_leads: int | None = None

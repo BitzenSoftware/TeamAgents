@@ -190,6 +190,7 @@ export type Config = {
   whatsapp_instance_name: string;
   whatsapp_token: string;
   whatsapp_api_url: string | null;
+  whatsapp_numero: string | null;
   calendario_link: string;
   whatsapp_dono: string | null;
   limite_mensal_leads: number;
@@ -327,6 +328,7 @@ export type ConfigUpdate = Partial<{
   whatsapp_instance_name: string;
   whatsapp_token: string;
   whatsapp_api_url: string;
+  whatsapp_numero: string;
   calendario_link: string;
   whatsapp_dono: string;
   limite_mensal_leads: number;
@@ -470,7 +472,7 @@ export const api = {
 
   // --- WhatsApp gerido (QR Code, 1 clique) ---
   whatsappEstado: () =>
-    req<{ gerido: boolean; instance: string | null; estado: string | null; ligado: boolean }>("/me/whatsapp/estado"),
+    req<{ gerido: boolean; instance: string | null; estado: string | null; ligado: boolean; numero: string | null }>("/me/whatsapp/estado"),
   whatsappConectar: () =>
     req<{ qr: string | null; instance: string }>("/me/whatsapp/conectar", { method: "POST" }),
   whatsappQr: () =>
