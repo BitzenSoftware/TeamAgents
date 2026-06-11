@@ -87,7 +87,8 @@ def whatsapp_estado(cliente_id: str) -> dict:
 
 def whatsapp_conectar(cliente_id: str) -> dict:
     """Cria/reusa a instância do cliente no servidor central e devolve o QR Code."""
-    res = evolution.criar_ou_conectar(cliente_id)  # ValueError se modo gerido indisponível
+    cfg = get_config_by_cliente(cliente_id) or {}
+    res = evolution.criar_ou_conectar(cliente_id, cfg.get("whatsapp_instance_name"))
     update_config(cliente_id, {
         "whatsapp_instance_name": res["instance"],
         "whatsapp_token": res.get("token") or get_settings().whatsapp_api_key,

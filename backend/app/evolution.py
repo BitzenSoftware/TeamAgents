@@ -20,6 +20,8 @@ Descartamos:
 
 Z-API / Z-PRO usam um shape diferente; criar um parser análogo se mudares de provider.
 """
+import secrets
+
 import httpx
 
 from .config import get_settings
@@ -43,8 +45,9 @@ def central_disponivel() -> bool:
     return bool(base and key)
 
 
-def _instance_name(cliente_id: str) -> str:
-    return "ta_" + str(cliente_id).replace("-", "")[:16]
+def _novo_instance_name(cliente_id: str) -> str:
+    # Nome único por ligação → nunca colide com uma instância antiga presa.
+    return f"ta_{str(cliente_id).replace('-', '')[:8]}_{secrets.token_hex(3)}"
 
 
 def _h(key: str) -> dict:
@@ -64,49 +67,45 @@ def _qr_de(j: dict) -> str | None:
     return None
 
 
-def criar_ou_conectar(cliente_id: str) -> dict:
-    """Cria (ou reusa) a instância do cliente, configura o webhook e devolve o QR.
+def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None) -> dict:
+    """Liga o WhatsApp do cliente e devolve o QR.
 
-    Devolve {instance, token, qr, api_url}. `qr` pode ser None se a instância já
-    estiver ligada (nesse caso o estado dá "open").
+    Se `instancia_atual` já estiver ligada ("open"), devolve-a sem QR. Caso
+    contrário, apaga-a (best-effort) e cria uma instância NOVA com nome único
+    (evita o erro "already in use" de instâncias presas).
+    Devolve {instance, token, qr, api_url}.
     """
     base, key = _central()
     if not base or not key:
         raise ValueError("Modo gerido do WhatsApp não está configurado no servidor.")
-    inst = _instance_name(cliente_id)
     s = get_settings()
     webhook_url = ((s.backend_url or "").rstrip("/") + "/webhook/whatsapp") if s.backend_url else ""
     token: str | None = None
     qr: str | None = None
     erros: list[str] = []
 
-    def estado(c: httpx.Client) -> str | None:
-        try:
-            rs = c.get(f"{base}/instance/connectionState/{inst}", headers=_h(key))
-            if rs.status_code < 300:
-                j = rs.json()
-                ji = j.get("instance")
-                return (ji.get("state") if isinstance(ji, dict) else None) or j.get("state")
-        except Exception:
-            pass
-        return None
-
     with httpx.Client(timeout=30) as c:
-        # 0) Já está ligada? Então não precisa de QR.
-        if estado(c) == "open":
-            return {"instance": inst, "token": None, "qr": None, "api_url": base}
+        # 0) Se a instância atual já está ligada, não há nada a fazer.
+        if instancia_atual:
+            try:
+                rs = c.get(f"{base}/instance/connectionState/{instancia_atual}", headers=_h(key))
+                if rs.status_code < 300:
+                    j = rs.json()
+                    ji = j.get("instance")
+                    est = (ji.get("state") if isinstance(ji, dict) else None) or j.get("state")
+                    if est == "open":
+                        return {"instance": instancia_atual, "token": None, "qr": None, "api_url": base}
+            except Exception:
+                pass
+            # Apaga a antiga (best-effort) — pode estar presa; não bloqueia.
+            for ep in ("logout", "delete"):
+                try:
+                    c.delete(f"{base}/instance/{ep}/{instancia_atual}", headers=_h(key))
+                except Exception:
+                    pass
 
-        # 1) Garante QR fresco: apaga a instância antiga (se existir) e recria limpa.
-        try:
-            c.delete(f"{base}/instance/logout/{inst}", headers=_h(key))
-        except Exception:
-            pass
-        try:
-            c.delete(f"{base}/instance/delete/{inst}", headers=_h(key))
-        except Exception:
-            pass
-
-        # 2) Cria a instância nova (com QR).
+        # 1) Cria uma instância NOVA com nome único (com QR).
+        inst = _novo_instance_name(cliente_id)
         try:
             r = c.post(
                 f"{base}/instance/create",
