@@ -125,6 +125,9 @@ def gerar_relatorio(
     investimento_anuncios: float,
     taxa_conversao: float,
     custo_por_agendamento: float,
+    leads_fora_horario: int = 0,
+    pct_qualificados_ia: int = 0,
+    tempo_resposta: str | None = None,
 ) -> tuple[BiOutput, UsoLLM]:
     """As métricas são calculadas em Python (determinístico) e passadas ao modelo,
     que produz o texto analítico do relatório."""
@@ -140,6 +143,10 @@ def gerar_relatorio(
         "## Métricas já calculadas (usa estes valores)\n"
         f"- taxa_conversao_lead_agendamento: {taxa_conversao:.2f}%\n"
         f"- custo_por_agendamento: R$ {custo_por_agendamento:.2f}\n"
+        "## Prova de valor — o que a IA fez que um humano perderia (usa estes valores)\n"
+        f"- leads_capturados_fora_do_horario: {leads_fora_horario}\n"
+        f"- tempo_medio_de_1a_resposta: {tempo_resposta or 'n/d'}\n"
+        f"- pct_qualificados_pela_ia_antes_do_humano: {pct_qualificados_ia}%\n"
     )
     resp = _client().messages.parse(
         model=s.model_bi,

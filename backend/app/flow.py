@@ -731,6 +731,73 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
 
 
 # ===================== Agente 3: relatório semanal =====================
+_TZ_RELATORIO = ZoneInfo("America/Sao_Paulo")
+
+
+def _parse_dt(v: object) -> datetime | None:
+    if not isinstance(v, str) or not v:
+        return None
+    try:
+        return datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _fora_do_horario(dt: datetime) -> bool:
+    """Lead chegou fora do horário comercial? (fim de semana, ou < 8h / >= 18h em SP)."""
+    local = dt.astimezone(_TZ_RELATORIO)
+    return local.weekday() >= 5 or local.hour < 8 or local.hour >= 18
+
+
+def _fmt_duracao(seg: float) -> str:
+    if seg < 90:
+        return "menos de 1 min"
+    minutos = round(seg / 60)
+    if minutos < 60:
+        return f"{minutos} min"
+    return f"{seg / 3600:.1f} h".replace(".", ",")
+
+
+def _metricas_contrafactuais(leads: list[dict]) -> dict:
+    """Prova de valor: o que a IA capturou/poupou que um humano provavelmente perderia."""
+    total = len(leads)
+    fora = sum(1 for l in leads if (dt := _parse_dt(l.get("created_at"))) and _fora_do_horario(dt))
+    qualificados = sum(1 for l in leads if l.get("reuniao_agendada") or l.get("status_qualificacao") == "QUALIFICADO")
+    pct_qual = round(qualificados / total * 100) if total else 0
+
+    # Tempo médio da 1ª resposta (1ª msg do LEAD -> 1ª msg do AGENTE).
+    ids = [l["id"] for l in leads if l.get("id")]
+    tempo = None
+    if ids:
+        msgs = (
+            get_db()
+            .table("historico_conversas")
+            .select("lead_id, autor, created_at")
+            .in_("lead_id", ids)
+            .order("created_at")
+            .execute()
+            .data
+        )
+        por_lead: dict[str, dict] = {}
+        for m in msgs:
+            lid, d = m.get("lead_id"), _parse_dt(m.get("created_at"))
+            if not lid or not d:
+                continue
+            slot = por_lead.setdefault(lid, {})
+            if m.get("autor") == "LEAD" and "lead" not in slot:
+                slot["lead"] = d
+            elif m.get("autor") == "AGENTE" and "lead" in slot and "agente" not in slot:
+                slot["agente"] = d
+        deltas = [
+            (s["agente"] - s["lead"]).total_seconds()
+            for s in por_lead.values()
+            if "lead" in s and "agente" in s and (s["agente"] - s["lead"]).total_seconds() >= 0
+        ]
+        if deltas:
+            tempo = _fmt_duracao(sum(deltas) / len(deltas))
+    return {"leads_fora_horario": fora, "pct_qualificados_ia": pct_qual, "tempo_resposta": tempo}
+
+
 def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim: str) -> dict:
     """Agrega métricas da semana, gera o relatório e persiste em `relatorios`."""
     db = get_db()
@@ -747,6 +814,7 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
 
     taxa = (reunioes / leads_totais * 100) if leads_totais else 0.0
     cpag = (investimento / reunioes) if reunioes else 0.0
+    cf = _metricas_contrafactuais(leads)
 
     out, uso = llm.gerar_relatorio(
         nome_cliente=campanha["nome_cliente"],
@@ -757,6 +825,9 @@ def gerar_relatorio_campanha(campanha_id: str, periodo_inicio: str, periodo_fim:
         investimento_anuncios=investimento,
         taxa_conversao=taxa,
         custo_por_agendamento=cpag,
+        leads_fora_horario=cf["leads_fora_horario"],
+        pct_qualificados_ia=cf["pct_qualificados_ia"],
+        tempo_resposta=cf["tempo_resposta"],
     )
 
     row = {
