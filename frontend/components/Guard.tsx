@@ -24,6 +24,9 @@ export function Guard({ children }: { children: React.ReactNode }) {
 
   const isPublic = PUBLIC.includes(pathname);
   const isOnboarding = pathname === "/onboarding";
+  // Página de redefinição de palavra-passe: o link do email entra com uma
+  // sessão de recuperação — renderiza "nua" e nunca é desviada p/ onboarding.
+  const isRedefinir = pathname === "/redefinir";
   const isLoading = authLoading || (session && cliLoading);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
       return;
     }
     // autenticado
+    if (isRedefinir) return; // deixa o utilizador redefinir a palavra-passe em paz
     if (isPublic) {
       router.replace("/pipeline");
       return;
@@ -48,7 +52,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
     if (cliLoading) return;
     if (needsOnboarding && !isOnboarding) router.replace("/onboarding");
     if (!needsOnboarding && isOnboarding) router.replace("/pipeline");
-  }, [authLoading, cliLoading, session, needsOnboarding, isPublic, isOnboarding, pathname, router]);
+  }, [authLoading, cliLoading, session, needsOnboarding, isPublic, isOnboarding, isRedefinir, pathname, router]);
 
   if (isLoading) {
     return (
@@ -69,8 +73,8 @@ export function Guard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Login e onboarding renderizam "nus" (sem sidebar).
-  if (isPublic || isOnboarding) return <>{children}</>;
+  // Login, onboarding e redefinição renderizam "nus" (sem sidebar).
+  if (isPublic || isOnboarding || isRedefinir) return <>{children}</>;
 
   // Páginas da app só com sessão + cliente.
   if (!session || needsOnboarding) {

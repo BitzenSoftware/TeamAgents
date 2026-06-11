@@ -38,7 +38,7 @@ const AGENTES = [
 ];
 
 export default function LoginPage() {
-  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
+  const [modo, setModo] = useState<"entrar" | "criar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -51,6 +51,21 @@ export default function LoginPage() {
     e.preventDefault();
     setErro(null);
     setInfo(null);
+    if (modo === "recuperar") {
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/redefinir`,
+        });
+        if (error) throw error;
+        setInfo("Enviámos um link de recuperação para o teu email. Abre-o para redefinir a palavra-passe.");
+      } catch (err) {
+        setErro(err instanceof Error ? err.message : "Não foi possível enviar o email.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (modo === "criar") {
       if (password.length < 6) {
         setErro("A palavra-passe deve ter pelo menos 6 caracteres.");
@@ -163,12 +178,14 @@ export default function LoginPage() {
 
           <div className="mb-7">
             <h2 className="text-2xl font-bold tracking-tight">
-              {modo === "entrar" ? "Bem-vindo de volta" : "Cria a tua conta"}
+              {modo === "entrar" ? "Bem-vindo de volta" : modo === "criar" ? "Cria a tua conta" : "Recuperar acesso"}
             </h2>
             <p className="mt-1.5 text-sm text-black/50">
               {modo === "entrar"
                 ? "Entra no painel para veres os teus agentes a trabalhar."
-                : "Em minutos tens uma equipa de IA a trabalhar por ti."}
+                : modo === "criar"
+                  ? "Em minutos tens uma equipa de IA a trabalhar por ti."
+                  : "Diz-nos o teu email e enviamos-te um link para redefinires a palavra-passe."}
             </p>
           </div>
 
@@ -189,10 +206,22 @@ export default function LoginPage() {
               />
             </div>
 
+            {modo !== "recuperar" && (
             <div>
-              <label htmlFor="login-password" className="mb-1.5 block text-xs font-medium text-black/60">
-                Palavra-passe
-              </label>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="login-password" className="block text-xs font-medium text-black/60">
+                  Palavra-passe
+                </label>
+                {modo === "entrar" && (
+                  <button
+                    type="button"
+                    onClick={() => { setModo("recuperar"); setErro(null); setInfo(null); }}
+                    className="text-xs font-medium text-brand hover:underline"
+                  >
+                    Esqueceste-te?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <input
                   id="login-password"
@@ -213,6 +242,7 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            )}
 
             {modo === "criar" && (
               <div>
@@ -237,7 +267,13 @@ export default function LoginPage() {
               disabled={loading}
               className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-brand/40 disabled:opacity-50"
             >
-              {loading ? "A entrar…" : modo === "entrar" ? "Entrar no painel" : "Criar conta grátis"}
+              {loading
+                ? "Um momento…"
+                : modo === "entrar"
+                  ? "Entrar no painel"
+                  : modo === "criar"
+                    ? "Criar conta grátis"
+                    : "Enviar link de recuperação"}
               {!loading && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
             </button>
 
@@ -255,8 +291,8 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                Já tens conta?{" "}
-                <button type="button" onClick={() => setModo("entrar")} className="font-semibold text-brand hover:underline">
+                {modo === "recuperar" ? "Lembraste-te da palavra-passe?" : "Já tens conta?"}{" "}
+                <button type="button" onClick={() => { setModo("entrar"); setErro(null); setInfo(null); }} className="font-semibold text-brand hover:underline">
                   Entrar
                 </button>
               </>
