@@ -137,29 +137,57 @@ def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None) -> di
                 except Exception:
                     pass
 
-        # 4) Se ainda sem QR, faz polling do connect: o Baileys demora 1–5s a
-        #    inicializar o socket — até lá o connect devolve {"count":0}.
+        # 4) Tentativa rápida de QR já neste pedido (até ~6s). Se ainda não vier,
+        #    não faz mal: o frontend faz polling via obter_qr() — o Baileys pode
+        #    demorar 15–40s a gerar o QR.
         if not qr:
-            ultimo = ""
-            for tentativa in range(8):
+            for tentativa in range(4):
                 if tentativa:
                     time.sleep(1.5)
                 try:
                     rc = c.get(f"{base}/instance/connect/{inst}", headers=_h(key))
-                    ultimo = f"connect HTTP {rc.status_code}: {rc.text[:300]}"
                     if rc.status_code < 300:
                         qr = _qr_de(rc.json())
                         if qr:
                             break
+                    elif tentativa == 0:
+                        erros.append(f"connect HTTP {rc.status_code}: {rc.text[:160]}")
                 except Exception as e:
-                    ultimo = f"connect: {e}"
-            if not qr and ultimo:
-                erros.append(ultimo)
+                    erros.append(f"connect: {e}")
 
-    if not qr:
-        detalhe = "; ".join(erros) if erros else "sem resposta utilizável do servidor Evolution"
-        raise ValueError(f"Não foi possível obter o QR Code. ({detalhe})")
+    # Só falha se o CREATE em si falhou. Sem QR (mas instância criada) é OK —
+    # o frontend vai buscar o QR por polling.
+    if not token and not qr and erros and any(e.startswith("create HTTP") or e.startswith("create:") for e in erros):
+        raise ValueError(f"Não foi possível criar a instância. ({'; '.join(erros)})")
     return {"instance": inst, "token": token, "qr": qr, "api_url": base}
+
+
+def obter_qr(inst: str | None) -> dict:
+    """Busca o QR atual da instância (polling pelo frontend). {qr, estado, ligado}."""
+    base, key = _central()
+    if not base or not inst:
+        return {"qr": None, "estado": None, "ligado": False}
+    qr = None
+    estado = None
+    try:
+        with httpx.Client(timeout=20) as c:
+            try:
+                rc = c.get(f"{base}/instance/connect/{inst}", headers=_h(key))
+                if rc.status_code < 300:
+                    qr = _qr_de(rc.json())
+            except Exception:
+                pass
+            try:
+                rs = c.get(f"{base}/instance/connectionState/{inst}", headers=_h(key))
+                if rs.status_code < 300:
+                    j = rs.json()
+                    ji = j.get("instance")
+                    estado = (ji.get("state") if isinstance(ji, dict) else None) or j.get("state")
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return {"qr": qr, "estado": estado, "ligado": estado == "open"}
 
 
 def estado_instancia(inst: str | None) -> str | None:

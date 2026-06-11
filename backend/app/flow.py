@@ -97,6 +97,12 @@ def whatsapp_conectar(cliente_id: str) -> dict:
     return {"qr": res.get("qr"), "instance": res["instance"]}
 
 
+def whatsapp_qr(cliente_id: str) -> dict:
+    """Busca o QR atual da instância do cliente (polling pelo frontend)."""
+    cfg = get_config_by_cliente(cliente_id) or {}
+    return evolution.obter_qr(cfg.get("whatsapp_instance_name"))
+
+
 def whatsapp_desligar(cliente_id: str) -> dict:
     """Desliga e remove a instância do cliente."""
     cfg = get_config_by_cliente(cliente_id) or {}

@@ -96,6 +96,11 @@ def whatsapp_estado(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     return flow.whatsapp_estado(cliente_id)
 
 
+@app.get("/me/whatsapp/qr")
+def whatsapp_qr(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.whatsapp_qr(cliente_id)
+
+
 @app.post("/me/whatsapp/conectar")
 def whatsapp_conectar(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     try:

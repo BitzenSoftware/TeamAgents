@@ -359,31 +359,47 @@ function WhatsAppGerido() {
   const [estado, setEstado] = useState<{ gerido: boolean; ligado: boolean; estado: string | null } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
+  const [aguardando, setAguardando] = useState(false); // a aguardar o QR / leitura
   const [erro, setErro] = useState<string | null>(null);
 
   const carregarEstado = () => api.whatsappEstado().then(setEstado).catch(() => setEstado(null));
   useEffect(() => { carregarEstado(); }, []);
 
-  // Enquanto há QR e ainda não ligou, faz polling do estado a cada 3s.
+  // Depois de "Ligar", faz polling do QR + estado até o QR aparecer e até ligar.
+  // O Baileys pode demorar 15–40s a gerar o QR — por isso esperamos até ~90s.
   useEffect(() => {
-    if (!qr || estado?.ligado) return;
+    if (!aguardando) return;
+    let tentativas = 0;
     const id = setInterval(async () => {
-      const e = await api.whatsappEstado().catch(() => null);
-      if (e) {
-        setEstado(e);
-        if (e.ligado) { setQr(null); clearInterval(id); }
+      tentativas += 1;
+      const r = await api.whatsappQr().catch(() => null);
+      if (r) {
+        if (r.qr) setQr(r.qr);
+        if (r.ligado) {
+          setQr(null);
+          setAguardando(false);
+          carregarEstado();
+          clearInterval(id);
+          return;
+        }
       }
-    }, 3000);
+      if (tentativas >= 36) { // ~90s
+        setAguardando(false);
+        clearInterval(id);
+        setErro("O QR Code demorou demasiado a gerar. Tenta novamente — se persistir, recarrega a página.");
+      }
+    }, 2500);
     return () => clearInterval(id);
-  }, [qr, estado?.ligado]);
+  }, [aguardando]);
 
   async function conectar() {
     setConectando(true);
     setErro(null);
+    setQr(null);
     try {
       const r = await api.whatsappConectar();
-      setQr(r.qr);
-      if (!r.qr) await carregarEstado(); // já ligado ou QR não disponível
+      if (r.qr) setQr(r.qr);
+      setAguardando(true); // começa o polling do QR/estado
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível iniciar a ligação.");
     } finally {
@@ -394,6 +410,7 @@ function WhatsAppGerido() {
   async function desligar() {
     if (!window.confirm("Desligar o WhatsApp? Os agentes deixam de responder até voltares a ligar.")) return;
     setQr(null);
+    setAguardando(false);
     await api.whatsappDesligar().catch(() => {});
     await carregarEstado();
   }
@@ -443,6 +460,14 @@ function WhatsAppGerido() {
               <button type="button" onClick={conectar} disabled={conectando} className="mt-2 text-xs font-medium text-brand hover:underline disabled:opacity-50">
                 Gerar novo QR Code
               </button>
+            </div>
+          </div>
+        ) : aguardando || conectando ? (
+          <div className="flex items-center gap-3 py-2">
+            <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+            <div className="text-sm text-black/60">
+              <p className="font-medium text-ink">A gerar o QR Code…</p>
+              <p className="text-xs text-black/40">Pode demorar até ~40 segundos. Não feches esta página.</p>
             </div>
           </div>
         ) : (

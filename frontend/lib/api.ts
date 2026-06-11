@@ -473,6 +473,8 @@ export const api = {
     req<{ gerido: boolean; instance: string | null; estado: string | null; ligado: boolean }>("/me/whatsapp/estado"),
   whatsappConectar: () =>
     req<{ qr: string | null; instance: string }>("/me/whatsapp/conectar", { method: "POST" }),
+  whatsappQr: () =>
+    req<{ qr: string | null; estado: string | null; ligado: boolean }>("/me/whatsapp/qr"),
   whatsappDesligar: () => req<{ ok: boolean }>("/me/whatsapp/desligar", { method: "POST" }),
 
   // --- Fase 2: integração de email (OAuth Gmail) ---
