@@ -21,11 +21,11 @@ export default function RedefinirPage() {
     e.preventDefault();
     setErro(null);
     if (password.length < 6) {
-      setErro("A palavra-passe deve ter pelo menos 6 caracteres.");
+      setErro("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
     if (password !== confirmar) {
-      setErro("As palavras-passe não coincidem.");
+      setErro("As senhas não coincidem.");
       return;
     }
     setLoading(true);
@@ -35,7 +35,7 @@ export default function RedefinirPage() {
       setOk(true);
       setTimeout(() => router.replace("/pipeline"), 1800);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Não foi possível redefinir a palavra-passe.");
+      setErro(err instanceof Error ? err.message : "Não foi possível redefinir a senha.");
       setLoading(false);
     }
   }
@@ -51,12 +51,12 @@ export default function RedefinirPage() {
         </Link>
 
         {authLoading ? (
-          <p className="text-center text-sm text-black/40">A validar o link…</p>
+          <p className="text-center text-sm text-black/40">Validando o link…</p>
         ) : !session ? (
           <div className="rounded-2xl border border-black/10 bg-white p-6 text-center shadow-xl shadow-black/[0.04]">
             <h1 className="mb-2 text-lg font-bold">Link inválido ou expirado</h1>
             <p className="mb-5 text-sm text-black/50">
-              O link de recuperação já não é válido. Pede um novo a partir do ecrã de entrada.
+              O link de recuperação não é mais válido. Peça um novo na tela de login.
             </p>
             <Link
               href="/login"
@@ -69,21 +69,21 @@ export default function RedefinirPage() {
         ) : ok ? (
           <div className="rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-xl shadow-black/[0.04]">
             <CheckCircle size={36} className="mx-auto mb-3 text-emerald-500" />
-            <h1 className="mb-1 text-lg font-bold">Palavra-passe redefinida!</h1>
-            <p className="text-sm text-black/50">A levar-te para o painel…</p>
+            <h1 className="mb-1 text-lg font-bold">Senha redefinida!</h1>
+            <p className="text-sm text-black/50">Levando você para o painel…</p>
           </div>
         ) : (
           <>
             <div className="mb-6 text-center">
-              <h1 className="text-2xl font-bold tracking-tight">Nova palavra-passe</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Nova senha</h1>
               <p className="mt-1.5 text-sm text-black/50">
-                Escolhe a nova palavra-passe da conta {session.user.email}.
+                Escolha a nova senha da conta {session.user.email}.
               </p>
             </div>
             <form onSubmit={submit} className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-xl shadow-black/[0.04]">
               <div>
                 <label htmlFor="nova-pass" className="mb-1.5 block text-xs font-medium text-black/60">
-                  Nova palavra-passe
+                  Nova senha
                 </label>
                 <div className="relative">
                   <input
@@ -107,7 +107,7 @@ export default function RedefinirPage() {
               </div>
               <div>
                 <label htmlFor="conf-pass" className="mb-1.5 block text-xs font-medium text-black/60">
-                  Confirmar palavra-passe
+                  Confirmar senha
                 </label>
                 <input
                   id="conf-pass"
@@ -125,7 +125,7 @@ export default function RedefinirPage() {
                 disabled={loading}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-brand/40 disabled:opacity-50"
               >
-                {loading ? "A guardar…" : "Redefinir palavra-passe"}
+                {loading ? "Salvando…" : "Redefinir senha"}
               </button>
               {erro && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{erro}</p>}
             </form>

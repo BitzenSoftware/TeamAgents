@@ -28,12 +28,12 @@ const AGENTES = [
   {
     icon: <Mail size={15} className="text-sky-300" />,
     nome: "Agente Executivo",
-    acao: "resume o teu email e extrai as ações",
+    acao: "resume seu email e extrai as ações",
   },
   {
     icon: <BarChart3 size={15} className="text-amber-300" />,
     nome: "Agente Diretor de BI",
-    acao: "relatórios estratégicos no teu WhatsApp",
+    acao: "relatórios estratégicos no seu WhatsApp",
   },
 ];
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
           redirectTo: `${window.location.origin}/redefinir`,
         });
         if (error) throw error;
-        setInfo("Enviámos um link de recuperação para o teu email. Abre-o para redefinir a palavra-passe.");
+        setInfo("Enviamos um link de recuperação para o seu email. Abra-o para redefinir a senha.");
       } catch (err) {
         setErro(err instanceof Error ? err.message : "Não foi possível enviar o email.");
       } finally {
@@ -68,11 +68,11 @@ export default function LoginPage() {
     }
     if (modo === "criar") {
       if (password.length < 6) {
-        setErro("A palavra-passe deve ter pelo menos 6 caracteres.");
+        setErro("A senha deve ter pelo menos 6 caracteres.");
         return;
       }
       if (password !== confirmar) {
-        setErro("As palavras-passe não coincidem.");
+        setErro("As senhas não coincidem.");
         return;
       }
     }
@@ -86,7 +86,7 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
-          setInfo("Conta criada. Confirma o email para entrar (ou desativa a confirmação no Supabase).");
+          setInfo("Conta criada. Confirme o email para entrar (ou desative a confirmação no Supabase).");
         }
       }
     } catch (err) {
@@ -122,14 +122,14 @@ export default function LoginPage() {
             Agentes de IA com modelos Claude, da Anthropic
           </div>
           <h1 className="lg-anim lg-up mb-3 text-3xl font-bold leading-[1.15] tracking-tight [animation-delay:.08s] xl:text-4xl">
-            A tua equipa de IA
+            Sua equipe de IA
             <br />
             <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-              está à tua espera.
+              está esperando por você.
             </span>
           </h1>
           <p className="lg-anim lg-up mb-8 max-w-sm text-sm leading-relaxed text-white/50 [animation-delay:.16s]">
-            Entra para acompanhar os teus leads, campanhas, emails e relatórios — os agentes
+            Entre para acompanhar seus leads, campanhas, emails e relatórios — os agentes
             nunca pararam de trabalhar.
           </p>
 
@@ -161,7 +161,7 @@ export default function LoginPage() {
             Dados isolados por empresa
           </span>
           <span>·</span>
-          <span>A trabalhar 24/7 pelo teu negócio</span>
+          <span>Trabalhando 24/7 pelo seu negócio</span>
         </div>
       </aside>
 
@@ -178,14 +178,14 @@ export default function LoginPage() {
 
           <div className="mb-7">
             <h2 className="text-2xl font-bold tracking-tight">
-              {modo === "entrar" ? "Bem-vindo de volta" : modo === "criar" ? "Cria a tua conta" : "Recuperar acesso"}
+              {modo === "entrar" ? "Bem-vindo de volta" : modo === "criar" ? "Crie sua conta" : "Recuperar acesso"}
             </h2>
             <p className="mt-1.5 text-sm text-black/50">
               {modo === "entrar"
-                ? "Entra no painel para veres os teus agentes a trabalhar."
+                ? "Entre no painel para ver seus agentes trabalhando."
                 : modo === "criar"
-                  ? "Em minutos tens uma equipa de IA a trabalhar por ti."
-                  : "Diz-nos o teu email e enviamos-te um link para redefinires a palavra-passe."}
+                  ? "Em minutos você tem uma equipe de IA trabalhando por você."
+                  : "Informe seu email e enviamos um link para redefinir a senha."}
             </p>
           </div>
 
@@ -210,7 +210,7 @@ export default function LoginPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="login-password" className="block text-xs font-medium text-black/60">
-                  Palavra-passe
+                  Senha
                 </label>
                 {modo === "entrar" && (
                   <button
@@ -218,7 +218,7 @@ export default function LoginPage() {
                     onClick={() => { setModo("recuperar"); setErro(null); setInfo(null); }}
                     className="text-xs font-medium text-brand hover:underline"
                   >
-                    Esqueceste-te?
+                    Esqueceu a senha?
                   </button>
                 )}
               </div>
@@ -247,7 +247,7 @@ export default function LoginPage() {
             {modo === "criar" && (
               <div>
                 <label htmlFor="login-confirmar" className="mb-1.5 block text-xs font-medium text-black/60">
-                  Confirmar palavra-passe
+                  Confirmar senha
                 </label>
                 <input
                   id="login-confirmar"
@@ -273,7 +273,7 @@ export default function LoginPage() {
                   ? "Entrar no painel"
                   : modo === "criar"
                     ? "Criar conta grátis"
-                    : "Enviar link de recuperação"}
+                    : "Enviar link de redefinição"}
               {!loading && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
             </button>
 
@@ -284,14 +284,14 @@ export default function LoginPage() {
           <div className="mt-5 text-center text-sm text-black/50">
             {modo === "entrar" ? (
               <>
-                Ainda não tens conta?{" "}
+                Ainda não tem conta?{" "}
                 <button type="button" onClick={() => setModo("criar")} className="font-semibold text-brand hover:underline">
                   Criar conta
                 </button>
               </>
             ) : (
               <>
-                {modo === "recuperar" ? "Lembraste-te da palavra-passe?" : "Já tens conta?"}{" "}
+                {modo === "recuperar" ? "Lembrou a senha?" : "Já tem conta?"}{" "}
                 <button type="button" onClick={() => { setModo("entrar"); setErro(null); setInfo(null); }} className="font-semibold text-brand hover:underline">
                   Entrar
                 </button>
