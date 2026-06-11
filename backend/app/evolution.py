@@ -21,6 +21,7 @@ Descartamos:
 Z-API / Z-PRO usam um shape diferente; criar um parser análogo se mudares de provider.
 """
 import secrets
+import time
 
 import httpx
 
@@ -55,10 +56,10 @@ def _h(key: str) -> dict:
 
 
 def _qr_de(j: dict) -> str | None:
-    """Extrai o base64 do QR de respostas em formatos variados da Evolution."""
+    """Extrai a IMAGEM base64 do QR (ignora o payload cru tipo "2@..." do campo code)."""
     if not isinstance(j, dict):
         return None
-    for caminho in (("qrcode", "base64"), ("base64",), ("qrcode", "code"), ("code",), ("qrcode",)):
+    for caminho in (("qrcode", "base64"), ("base64",)):
         cur: object = j
         for k in caminho:
             cur = cur.get(k) if isinstance(cur, dict) else None
@@ -136,18 +137,24 @@ def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None) -> di
                 except Exception:
                     pass
 
-        # 4) Se ainda sem QR, tenta o connect.
+        # 4) Se ainda sem QR, faz polling do connect: o Baileys demora 1–5s a
+        #    inicializar o socket — até lá o connect devolve {"count":0}.
         if not qr:
-            try:
-                rc = c.get(f"{base}/instance/connect/{inst}", headers=_h(key))
-                if rc.status_code < 300:
-                    qr = _qr_de(rc.json())
-                    if not qr:
-                        erros.append(f"connect sem QR: {rc.text[:300]}")
-                else:
-                    erros.append(f"connect HTTP {rc.status_code}: {rc.text[:200]}")
-            except Exception as e:
-                erros.append(f"connect: {e}")
+            ultimo = ""
+            for tentativa in range(8):
+                if tentativa:
+                    time.sleep(1.5)
+                try:
+                    rc = c.get(f"{base}/instance/connect/{inst}", headers=_h(key))
+                    ultimo = f"connect HTTP {rc.status_code}: {rc.text[:300]}"
+                    if rc.status_code < 300:
+                        qr = _qr_de(rc.json())
+                        if qr:
+                            break
+                except Exception as e:
+                    ultimo = f"connect: {e}"
+            if not qr and ultimo:
+                erros.append(ultimo)
 
     if not qr:
         detalhe = "; ".join(erros) if erros else "sem resposta utilizável do servidor Evolution"
