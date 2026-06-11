@@ -43,7 +43,7 @@ export default function PipelinePage() {
           onClick={carregar}
           className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5"
         >
-          {loading ? "A atualizar…" : "Atualizar"}
+          {loading ? "Atualizando…" : "Atualizar"}
         </button>
       </header>
 
@@ -132,7 +132,7 @@ function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) 
           )}
         </header>
         <div className="flex-1 space-y-3 overflow-auto p-4">
-          {loading && <p className="text-sm text-black/40">A carregar conversa…</p>}
+          {loading && <p className="text-sm text-black/40">Carregando conversa…</p>}
           {!loading && msgs.length === 0 && (
             <p className="text-sm text-black/40">Sem mensagens ainda.</p>
           )}

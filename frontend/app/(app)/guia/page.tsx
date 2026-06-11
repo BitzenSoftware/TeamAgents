@@ -18,7 +18,7 @@ export default function GuiaPage() {
   return (
     <div className="max-w-5xl p-6 pb-16">
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Guia do Utilizador</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Guia do Usuário</h1>
         <p className="mt-1 text-sm text-black/50">
           Como o TeamAgents trabalha por si — em linguagem simples.
         </p>
@@ -55,7 +55,7 @@ function Geral() {
     <div className="space-y-8">
       <Section title="A ideia em uma frase">
         <p className="text-[15px] leading-relaxed">
-          O TeamAgents é uma <strong>equipa comercial virtual</strong> que trabalha 24h por dia: cria
+          O TeamAgents é uma <strong>equipe comercial virtual</strong> que trabalha 24h por dia: cria
           os anúncios, atende e qualifica quem responde no WhatsApp, agenda as reuniões e ainda lhe
           entrega um relatório estratégico todas as semanas.
         </p>
@@ -67,7 +67,7 @@ function Geral() {
             { n: "1", t: "Anúncio", d: "Atrai pessoas interessadas" },
             { n: "2", t: "WhatsApp", d: "A pessoa responde" },
             { n: "3", t: "Qualificação", d: "O vendedor conversa e agenda" },
-            { n: "4", t: "Relatório", d: "Vê o resultado da semana" },
+            { n: "4", t: "Relatório", d: "Veja o resultado da semana" },
           ].map((s) => (
             <div key={s.n} className="rounded-xl border border-black/10 bg-white p-4">
               <div className="mb-2 grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-semibold text-white">
@@ -87,8 +87,8 @@ function Geral() {
           </p>
           <ol className="space-y-2 text-sm">
             {[
-              "Cria a campanha → o sistema gera uma palavra-chave (ex: DESBUROCRATIZAR)",
-              "Põe essa palavra no seu anúncio",
+              "Crie a campanha → o sistema gera uma palavra-chave (ex: DESBUROCRATIZAR)",
+              "Coloque essa palavra no seu anúncio",
               'Quem responder "vi sobre DESBUROCRATIZAR" é ligado automaticamente à campanha',
               "O vendedor já sabe a dor da pessoa e conversa à medida",
               "Você acompanha no Pipeline e o resultado entra no relatório semanal",
@@ -100,7 +100,7 @@ function Geral() {
             ))}
           </ol>
           <p className="mt-4 rounded-lg bg-white p-3 text-sm text-black/70">
-            Tudo <strong>automático</strong> — depois de criar a campanha, não precisa de mexer um
+            Tudo <strong>automático</strong> — depois de criar a campanha, não precisa mexer um
             dedo.
           </p>
         </div>
@@ -140,7 +140,7 @@ function Campanhas() {
   return (
     <ModuleTab icon="📣" title="Campanhas" subtitle="A fábrica de anúncios" tag="O seu redator publicitário">
       <p>
-        Escreve o <strong>nicho</strong> do seu cliente e a <strong>dor</strong> que ele tem. Em
+        Escreva o <strong>nicho</strong> do seu cliente e a <strong>dor</strong> que ele tem. Em
         segundos, o sistema gera <strong>2 versões de anúncio</strong> prontas para o Meta/Google Ads.
       </p>
       <Lista
@@ -153,12 +153,12 @@ function Campanhas() {
       />
       <p>
         Pode ainda <strong>publicar cada anúncio diretamente</strong> no Facebook, Instagram ou Discord
-        — escolhe as redes por baixo de cada versão e clica em <strong>Postar</strong> (basta ter as
-        contas ligadas em Configurações).
+        — escolha as redes abaixo de cada versão e clique em <strong>Postar</strong> (basta ter as
+        contas conectadas em Configurações).
       </p>
       <Nota>
         Pode escolher quais <strong>Habilidades</strong> (conhecimento da empresa) entram na geração —
-        usa menos tokens e foca o anúncio. Todas as campanhas ficam guardadas e podem ser editadas ou
+        usa menos tokens e foca o anúncio. Todas as campanhas ficam salvas e podem ser editadas ou
         apagadas.
       </Nota>
     </ModuleTab>
@@ -175,11 +175,11 @@ function Pipeline() {
       </p>
       <div className="mt-4 space-y-2">
         <Fase cor="bg-slate-100 text-slate-700" nome="Frio" desc="acabou de chegar, ainda não interagiu" />
-        <Fase cor="bg-amber-100 text-amber-800" nome="Em andamento" desc="o vendedor está a conversar e a qualificar" />
+        <Fase cor="bg-amber-100 text-amber-800" nome="Em andamento" desc="o vendedor está conversando e qualificando" />
         <Fase cor="bg-emerald-100 text-emerald-800" nome="Qualificado" desc="tem perfil, reunião proposta/agendada" />
         <Fase cor="bg-rose-100 text-rose-700" nome="Desqualificado" desc="não tem perfil para a sua oferta" />
       </div>
-      <Nota>Os leads movem-se entre as colunas sozinhos, à medida que o vendedor avança a conversa.</Nota>
+      <Nota>Os leads se movem entre as colunas sozinhos, à medida que o vendedor avança a conversa.</Nota>
     </ModuleTab>
   );
 }
@@ -189,15 +189,15 @@ function Consultoria() {
   return (
     <ModuleTab icon="🧠" title="Consultoria" subtitle="O relatório do diretor" tag="O seu consultor de negócio">
       <p>
-        Todas as semanas o sistema analisa os resultados e <strong>envia-lhe um relatório no
-        WhatsApp</strong> (e mostra-o aqui no painel). Cada relatório traz:
+        Todas as semanas o sistema analisa os resultados e <strong>envia um relatório para você no
+        WhatsApp</strong> (e mostra aqui no painel). Cada relatório traz:
       </p>
       <Lista
         itens={[
           "Quantos leads entraram na semana",
           "Quantos foram engajados e quantos viraram reunião",
           "Quanto custou cada reunião agendada",
-          "Uma análise estratégica: o que está a funcionar e o que ajustar na próxima semana",
+          "Uma análise estratégica: o que está funcionando e o que ajustar na próxima semana",
         ]}
       />
       <Nota>Você acorda na segunda-feira com a consultoria pronta — sem mexer um dedo.</Nota>
@@ -209,7 +209,7 @@ function Consultoria() {
 function Configuracoes() {
   return (
     <ModuleTab icon="⚙️" title="Configurações" subtitle="Onde liga tudo ao seu negócio" tag="A tomada que liga tudo à corrente">
-      <p>É aqui que liga o sistema ao seu negócio real, organizado em separadores:</p>
+      <p>É aqui que você conecta o sistema ao seu negócio real, organizado em abas:</p>
 
       <p className="font-semibold text-black/90">📱 WhatsApp — Evolution API / Agenda</p>
       <Lista
@@ -223,8 +223,8 @@ function Configuracoes() {
       <p className="font-semibold text-black/90">🔵 Facebook & Instagram — publicação automática</p>
       <Lista
         itens={[
-          'Clica em "Ligar com Facebook" e autoriza — os tokens são guardados automaticamente, sem configuração manual',
-          "Liga a Página do Facebook e a conta Instagram Business associada num só passo",
+          'Clique em "Ligar com Facebook" e autorize — os tokens são salvos automaticamente, sem configuração manual',
+          "Conecte a Página do Facebook e a conta Instagram Business associada em um só passo",
           "Depois, publica os anúncios da Fábrica de Campanhas diretamente no Facebook e Instagram",
           "Existe também configuração manual (Page ID + Token) e botões de teste, para casos avançados",
         ]}
@@ -234,22 +234,22 @@ function Configuracoes() {
       <p className="font-semibold text-black/90">📧 Email (Gmail) — Agente Executivo</p>
       <Lista
         itens={[
-          'Clica em "Ligar Gmail" e autoriza — acesso só de leitura, os tokens ficam guardados de forma segura',
-          "No menu Agente Executivo crias tarefas (ex.: ler emails de um remetente) e ele resume — prioridades, ações e decisões",
-          "Cada empresa liga a sua própria caixa; os dados ficam isolados por empresa",
+          'Clique em "Ligar Gmail" e autorize — acesso só de leitura, os tokens ficam salvos de forma segura',
+          "No menu Agente Executivo você cria tarefas (ex.: ler emails de um remetente) e ele resume — prioridades, ações e decisões",
+          "Cada empresa conecta a sua própria caixa; os dados ficam isolados por empresa",
         ]}
       />
       <Nota>
-        O agente lê só o que as tuas tarefas pedem (não a caixa inteira) — poupa tokens. Podes ainda
-        marcar uma tarefa como “diária” para correr sozinha todos os dias.
+        O agente lê só o que as suas tarefas pedem (não a caixa inteira) — economiza tokens. Você pode
+        ainda marcar uma tarefa como “diária” para rodar sozinha todos os dias.
       </Nota>
 
       <p className="font-semibold text-black/90">💬 Discord — notificações e relatórios</p>
       <Lista
         itens={[
-          "Cola o Webhook URL de um canal do teu servidor Discord",
-          "Usa o botão de teste para confirmar a ligação",
-          "As notificações e relatórios do Diretor de BI passam a chegar também ao teu Discord",
+          "Cole o Webhook URL de um canal do seu servidor Discord",
+          "Use o botão de teste para confirmar a conexão",
+          "As notificações e relatórios do Diretor de BI passam a chegar também ao seu Discord",
         ]}
       />
 

@@ -21,7 +21,7 @@ export default function AssinaturaPage() {
     api.pacotesAtivos().then(setPacotes).catch(() => {});
     // Banner de retorno do Checkout/compra
     const q = new URLSearchParams(window.location.search);
-    if (q.get("assinatura") === "sucesso") setAviso("Assinatura concluída! Pode demorar uns segundos a refletir.");
+    if (q.get("assinatura") === "sucesso") setAviso("Assinatura concluída! Pode demorar alguns segundos para refletir.");
     else if (q.get("compra") === "sucesso") setAviso("Compra concluída! Os créditos entram em instantes.");
     else if (q.get("assinatura") === "cancelado" || q.get("compra") === "cancelado") setAviso("Operação cancelada — nada foi cobrado.");
   }, [recarregarConsumo]);
@@ -73,7 +73,7 @@ export default function AssinaturaPage() {
   }
 
   async function cancelar() {
-    if (!confirm("Cancelar a assinatura? Mantens o acesso até ao fim do período já pago; depois não renova.")) return;
+    if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago; depois não renova.")) return;
     setErro(null);
     setBusy("cancel");
     try {
@@ -113,15 +113,15 @@ export default function AssinaturaPage() {
       <header className="mb-5">
         <h1 className="text-xl font-semibold">Assinatura</h1>
         <p className="mt-1 text-sm text-black/50">
-          Faz upgrade/downgrade do teu plano e compra pacotes de créditos avulsos.
+          Faça upgrade/downgrade do seu plano e compre pacotes de créditos avulsos.
         </p>
       </header>
 
       {consumo?.pagamento_em_falha && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
           <span className="text-sm text-rose-800">
-            <strong>O último pagamento falhou.</strong> Verifica o teu método de pagamento e tenta novamente
-            para não perderes o acesso aos agentes.
+            <strong>O último pagamento falhou.</strong> Verifique o seu método de pagamento e tente novamente
+            para não perder o acesso aos agentes.
           </span>
           {consumo.tem_assinatura && (
             <button
@@ -130,15 +130,15 @@ export default function AssinaturaPage() {
               disabled={busy === "portal"}
               className="shrink-0 rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {busy === "portal" ? "A abrir…" : "Atualizar pagamento"}
+              {busy === "portal" ? "Abrindo…" : "Atualizar pagamento"}
             </button>
           )}
         </div>
       )}
       {consumo && !consumo.pagamento_em_falha && consumo.sem_plano && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <strong>Ainda não tens um plano ativo.</strong> Escolhe um plano abaixo e conclui o pagamento —
-          os créditos são libertados assim que o pagamento for confirmado.
+          <strong>Ainda não tem um plano ativo.</strong> Escolha um plano abaixo e conclua o pagamento —
+          os créditos são liberados assim que o pagamento for confirmado.
         </p>
       )}
       {aviso && (
@@ -170,7 +170,7 @@ export default function AssinaturaPage() {
                     disabled={busy === "react"}
                     className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-brand hover:bg-white/90 disabled:opacity-50"
                   >
-                    {busy === "react" ? "A reativar…" : "Reativar assinatura"}
+                    {busy === "react" ? "Reativando…" : "Reativar assinatura"}
                   </button>
                 </>
               ) : (
@@ -180,7 +180,7 @@ export default function AssinaturaPage() {
                   disabled={busy === "cancel"}
                   className="rounded-lg bg-rose-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
                 >
-                  {busy === "cancel" ? "A cancelar…" : "Cancelar assinatura"}
+                  {busy === "cancel" ? "Cancelando…" : "Cancelar assinatura"}
                 </button>
               )}
             </div>
@@ -231,7 +231,7 @@ export default function AssinaturaPage() {
                       disabled={bloq || busy === `plano-${p.id}`}
                       className={`mt-3 rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:opacity-40 ${cor}`}
                     >
-                      {busy === `plano-${p.id}` ? "A processar…" : r.label}
+                      {busy === `plano-${p.id}` ? "Processando…" : r.label}
                     </button>
                   </div>
                 );
@@ -272,7 +272,7 @@ export default function AssinaturaPage() {
                       title={semStripe ? "Pacote ainda não disponível para compra." : undefined}
                       className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                     >
-                      {busy === `pac-${p.id}` ? "A abrir…" : semStripe ? "Indisponível" : "Comprar"}
+                      {busy === `pac-${p.id}` ? "Abrindo…" : semStripe ? "Indisponível" : "Comprar"}
                     </button>
                   </div>
                 );

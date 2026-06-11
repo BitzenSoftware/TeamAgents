@@ -29,7 +29,7 @@ import {
 
 const STATS = [
   { valor: "4", rotulo: "agentes especializados" },
-  { valor: "24/7", rotulo: "a trabalhar pelo teu negócio" },
+  { valor: "24/7", rotulo: "trabalhando pelo seu negócio" },
   { valor: "< 2 min", rotulo: "para responder a um lead" },
   { valor: "6+", rotulo: "integrações nativas" },
 ];
@@ -37,29 +37,29 @@ const STATS = [
 const MARQUEE = [
   "Anúncios prontos em segundos",
   "Leads qualificados no WhatsApp",
-  "Resumo executivo do teu email",
+  "Resumo executivo do seu email",
   "Relatórios direto no WhatsApp",
   "Tarefas automáticas com hora e fuso",
   "Créditos avulsos que nunca expiram",
-  "Habilidades com o conhecimento da tua empresa",
+  "Habilidades com o conhecimento da sua empresa",
   "Powered by Claude (Anthropic)",
 ];
 
 const PASSOS = [
   {
     n: "1",
-    titulo: "Cria a conta e liga os canais",
-    desc: "WhatsApp, Gmail, Facebook, Instagram e Discord — cada um em poucos cliques, com ligação guiada.",
+    titulo: "Crie a conta e conecte os canais",
+    desc: "WhatsApp, Gmail, Facebook, Instagram e Discord — cada um em poucos cliques, com conexão guiada.",
   },
   {
     n: "2",
     titulo: "Ensina os agentes",
-    desc: "Cadastra Habilidades — tom de voz, produto, objeções — e atribui a cada agente só o que ele precisa de saber.",
+    desc: "Cadastre Habilidades — tom de voz, produto, objeções — e atribua a cada agente só o que ele precisa saber.",
   },
   {
     n: "3",
-    titulo: "Deixa a equipa trabalhar",
-    desc: "Anúncios gerados, leads qualificados, email resumido e relatórios entregues — enquanto acompanhas tudo no painel.",
+    titulo: "Deixe a equipe trabalhar",
+    desc: "Anúncios gerados, leads qualificados, email resumido e relatórios entregues — enquanto você acompanha tudo no painel.",
   },
 ];
 
@@ -88,7 +88,7 @@ const PLANO_COPY: Record<string, { para: string; extras: string[] }> = {
     extras: ["≈ 500 respostas do SDR", "≈ 80 campanhas de anúncios", "Upgrade a qualquer momento"],
   },
   Pro: {
-    para: "Para operação comercial a sério",
+    para: "Para operação comercial de verdade",
     extras: ["≈ 2.000 respostas do SDR", "≈ 330 campanhas de anúncios", "Melhor custo por crédito p/ crescer"],
   },
   Scale: {
@@ -111,27 +111,27 @@ function formatarPreco(v: number): string {
 const FAQ = [
   {
     q: "O que é um crédito?",
-    a: "É a unidade de trabalho dos agentes. Uma resposta do SDR no WhatsApp custa 1 crédito; uma campanha completa de anúncios ≈ 6; um relatório do Diretor de BI ≈ 12; uma síntese de emails do Agente Executivo a partir de 10. A cobrança acompanha o custo real de IA de cada operação — pagas pelo que os agentes realmente fazem.",
+    a: "É a unidade de trabalho dos agentes. Uma resposta do SDR no WhatsApp custa 1 crédito; uma campanha completa de anúncios ≈ 6; um relatório do Diretor de BI ≈ 12; uma síntese de emails do Agente Executivo a partir de 10. A cobrança acompanha o custo real de IA de cada operação — você paga pelo que os agentes realmente fazem.",
   },
   {
     q: "Os créditos do plano acabaram. E agora?",
-    a: "Compras um pacote avulso dentro da app — pagamento único via Stripe. Os créditos avulsos somam ao teu saldo, nunca expiram e só são usados depois de esgotar a mensalidade do plano.",
+    a: "Você compra um pacote avulso dentro da app — pagamento único via Stripe. Os créditos avulsos somam ao seu saldo, nunca expiram e só são usados depois de esgotar a mensalidade do plano.",
   },
   {
     q: "Todos os planos têm os 4 agentes?",
     a: "Sim. Todos os planos incluem os 4 agentes, todas as integrações, as Habilidades e os dashboards. A única diferença entre planos é a quantidade de créditos mensais.",
   },
   {
-    q: "Como funciona a ligação ao WhatsApp?",
-    a: "Ligas a tua instância (Evolution API) nas Configurações e o Agente SDR começa a responder e a qualificar leads de imediato, em conversa natural. O Diretor de BI usa o mesmo canal para te entregar os relatórios.",
+    q: "Como funciona a conexão ao WhatsApp?",
+    a: "Você conecta a sua instância (Evolution API) nas Configurações e o Agente SDR começa a responder e qualificar leads de imediato, em conversa natural. O Diretor de BI usa o mesmo canal para te entregar os relatórios.",
   },
   {
     q: "Os agentes falam a língua do meu cliente?",
-    a: "Sim — conversam em português naturalmente e adaptam o tom com as Habilidades que cadastrares (tom de voz, produto, objeções frequentes, políticas da empresa).",
+    a: "Sim — conversam em português naturalmente e adaptam o tom com as Habilidades que você cadastrar (tom de voz, produto, objeções frequentes, políticas da empresa).",
   },
   {
     q: "Posso cancelar quando quiser?",
-    a: "Sim, com um clique dentro da própria app — sem emails, sem retenção forçada. Manténs o acesso até ao fim do período já pago e podes reativar quando quiseres.",
+    a: "Sim, com um clique dentro da própria app — sem emails, sem retenção forçada. Você mantém o acesso até o fim do período já pago e pode reativar quando quiser.",
   },
 ];
 
@@ -210,17 +210,17 @@ export default function LandingPage() {
             </div>
 
             <h1 className="lp-anim lp-up mb-6 text-4xl font-bold leading-[1.08] tracking-tight [animation-delay:.08s] md:text-6xl">
-              Não contrates mais um software.
+              Não contrate mais um software.
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-                Contrata uma equipa de IA.
+                Contrate uma equipe de IA.
               </span>
             </h1>
 
             <p className="lp-anim lp-up mb-9 max-w-xl text-lg leading-relaxed text-white/60 [animation-delay:.16s]">
-              Quatro agentes especializados criam os teus anúncios, qualificam leads no WhatsApp,
-              leem o teu email e entregam relatórios estratégicos — <strong className="text-white/85">24 horas por dia</strong>,
-              enquanto tu geres o negócio.
+              Quatro agentes especializados criam os seus anúncios, qualificam leads no WhatsApp,
+              leem o seu email e entregam relatórios estratégicos — <strong className="text-white/85">24 horas por dia</strong>,
+              enquanto você cuida do negócio.
             </p>
 
             <div className="lp-anim lp-up flex flex-col gap-3 [animation-delay:.24s] sm:flex-row">
@@ -228,7 +228,7 @@ export default function LandingPage() {
                 href="/login"
                 className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-7 py-3.5 text-sm font-semibold shadow-lg shadow-brand/30 transition hover:shadow-brand/50"
               >
-                Montar a minha equipa
+                Montar a minha equipe
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
@@ -275,14 +275,14 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <span className="mb-3 inline-block rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-              A tua equipa
+              A sua equipe
             </span>
             <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
               Quatro agentes. Cada um, um especialista.
             </h2>
             <p className="mx-auto max-w-2xl text-black/50">
               Do anúncio à reunião, do email ao relatório — cada agente domina a sua função e trabalha
-              em conjunto com os outros. Vê o que cada um entrega:
+              em conjunto com os outros. Veja o que cada um entrega:
             </p>
           </div>
 
@@ -293,12 +293,12 @@ export default function LandingPage() {
               tag="WhatsApp · Comercial"
               tagCor="bg-emerald-100 text-emerald-700"
               nome="Agente SDR"
-              desc="Responde a cada lead em segundos, qualifica em conversa natural, contorna objeções e agenda a reunião com o teu consultor — ou transfere para humano quando faz sentido."
+              desc="Responde a cada lead em segundos, qualifica em conversa natural, contorna objeções e agenda a reunião com o seu consultor — ou transfere para humano quando faz sentido."
               checks={["Qualificação automática 24/7", "Agendamento direto na agenda", "Histórico completo por lead"]}
             >
               <div className="space-y-2 text-xs">
                 <ChatBubble lado="lead" delay=".2s">Vi o anúncio sobre gestão de tráfego. Como funciona?</ChatBubble>
-                <ChatBubble lado="agente" delay=".7s">Boa, Mariana! 👋 Para te orientar melhor: quanto investes por mês em anúncios?</ChatBubble>
+                <ChatBubble lado="agente" delay=".7s">Boa, Mariana! 👋 Para te orientar melhor: quanto você investe por mês em anúncios?</ChatBubble>
                 <ChatBubble lado="lead" delay="1.2s">Uns R$ 3.000</ChatBubble>
                 <ChatBubble lado="agente" delay="1.7s">Perfeito. Tenho quinta às 10h livre com o nosso consultor — confirmo?</ChatBubble>
                 <div className="lp-anim lp-up flex items-center gap-1.5 pt-1 text-[11px] font-semibold text-emerald-700 [animation-delay:2.2s]">
@@ -314,16 +314,16 @@ export default function LandingPage() {
               tag="Anúncios · Meta & Google"
               tagCor="bg-violet-100 text-violet-700"
               nome="Agente de Copywriting"
-              desc="Dás o nicho e a dor do cliente; ele devolve duas variações de anúncio de alta conversão — com gatilho psicológico, dor e desejo mapeados e a palavra-chave que liga o anúncio ao WhatsApp."
-              checks={["2 variações prontas a publicar", "Publica no Facebook, Instagram e Discord", "Usa as Habilidades da tua marca"]}
+              desc="Você dá o nicho e a dor do cliente; ele devolve duas variações de anúncio de alta conversão — com gatilho psicológico, dor e desejo mapeados e a palavra-chave que liga o anúncio ao WhatsApp."
+              checks={["2 variações prontas para publicar", "Publica no Facebook, Instagram e Discord", "Usa as Habilidades da sua marca"]}
             >
               <div className="rounded-lg border border-violet-200 bg-white p-3.5">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-500">Anúncio A — Dor</div>
                 <p className="text-sm font-semibold leading-snug">
-                  “Ainda perdes clientes porque demoras horas a responder no WhatsApp?”
+                  “Ainda perde clientes porque demora horas para responder no WhatsApp?”
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-black/55">
-                  Enquanto lês isto, um lead acabou de desistir. Automatiza a resposta e nunca mais percas
+                  Enquanto você lê isto, um lead acabou de desistir. Automatize a resposta e nunca mais perca
                   uma venda por demora. 👇
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-medium">
@@ -340,8 +340,8 @@ export default function LandingPage() {
               tag="Email & Atas · Novo"
               tagCor="bg-sky-100 text-sky-700"
               nome="Agente Executivo"
-              desc="Liga o teu Gmail e define tarefas dirigidas — “lê os emails do fornecedor X e resume”. Ele lê só o que pedes, processa em paralelo e devolve prioridades, ações e decisões. Também resume atas de reunião."
-              checks={["Tarefas com frequência, hora e fuso", "Orquestrador + workers em paralelo", "Só lê o que mandares — poupa tokens"]}
+              desc="Conecte o seu Gmail e defina tarefas dirigidas — “lê os emails do fornecedor X e resume”. Ele lê só o que você pede, processa em paralelo e devolve prioridades, ações e decisões. Também resume atas de reunião."
+              checks={["Tarefas com frequência, hora e fuso", "Orquestrador + workers em paralelo", "Só lê o que você mandar — economiza tokens"]}
             >
               <div className="rounded-lg border border-sky-200 bg-white p-3.5 text-xs">
                 <div className="mb-2 flex items-center justify-between">
@@ -363,7 +363,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="mt-2.5 border-t border-black/5 pt-2 text-[10px] text-black/45">
-                  3 ações extraídas · 1 decisão · processado às 07:00 no teu fuso
+                  3 ações extraídas · 1 decisão · processado às 07:00 no seu fuso
                 </div>
               </div>
             </AgentCard>
@@ -445,17 +445,17 @@ export default function LandingPage() {
             <TechCard
               icon={<Calendar size={18} className="text-emerald-300" />}
               titulo="Agenda como um humano"
-              desc="Tarefas diárias, semanais, quinzenais, mensais, trimestrais ou semestrais — no dia, hora e fuso horário que escolheres."
+              desc="Tarefas diárias, semanais, quinzenais, mensais, trimestrais ou semestrais — no dia, hora e fuso horário que você escolher."
             />
             <TechCard
               icon={<Wallet size={18} className="text-amber-300" />}
               titulo="Custo auditado por token"
-              desc="Cada operação regista os tokens e o custo real do modelo usado. Vês exatamente onde cada crédito foi gasto."
+              desc="Cada operação registra os tokens e o custo real do modelo usado. Você vê exatamente onde cada crédito foi gasto."
             />
             <TechCard
               icon={<Shield size={18} className="text-sky-300" />}
               titulo="Isolamento por empresa"
-              desc="Os teus dados, tokens e ligações ficam isolados por empresa, com autenticação em todas as operações."
+              desc="Os seus dados, tokens e conexões ficam isolados por empresa, com autenticação em todas as operações."
             />
           </div>
         </div>
@@ -470,19 +470,19 @@ export default function LandingPage() {
             </span>
             <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
               Agentes que conhecem
-              <br />o <span className="text-brand">teu</span> negócio.
+              <br />o <span className="text-brand">seu</span> negócio.
             </h2>
             <p className="mb-6 leading-relaxed text-black/55">
-              IA genérica dá respostas genéricas. No TeamAgents, cadastras <strong>Habilidades</strong> —
-              o tom de voz da marca, o teu produto, as objeções frequentes, as políticas da empresa — e
-              atribuis a cada agente apenas o conhecimento que ele precisa.
+              IA genérica dá respostas genéricas. No TeamAgents, você cadastra <strong>Habilidades</strong> —
+              o tom de voz da marca, o seu produto, as objeções frequentes, as políticas da empresa — e
+              atribui a cada agente apenas o conhecimento que ele precisa.
             </p>
             <ul className="space-y-3 text-sm">
               {[
-                "O SDR responde com o teu tom e os teus argumentos de venda",
-                "O Copywriting escreve como a tua marca escreve",
-                "O Executivo extrai exatamente a informação que pediste",
-                "Atualizas uma vez — todos os agentes acompanham",
+                "O SDR responde com o seu tom e os seus argumentos de venda",
+                "O Copywriting escreve como a sua marca escreve",
+                "O Executivo extrai exatamente a informação que você pediu",
+                "Você atualiza uma vez — todos os agentes acompanham",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2.5">
                   <Check size={16} className="mt-0.5 shrink-0 text-brand" />
@@ -494,7 +494,7 @@ export default function LandingPage() {
 
           <div className="space-y-3">
             {[
-              { titulo: "Tom de voz da marca", agente: "Global", cor: "bg-black/5 text-black/60", linhas: "Próximo, direto, sem jargão corporativo. Tratamos o cliente por “tu”…" },
+              { titulo: "Tom de voz da marca", agente: "Global", cor: "bg-black/5 text-black/60", linhas: "Próximo, direto, sem jargão corporativo. Tratamos o cliente por “você”…" },
               { titulo: "Tabela de preços + objeções", agente: "Agente SDR", cor: "bg-emerald-100 text-emerald-700", linhas: "Plano mensal R$ 1.500. Se o lead achar caro, mostrar o custo de não agir…" },
               { titulo: "O que destacar nos emails de fornecedores", agente: "Agente Executivo", cor: "bg-sky-100 text-sky-700", linhas: "Prazos de entrega, alterações de preço e pendências de pagamento…" },
             ].map((h, i) => (
@@ -507,7 +507,7 @@ export default function LandingPage() {
               </div>
             ))}
             <p className="pt-1 text-center text-[11px] text-black/35">
-              Exemplos de Habilidades — cadastras as tuas em minutos.
+              Exemplos de Habilidades — cadastre as suas em minutos.
             </p>
           </div>
         </div>
@@ -517,7 +517,7 @@ export default function LandingPage() {
       <section id="como-funciona" className="px-6 py-24">
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
-            <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">A trabalhar em minutos</h2>
+            <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">Funcionando em minutos</h2>
             <p className="text-black/50">Sem implementação, sem consultoria, sem semanas de onboarding.</p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -562,7 +562,7 @@ export default function LandingPage() {
             </span>
             <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
               Menos do que um estagiário.
-              <br />A produção de uma equipa.
+              <br />A produção de uma equipe.
             </h2>
             <p className="mx-auto max-w-2xl text-black/50">
               Todos os planos incluem os <strong>4 agentes</strong>, todas as integrações, Habilidades e
@@ -631,7 +631,7 @@ export default function LandingPage() {
 
           <p className="mt-6 text-center text-xs text-black/40">
             <Clock size={12} className="mr-1 inline" />
-            Cancela quando quiseres, com um clique, dentro da app. Sem fidelização.
+            Cancele quando quiser, com um clique, dentro da app. Sem fidelização.
           </p>
         </div>
       </section>
@@ -664,21 +664,21 @@ export default function LandingPage() {
         </div>
         <div className="relative mx-auto max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-5xl">
-            A tua concorrência ainda
-            <br />responde leads à mão.
+            A sua concorrência ainda
+            <br />responde leads na mão.
           </h2>
           <p className="mx-auto mb-9 max-w-lg text-white/55">
-            Monta a tua equipa de agentes hoje: liga o WhatsApp, cria a primeira campanha e vê a
-            primeira reunião a ser agendada sem ti.
+            Monte a sua equipe de agentes hoje: conecte o WhatsApp, crie a primeira campanha e veja a
+            primeira reunião ser agendada sem você.
           </p>
           <Link
             href="/login"
             className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-9 py-4 text-sm font-semibold shadow-lg shadow-brand/30 transition hover:shadow-brand/50"
           >
-            Montar a minha equipa de IA
+            Montar a minha equipe de IA
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
-          <p className="mt-4 text-xs text-white/35">A partir de R$ 179/mês · cancela quando quiseres</p>
+          <p className="mt-4 text-xs text-white/35">A partir de R$ 179/mês · cancele quando quiser</p>
         </div>
       </section>
 
@@ -729,7 +729,7 @@ export default function LandingPage() {
 /* ============================== Componentes ============================== */
 
 function HeroMedia() {
-  // Vídeo real do produto: basta adicionar o ficheiro frontend/public/demo.mp4
+  // Vídeo real do produto: basta adicionar o arquivo frontend/public/demo.mp4
   // ao repo e ele substitui automaticamente o mockup animado (que fica como
   // fallback enquanto o vídeo não existe ou não carrega).
   const [videoPronto, setVideoPronto] = useState(false);
@@ -751,8 +751,8 @@ function HeroMedia() {
       </div>
       <p className="mt-3 text-center text-[11px] text-white/30">
         {videoPronto
-          ? "Demonstração real do produto — os agentes a trabalhar."
-          : "Representação do painel em tempo real — é isto que os teus agentes fazem enquanto dormes."}
+          ? "Demonstração real do produto — os agentes trabalhando."
+          : "Representação do painel em tempo real — é isto que os seus agentes fazem enquanto você dorme."}
       </p>
     </div>
   );
@@ -777,7 +777,7 @@ function OpsMockup() {
           delay=".5s"
           icon={<MessageCircle size={14} className="text-emerald-300" />}
           nome="Agente SDR"
-          acao="a qualificar o lead Mariana · investimento confirmado"
+          acao="qualificando o lead Mariana · investimento confirmado"
           badge="reunião agendada"
           badgeCor="bg-emerald-400/15 text-emerald-300"
         />
@@ -785,7 +785,7 @@ function OpsMockup() {
           delay="1.1s"
           icon={<Megaphone size={14} className="text-violet-300" />}
           nome="Agente de Copywriting"
-          acao="a gerar 2 variações de anúncio · nicho estética"
+          acao="gerando 2 variações de anúncio · nicho estética"
           badge="gatilho: urgência"
           badgeCor="bg-violet-400/15 text-violet-300"
         />
@@ -793,7 +793,7 @@ function OpsMockup() {
           delay="1.7s"
           icon={<Mail size={14} className="text-sky-300" />}
           nome="Agente Executivo"
-          acao="a resumir 5 emails em paralelo · 3 workers ativos"
+          acao="resumindo 5 emails em paralelo · 3 workers ativos"
           badge="2 ações extraídas"
           badgeCor="bg-sky-400/15 text-sky-300"
         />
@@ -801,7 +801,7 @@ function OpsMockup() {
           delay="2.3s"
           icon={<BarChart3 size={14} className="text-amber-300" />}
           nome="Diretor de BI"
-          acao="a fechar o relatório semanal · conversão 18%"
+          acao="fechando o relatório semanal · conversão 18%"
           badge="enviado no WhatsApp"
           badgeCor="bg-amber-400/15 text-amber-300"
         />

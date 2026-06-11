@@ -108,7 +108,7 @@ export default function HabilidadesPage() {
 
       {!loading && lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há habilidades. Clica em <strong>“+ Adicionar habilidade”</strong> — quanto mais
+          Ainda não há habilidades. Clique em <strong>“+ Adicionar habilidade”</strong> — quanto mais
           souber a empresa, melhores os anúncios e as conversas.
         </div>
       ) : (
@@ -116,11 +116,11 @@ export default function HabilidadesPage() {
           {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
             <div className="mb-2 text-xs font-medium text-black/50">
-              {filtro === "todos" ? "Guardadas" : AGENTE_LABEL[filtro]}{" "}
+              {filtro === "todos" ? "Salvas" : AGENTE_LABEL[filtro]}{" "}
               {listaFiltrada.length > 0 && `(${listaFiltrada.length})`}
             </div>
             {loading ? (
-              <p className="text-sm text-black/40">A carregar…</p>
+              <p className="text-sm text-black/40">Carregando…</p>
             ) : listaFiltrada.length === 0 ? (
               <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
                 Nenhuma habilidade neste agente.
@@ -165,7 +165,7 @@ export default function HabilidadesPage() {
               <Detalhe h={selecionada} onToggle={() => toggle(selecionada)} onApagar={() => apagar(selecionada)} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Seleciona uma habilidade à esquerda para ver o conteúdo.
+                Selecione uma habilidade à esquerda para ver o conteúdo.
               </div>
             )}
           </section>
@@ -259,7 +259,7 @@ function ModalAdicionar({
       await api.criarHabilidade(titulo.trim(), conteudo.trim(), agente);
       onSaved();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+      setErro(err instanceof Error ? err.message : "Erro ao salvar");
       setSaving(false);
     }
   }
@@ -315,7 +315,7 @@ function ModalAdicionar({
               disabled={saving}
               className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
             >
-              {saving ? "A guardar…" : "Adicionar habilidade"}
+              {saving ? "Salvando…" : "Adicionar habilidade"}
             </button>
           </div>
         </form>

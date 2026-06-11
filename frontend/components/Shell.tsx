@@ -16,7 +16,7 @@ const NAV = [
   { href: "/consumo", label: "Consumo", hint: "Créditos / Dashboard" },
   { href: "/assinatura", label: "Assinatura", hint: "Planos & Pacotes" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
-  { href: "/guia", label: "Guia do Utilizador", hint: "Como funciona" },
+  { href: "/guia", label: "Guia do Usuário", hint: "Como funciona" },
 ];
 
 const NAV_ADMIN = [
@@ -77,7 +77,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             onClick={signOut}
             className="mt-1 rounded-lg border border-black/15 px-3 py-1.5 text-sm text-ink hover:bg-black/5"
           >
-            Terminar sessão
+            Sair
           </button>
         </div>
       </aside>
@@ -85,7 +85,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {mostrarAviso && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
             <span className="text-sm text-amber-900">
-              <strong>A tua conta ainda não tem créditos.</strong> Escolhe um plano para ativar os agentes.
+              <strong>Sua conta ainda não tem créditos.</strong> Escolha um plano para ativar os agentes.
             </span>
             <Link
               href="/assinatura"

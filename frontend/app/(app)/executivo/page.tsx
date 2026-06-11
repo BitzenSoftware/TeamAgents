@@ -104,9 +104,9 @@ export default function ExecutivoPage() {
     try {
       const res = await api.sincronizarEmail("gmail", tarefaIds);
       if (res.sem_tarefas) {
-        setEmailMsg({ ok: false, text: "Cria pelo menos uma tarefa ativa para o agente saber o que ler." });
+        setEmailMsg({ ok: false, text: "Crie pelo menos uma tarefa ativa para o agente saber o que ler." });
       } else if (res.n_emails === 0) {
-        setEmailMsg({ ok: true, text: "Nenhum email novo correspondeu às tuas tarefas." });
+        setEmailMsg({ ok: true, text: "Nenhum email novo correspondeu às suas tarefas." });
       } else {
         setEmailMsg({ ok: true, text: `${res.n_emails} email(s) processado(s) em ${res.processamentos.length} tarefa(s).` });
         if (res.processamentos[0]) setSelId(res.processamentos[0].id);
@@ -188,8 +188,8 @@ export default function ExecutivoPage() {
           <div>
             <h1 className="text-xl font-semibold">Agente Executivo</h1>
             <p className="mt-1 text-sm text-black/50">
-              Define <strong>tarefas</strong> (ex.: ler os emails do João e resumir) — o agente lê só o
-              que pedes, poupa tokens e entrega prioridades, ações e decisões. Também podes colar uma ata.
+              Defina <strong>tarefas</strong> (ex.: ler os emails do João e resumir) — o agente lê só o
+              que você pede, economiza tokens e entrega prioridades, ações e decisões. Você também pode colar uma ata.
             </p>
           </div>
           <button
@@ -206,16 +206,16 @@ export default function ExecutivoPage() {
       <div className="mb-4 rounded-xl border border-black/10 bg-white p-4 text-sm">
         {gmail ? (
           <span>
-            <span className="font-medium">Gmail ligado:</span> <span className="text-black/60">{gmail.email}</span>
+            <span className="font-medium">Gmail conectado:</span> <span className="text-black/60">{gmail.email}</span>
             {gmail.last_sync && (
               <span className="ml-2 text-xs text-black/40">
-                · última sync {new Date(gmail.last_sync).toLocaleString("pt-PT")}
+                · última sync {new Date(gmail.last_sync).toLocaleString("pt-BR")}
               </span>
             )}
           </span>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-black/55">Liga a tua conta de Gmail para as tarefas poderem ler os emails.</span>
+            <span className="text-black/55">Conecte a sua conta de Gmail para as tarefas poderem ler os emails.</span>
             <Link href="/configuracoes" className="rounded-lg border border-black/15 px-4 py-2 font-medium hover:bg-black/5">
               Ligar Gmail em Configurações →
             </Link>
@@ -247,7 +247,7 @@ export default function ExecutivoPage() {
                 title={gmail ? "Sincronizar tarefas" : "Liga o Gmail primeiro"}
                 className="rounded-md bg-brand px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:opacity-40"
               >
-                {syncing ? "A sincronizar…" : "Sincronizar"}
+                {syncing ? "Sincronizando…" : "Sincronizar"}
               </button>
               <button
                 type="button"
@@ -345,7 +345,7 @@ export default function ExecutivoPage() {
                     title="Apagar TODOS os resultados (de todas as tarefas)"
                   >
                     {apagandoTodos && <span className="ta-spin h-3 w-3 rounded-full border-2 border-rose-300 border-t-rose-600" />}
-                    {apagandoTodos ? "A apagar…" : "Apagar todos"}
+                    {apagandoTodos ? "Apagando…" : "Apagar todos"}
                   </button>
                 )}
               </div>
@@ -355,7 +355,7 @@ export default function ExecutivoPage() {
                 </div>
               )}
               {loading ? (
-                <p className="text-sm text-black/40">A carregar…</p>
+                <p className="text-sm text-black/40">Carregando…</p>
               ) : resultadosTarefa.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-black/15 p-8 text-center text-sm text-black/40">
                   Sem resultados para esta tarefa ainda.
@@ -373,7 +373,7 @@ export default function ExecutivoPage() {
                       <span className="break-words font-medium">{p.titulo}</span>
                       <span className="text-[11px] text-black/40">
                         {p.n_itens} item(ns){p.n_falhas > 0 && ` · ${p.n_falhas} falha(s)`} ·{" "}
-                        {new Date(p.created_at).toLocaleString("pt-PT")}
+                        {new Date(p.created_at).toLocaleString("pt-BR")}
                       </span>
                     </button>
                   ))}
@@ -549,7 +549,7 @@ function ModalEscolherSync({
   onConfirmar: (tarefaIds?: string[]) => void;
 }) {
   const ativasIds = tarefas.filter((t) => t.ativo).map((t) => t.id);
-  const [sel, setSel] = useState<string[]>(ativasIds); // por defeito, as ativas já vêm marcadas
+  const [sel, setSel] = useState<string[]>(ativasIds); // por padrão, as ativas já vêm marcadas
   const todasAtivas = ativasIds.length > 0 && ativasIds.every((id) => sel.includes(id));
 
   function toggle(id: string) {
@@ -565,7 +565,7 @@ function ModalEscolherSync({
         </div>
         <div className="p-5">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-black/50">Marca as que queres correr</span>
+            <span className="text-xs font-medium text-black/50">Marque as que quer rodar</span>
             <button
               type="button"
               onClick={() => setSel(todasAtivas ? [] : ativasIds)}
@@ -676,7 +676,7 @@ function ModalTarefa({
       else await api.criarTarefaExecutivo(body);
       onSaved();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+      setErro(err instanceof Error ? err.message : "Erro ao salvar");
       setSaving(false);
     }
   }
@@ -718,7 +718,7 @@ function ModalTarefa({
           {aba === "filtro" && (
             <div className="space-y-3">
               <Campo label="Remetente(s) — opcional (separa por vírgula)">
-                <input value={remetente} onChange={(e) => setRemetente(e.target.value)} className="campoexec" placeholder="joao@cliente.com, equipa@empresa.com" />
+                <input value={remetente} onChange={(e) => setRemetente(e.target.value)} className="campoexec" placeholder="joao@cliente.com, equipe@empresa.com" />
               </Campo>
               <Campo label="Palavras-chave — opcional (assunto/corpo)">
                 <input value={palavras} onChange={(e) => setPalavras(e.target.value)} className="campoexec" placeholder="proposta, contrato" />
@@ -729,7 +729,7 @@ function ModalTarefa({
             </div>
           )}
 
-          {/* Aba: Agendamento — quando correr */}
+          {/* Aba: Agendamento — quando rodar */}
           {aba === "agendamento" && (
             <div className="space-y-3">
               <Campo label="Frequência">
@@ -788,14 +788,14 @@ function ModalTarefa({
               <p className="rounded-lg bg-black/[0.03] p-2.5 text-[11px] text-black/50">
                 {automatica ? (
                   <>
-                    ⚙️ <strong>Automática</strong> — o sistema corre esta tarefa sozinho.{" "}
+                    ⚙️ <strong>Automática</strong> — o sistema roda esta tarefa sozinho.{" "}
                     {frequencia === "diaria" && "Todos os dias"}
                     {(frequencia === "semanal" || frequencia === "quinzenal") && `Em cada ${DIAS_SEMANA[diaSemana]?.toLowerCase()}${frequencia === "quinzenal" ? " (de 15 em 15 dias)" : ""}`}
                     {(frequencia === "mensal" || frequencia === "trimestral" || frequencia === "semestral") && `No dia ${diaMes}, a cada ${frequencia === "mensal" ? "mês" : frequencia === "trimestral" ? "trimestre" : "semestre"}`}
                     {` às ${String(hora).padStart(2, "0")}:00 (${FUSOS.find((f) => f.v === fuso)?.l ?? fuso}).`}
                   </>
                 ) : (
-                  <>✋ <strong>Manual</strong> — só corre quando clicas em <em>Sincronizar</em>.</>
+                  <>✋ <strong>Manual</strong> — só roda quando você clica em <em>Sincronizar</em>.</>
                 )}
               </p>
             </div>
@@ -816,7 +816,7 @@ function ModalTarefa({
                 <span className="mb-1 block text-xs font-medium text-black/60">Habilidades a usar — opcional</span>
                 {skills.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-black/15 p-2.5 text-xs text-black/40">
-                    Sem habilidades para o Agente Executivo. Cria no menu Habilidades (agente “Agente Executivo” ou “Global”).
+                    Sem habilidades para o Agente Executivo. Crie no menu Habilidades (agente “Agente Executivo” ou “Global”).
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -846,7 +846,7 @@ function ModalTarefa({
               Cancelar
             </button>
             <button type="submit" disabled={saving || !nome.trim()} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-              {saving ? "A guardar…" : "Guardar tarefa"}
+              {saving ? "Salvando…" : "Salvar tarefa"}
             </button>
           </div>
         </form>
@@ -918,11 +918,11 @@ function ModalProcessar({
           <textarea
             value={entrada}
             onChange={(e) => setEntrada(e.target.value)}
-            placeholder="Cola aqui o email reencaminhado ou a ata da reunião. Podes colar vários de uma vez — o agente separa-os."
+            placeholder="Cole aqui o email encaminhado ou a ata da reunião. Você pode colar vários de uma vez — o agente os separa."
             className="h-56 w-full resize-none rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           />
           <label className="flex cursor-pointer items-center gap-2 text-xs text-black/50">
-            <span className="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-black/5">Carregar ficheiro .txt</span>
+            <span className="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-black/5">Carregar arquivo .txt</span>
             <input type="file" accept=".txt,.md,text/plain" onChange={onFile} className="hidden" />
           </label>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
@@ -931,7 +931,7 @@ function ModalProcessar({
               Cancelar
             </button>
             <button type="submit" disabled={saving || !entrada.trim()} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-              {saving ? "A processar…" : "Processar"}
+              {saving ? "Processando…" : "Processar"}
             </button>
           </div>
         </form>

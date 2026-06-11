@@ -31,7 +31,7 @@ export default function ConsultoriaPage() {
       </header>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
-      {loading && <p className="text-sm text-black/40">A carregar…</p>}
+      {loading && <p className="text-sm text-black/40">Carregando…</p>}
 
       {!loading && !ultimo && (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">

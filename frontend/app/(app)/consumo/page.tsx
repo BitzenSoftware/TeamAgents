@@ -61,7 +61,7 @@ export default function ConsumoPage() {
       <header className="mb-5">
         <h1 className="text-xl font-semibold">Consumo de Créditos</h1>
         <p className="mt-1 text-sm text-black/50">
-          Acompanha o consumo do plano e vê onde os créditos são gastos, por período e por agente.
+          Acompanhe o consumo do plano e veja onde os créditos são gastos, por período e por agente.
         </p>
       </header>
 
@@ -135,10 +135,10 @@ export default function ConsumoPage() {
           </div>
           <div className="p-4">
             {loading ? (
-              <p className="py-10 text-center text-sm text-black/40">A carregar…</p>
+              <p className="py-10 text-center text-sm text-black/40">Carregando…</p>
             ) : series.length === 0 ? (
               <p className="py-10 text-center text-sm text-black/40">
-                Sem consumo registado neste período. Os gráficos vão preenchendo à medida que os agentes
+                Sem consumo registrado neste período. Os gráficos vão preenchendo à medida que os agentes
                 trabalham.
               </p>
             ) : (
@@ -164,7 +164,7 @@ export default function ConsumoPage() {
         {/* Repartição por origem */}
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <div className="bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-xs font-semibold text-white">
-            Onde gastaste mais
+            Onde você gastou mais
           </div>
           <div className="space-y-3 p-4">
             {origens.length === 0 ? (

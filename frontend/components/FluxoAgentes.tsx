@@ -13,9 +13,9 @@ export type EtapaAgente = {
 
 // Pipeline real do Agente Executivo: orquestrador (Opus) → workers (Haiku) → síntese.
 export const ETAPAS_EXECUTIVO: EtapaAgente[] = [
-  { id: "plan", robo: "🤖", titulo: "Orquestrador", legenda: "A analisar e planear a tarefa", cor: "#4f46e5" },
-  { id: "work", robo: "🤖", titulo: "Workers", legenda: "A processar os emails em paralelo", cor: "#16a34a", paralelo: true },
-  { id: "synth", robo: "🤖", titulo: "Síntese", legenda: "A consolidar a síntese executiva", cor: "#d97706" },
+  { id: "plan", robo: "🤖", titulo: "Orquestrador", legenda: "Analisando e planejando a tarefa", cor: "#4f46e5" },
+  { id: "work", robo: "🤖", titulo: "Workers", legenda: "Processando os emails em paralelo", cor: "#16a34a", paralelo: true },
+  { id: "synth", robo: "🤖", titulo: "Síntese", legenda: "Consolidando a síntese executiva", cor: "#d97706" },
   { id: "done", robo: "✅", titulo: "Concluído", legenda: "Tudo pronto!", cor: "#059669" },
 ];
 

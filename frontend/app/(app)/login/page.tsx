@@ -199,7 +199,7 @@ export default function LoginPage() {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="o-teu@email.com"
+                placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-xl border border-black/15 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"

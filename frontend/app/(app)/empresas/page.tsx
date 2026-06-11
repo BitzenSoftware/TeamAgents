@@ -273,7 +273,7 @@ function AbaDashboards() {
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm text-black/40">A carregar…</p>
+        <p className="py-10 text-center text-sm text-black/40">Carregando…</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Grafico titulo="Consumo de tokens" subtitulo="créditos por período" series={dash?.consumo_series ?? []} cor="#4f46e5" gran={gran} formato={(v) => v.toLocaleString("pt-BR")} />
@@ -380,7 +380,7 @@ function Tabela({
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={colunas.length} className="px-3 py-8 text-center text-black/40">A carregar…</td></tr>
+            <tr><td colSpan={colunas.length} className="px-3 py-8 text-center text-black/40">Carregando…</td></tr>
           ) : linhas.length === 0 ? (
             <tr><td colSpan={colunas.length} className="px-3 py-8 text-center text-black/40">{vazio ?? "Sem dados."}</td></tr>
           ) : (

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "TeamAgents — A tua equipa de agentes de IA",
+  title: "TeamAgents — A sua equipe de agentes de IA",
   description:
-    "Quatro agentes de IA especializados: criam anúncios de alta conversão, qualificam leads no WhatsApp, resumem o teu email e entregam relatórios estratégicos — 24/7. A partir de R$ 179/mês.",
+    "Quatro agentes de IA especializados: criam anúncios de alta conversão, qualificam leads no WhatsApp, resumem o seu email e entregam relatórios estratégicos — 24/7. A partir de R$ 179/mês.",
   keywords: [
     "agentes de IA",
     "SDR automático",
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
     "relatórios de marketing",
   ],
   openGraph: {
-    title: "TeamAgents — Contrata uma equipa de IA, não mais um software",
+    title: "TeamAgents — Contrate uma equipe de IA, não mais um software",
     description:
-      "4 agentes especializados a trabalhar 24/7: anúncios, WhatsApp, email e relatórios. A partir de R$ 179/mês.",
+      "4 agentes especializados trabalhando 24/7: anúncios, WhatsApp, email e relatórios. A partir de R$ 179/mês.",
     type: "website",
     locale: "pt_BR",
   },

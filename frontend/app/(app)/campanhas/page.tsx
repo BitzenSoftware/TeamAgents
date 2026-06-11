@@ -50,7 +50,7 @@ export default function CampanhasPage() {
 
       {lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há campanhas. Clica em <strong>“+ Nova campanha”</strong> para gerar os teus
+          Ainda não há campanhas. Clique em <strong>“+ Nova campanha”</strong> para gerar seus
           primeiros anúncios.
         </div>
       ) : (
@@ -86,7 +86,7 @@ export default function CampanhasPage() {
               <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Seleciona uma campanha à esquerda.
+                Selecione uma campanha à esquerda.
               </div>
             )}
           </section>
@@ -144,7 +144,7 @@ function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () =>
       setEditando(false);
       onChange();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao guardar");
+      setErro(err instanceof Error ? err.message : "Erro ao salvar");
     } finally {
       setSaving(false);
     }
@@ -182,7 +182,7 @@ function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () =>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-              {saving ? "A guardar…" : "Guardar"}
+              {saving ? "Salvando…" : "Salvar"}
             </button>
             <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
               Cancelar
@@ -224,7 +224,7 @@ function CampanhaDetalhe({ c, onChange, social }: { c: Campanha; onChange: () =>
             Editar
           </button>
           <button type="button" onClick={apagar} disabled={apagando} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40">
-            {apagando ? "A apagar…" : "Apagar"}
+            {apagando ? "Apagando…" : "Apagar"}
           </button>
         </div>
       </div>
@@ -314,7 +314,7 @@ function ModalNovaCampanha({
             </div>
             {habilidades.length === 0 ? (
               <p className="rounded-lg border border-dashed border-black/15 p-3 text-xs text-black/40">
-                Sem habilidades ativas. Cria conhecimento da empresa no menu{" "}
+                Sem habilidades ativas. Crie conhecimento da empresa no menu{" "}
                 <Link href="/habilidades" className="font-medium text-brand hover:underline">Habilidades</Link>.
               </p>
             ) : (
@@ -339,7 +339,7 @@ function ModalNovaCampanha({
             )}
             <p className="mt-1 text-xs text-black/40">
               {selecionadas.length === 0
-                ? "Nenhuma selecionada — gera só com nicho + dor (mais económico em tokens)."
+                ? "Nenhuma selecionada — gera só com nicho + dor (mais econômico em tokens)."
                 : `${selecionadas.length} habilidade${selecionadas.length > 1 ? "s" : ""} no prompt.`}
             </p>
           </div>
@@ -352,7 +352,7 @@ function ModalNovaCampanha({
               Cancelar
             </button>
             <button type="submit" disabled={loading || !cliente} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-              {loading ? "A gerar com a IA…" : "Gerar anúncios"}
+              {loading ? "Gerando com a IA…" : "Gerar anúncios"}
             </button>
           </div>
         </form>
@@ -437,7 +437,7 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
               onClick={() => toggle(r.id)}
               disabled={!ok}
               aria-label={r.label}
-              title={ok ? r.label : `Liga o ${r.label} em Configurações`}
+              title={ok ? r.label : `Conecte o ${r.label} em Configurações`}
               className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
                 ativo
                   ? "border-brand bg-brand"
@@ -458,7 +458,7 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
           disabled={posting || sel.length === 0 || (precisaImagem && !imageUrl.trim())}
           className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-40"
         >
-          {posting ? "A publicar…" : "Postar"}
+          {posting ? "Publicando…" : "Postar"}
         </button>
       </div>
       {precisaImagem && (

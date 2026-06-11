@@ -9,8 +9,8 @@ import { Shell } from "@/components/Shell";
 const PUBLIC = ["/", "/login"];
 
 const MENSAGENS_ESPERA = [
-  "A ligar ao servidor…",
-  "O servidor está a acordar, aguarde…",
+  "Conectando ao servidor…",
+  "O servidor está acordando, aguarde…",
   "Pode demorar até 1 minuto na primeira vez…",
   "Quase lá…",
 ];
@@ -24,7 +24,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
 
   const isPublic = PUBLIC.includes(pathname);
   const isOnboarding = pathname === "/onboarding";
-  // Página de redefinição de palavra-passe: o link do email entra com uma
+  // Página de redefinição de senha: o link do email entra com uma
   // sessão de recuperação — renderiza "nua" e nunca é desviada p/ onboarding.
   const isRedefinir = pathname === "/redefinir";
   const isLoading = authLoading || (session && cliLoading);
@@ -44,7 +44,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
       return;
     }
     // autenticado
-    if (isRedefinir) return; // deixa o utilizador redefinir a palavra-passe em paz
+    if (isRedefinir) return; // deixa o usuário redefinir a senha em paz
     if (isPublic) {
       router.replace("/pipeline");
       return;
@@ -78,7 +78,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
 
   // Páginas da app só com sessão + cliente.
   if (!session || needsOnboarding) {
-    return <div className="grid min-h-screen place-items-center text-sm text-black/40">A redirecionar…</div>;
+    return <div className="grid min-h-screen place-items-center text-sm text-black/40">Redirecionando…</div>;
   }
   return <Shell>{children}</Shell>;
 }

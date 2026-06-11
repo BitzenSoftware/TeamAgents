@@ -66,11 +66,11 @@ export default function PacotesPage() {
       </header>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
-      {loading && <p className="text-sm text-black/40">A carregar…</p>}
+      {loading && <p className="text-sm text-black/40">Carregando…</p>}
 
       {!loading && pacotes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há pacotes. Clica em <strong>“+ Novo pacote”</strong> para criar o primeiro.
+          Ainda não há pacotes. Clique em <strong>“+ Novo pacote”</strong> para criar o primeiro.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
@@ -116,7 +116,7 @@ export default function PacotesPage() {
               <PacoteEditor key={selecionado.id} pacote={selecionado} onChanged={carregar} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Seleciona um pacote à esquerda.
+                Selecione um pacote à esquerda.
               </div>
             )}
           </section>
@@ -147,7 +147,7 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
     try {
       const atualizado = await api.registarPacoteStripe(p.id);
       setP(atualizado);
-      setStripeMsg("✓ Registado na Stripe — price_id preenchido.");
+      setStripeMsg("✓ Cadastrado na Stripe — price_id preenchido.");
       onChanged();
     } catch (e) {
       setStripeMsg(`Erro: ${e instanceof Error ? e.message : "falha na Stripe"}`);
@@ -239,7 +239,7 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
                 disabled={stripeBusy}
                 className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-40"
               >
-                {stripeBusy ? "A registar…" : p.stripe_price_id ? "↻ Recriar preço na Stripe" : "⚡ Criar na Stripe"}
+                {stripeBusy ? "Cadastrando…" : p.stripe_price_id ? "↻ Recriar preço na Stripe" : "⚡ Criar na Stripe"}
               </button>
               {p.stripe_price_id ? (
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
@@ -265,9 +265,9 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
             Ativo
           </label>
           <div className="ml-auto flex items-center gap-2">
-            {ok && <span className="text-sm text-emerald-700">✓ Guardado</span>}
+            {ok && <span className="text-sm text-emerald-700">✓ Salvo</span>}
             <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-              {saving ? "…" : "Guardar"}
+              {saving ? "…" : "Salvar"}
             </button>
             <button type="button" onClick={apagar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
               Apagar
