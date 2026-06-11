@@ -28,38 +28,38 @@ import {
 /* ============================== Dados ============================== */
 
 const STATS = [
-  { valor: "4", rotulo: "agentes especializados" },
-  { valor: "24/7", rotulo: "trabalhando pelo seu negócio" },
-  { valor: "< 2 min", rotulo: "para responder a um lead" },
-  { valor: "6+", rotulo: "integrações nativas" },
+  { valor: "24/7", rotulo: "atendendo no WhatsApp" },
+  { valor: "< 1 min", rotulo: "para responder cada cliente" },
+  { valor: "0", rotulo: "DMs sem resposta de madrugada" },
+  { valor: "4", rotulo: "agentes pela sua clínica" },
 ];
 
 const MARQUEE = [
-  "Anúncios prontos em segundos",
-  "Leads qualificados no WhatsApp",
-  "Resumo executivo do seu email",
-  "Relatórios direto no WhatsApp",
-  "Tarefas automáticas com hora e fuso",
-  "Créditos avulsos que nunca expiram",
-  "Habilidades com o conhecimento da sua empresa",
+  "Cada cliente respondida em segundos",
+  "Avaliações agendadas sozinhas",
+  "“Quanto custa?” respondido com jeito",
+  "Anúncios de procedimentos prontos",
+  "Clientes atendidas às 2h da manhã",
+  "Relatório de quanto você faturou",
+  "Atende na linguagem da sua clínica",
   "Powered by Claude (Anthropic)",
 ];
 
 const PASSOS = [
   {
     n: "1",
-    titulo: "Crie a conta e conecte os canais",
-    desc: "WhatsApp, Gmail, Facebook, Instagram e Discord — cada um em poucos cliques, com conexão guiada.",
+    titulo: "Conecte o WhatsApp da clínica",
+    desc: "1 clique e um QR Code — sem instalar nada. Instagram, Facebook e Gmail também entram em poucos cliques.",
   },
   {
     n: "2",
-    titulo: "Ensina os agentes",
-    desc: "Cadastre Habilidades — tom de voz, produto, objeções — e atribua a cada agente só o que ele precisa saber.",
+    titulo: "Ensine sua clínica aos agentes",
+    desc: "Cadastre Habilidades — seus procedimentos, valores, objeções comuns, tom de voz — e cada agente passa a falar como a sua clínica.",
   },
   {
     n: "3",
-    titulo: "Deixe a equipe trabalhar",
-    desc: "Anúncios gerados, leads qualificados, email resumido e relatórios entregues — enquanto você acompanha tudo no painel.",
+    titulo: "Deixe a recepção de IA trabalhar",
+    desc: "Cada cliente atendida e qualificada, avaliações agendadas e o relatório do que rendeu — enquanto você cuida das pacientes.",
   },
 ];
 
@@ -84,16 +84,16 @@ type PlanoLanding = {
 // Copy de marketing por plano (os números vêm da BD via /planos/publicos).
 const PLANO_COPY: Record<string, { para: string; extras: string[] }> = {
   Starter: {
-    para: "Para validar o funil com IA",
-    extras: ["≈ 500 respostas do SDR", "≈ 80 campanhas de anúncios", "Upgrade a qualquer momento"],
+    para: "Para a clínica parar de perder cliente",
+    extras: ["≈ 500 atendimentos no WhatsApp", "≈ 80 anúncios de procedimentos", "Upgrade quando a agenda lotar"],
   },
   Pro: {
-    para: "Para operação comercial de verdade",
-    extras: ["≈ 2.000 respostas do SDR", "≈ 330 campanhas de anúncios", "Melhor custo por crédito p/ crescer"],
+    para: "Para clínica com agenda movimentada",
+    extras: ["≈ 2.000 atendimentos no WhatsApp", "≈ 330 anúncios de procedimentos", "Melhor custo por atendimento"],
   },
   Scale: {
-    para: "Para agências e alto volume",
-    extras: ["≈ 8.000 respostas do SDR", "Volume para múltiplos funis", "O menor custo por crédito"],
+    para: "Para redes e várias unidades",
+    extras: ["≈ 8.000 atendimentos no WhatsApp", "Volume para múltiplas unidades", "O menor custo por atendimento"],
   },
 };
 
@@ -110,8 +110,20 @@ function formatarPreco(v: number): string {
 
 const FAQ = [
   {
+    q: "O TeamAgents traz clientes novas pra mim?",
+    a: "Ele não inventa demanda do nada — nenhuma ferramenta faz isso de forma honesta. O que ele faz é capturar e converter a procura que você já gera (anúncios, posts, indicações): quem te chama no WhatsApp é atendido na hora, qualificado e agendado, e você ainda descobre de qual anúncio veio cada cliente. Pense nele como a recepcionista que nunca dorme, não como tráfego pago.",
+  },
+  {
+    q: "Como funciona a conexão ao WhatsApp?",
+    a: "Em 1 clique: você aperta “Ligar WhatsApp”, lê um QR Code com o celular da clínica e pronto — o agente começa a atender as clientes na hora, em conversa natural. Sem instalar nada, sem número novo.",
+  },
+  {
+    q: "Os agentes falam a língua da minha clínica?",
+    a: "Sim — conversam em português naturalmente e se adaptam com as Habilidades que você cadastrar: seus procedimentos, valores, objeções (“tá caro”, “dói?”, “quanto tempo dura?”) e o tom de voz da clínica. Cada clínica configura o seu.",
+  },
+  {
     q: "O que é um crédito?",
-    a: "É a unidade de trabalho dos agentes. Uma resposta do SDR no WhatsApp custa 1 crédito; uma campanha completa de anúncios ≈ 6; um relatório do Diretor de BI ≈ 12; uma síntese de emails do Agente Executivo a partir de 10. A cobrança acompanha o custo real de IA de cada operação — você paga pelo que os agentes realmente fazem.",
+    a: "É a unidade de trabalho dos agentes. Um atendimento do SDR no WhatsApp custa 1 crédito; um anúncio completo de procedimento ≈ 6; um relatório do Diretor de BI ≈ 12; uma síntese de emails ≈ 10. A cobrança acompanha o custo real de IA de cada operação — você paga pelo que os agentes realmente fazem.",
   },
   {
     q: "Os créditos do plano acabaram. E agora?",
@@ -119,15 +131,7 @@ const FAQ = [
   },
   {
     q: "Todos os planos têm os 4 agentes?",
-    a: "Sim. Todos os planos incluem os 4 agentes, todas as integrações, as Habilidades e os dashboards. A única diferença entre planos é a quantidade de créditos mensais.",
-  },
-  {
-    q: "Como funciona a conexão ao WhatsApp?",
-    a: "Você conecta a sua instância (Evolution API) nas Configurações e o Agente SDR começa a responder e qualificar leads de imediato, em conversa natural. O Diretor de BI usa o mesmo canal para te entregar os relatórios.",
-  },
-  {
-    q: "Os agentes falam a língua do meu cliente?",
-    a: "Sim — conversam em português naturalmente e adaptam o tom com as Habilidades que você cadastrar (tom de voz, produto, objeções frequentes, políticas da empresa).",
+    a: "Sim. Todos os planos incluem os 4 agentes, todas as integrações, as Habilidades e os relatórios. A única diferença entre planos é a quantidade de créditos mensais.",
   },
   {
     q: "Posso cancelar quando quiser?",
@@ -156,7 +160,7 @@ export default function LandingPage() {
               creditos,
               destaque: p.nome === "Pro" || (!rows.some((r) => r.nome === "Pro") && i === meio),
               para: copy?.para ?? "Todos os agentes incluídos",
-              extras: copy?.extras ?? [`≈ ${creditos} respostas do SDR`],
+              extras: copy?.extras ?? [`≈ ${creditos} atendimentos no WhatsApp`],
             };
           }),
         );
@@ -206,21 +210,21 @@ export default function LandingPage() {
           <div>
             <div className="lp-anim lp-up mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/70">
               <Sparkles size={13} className="text-amber-300" />
-              Agentes de IA com modelos Claude, da Anthropic
+              Recepção de IA para clínicas de estética
             </div>
 
             <h1 className="lp-anim lp-up mb-6 text-4xl font-bold leading-[1.08] tracking-tight [animation-delay:.08s] md:text-6xl">
-              Não contrate mais um software.
+              A cliente te chamou às 22h.
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-                Contrate uma equipe de IA.
+                Quem respondeu foi a sua IA.
               </span>
             </h1>
 
             <p className="lp-anim lp-up mb-9 max-w-xl text-lg leading-relaxed text-white/60 [animation-delay:.16s]">
-              Quatro agentes especializados criam os seus anúncios, qualificam leads no WhatsApp,
-              leem o seu email e entregam relatórios estratégicos — <strong className="text-white/85">24 horas por dia</strong>,
-              enquanto você cuida do negócio.
+              O TeamAgents atende cada DM e mensagem da sua clínica em segundos, entende o procedimento,
+              responde o <strong className="text-white/85">“quanto custa?”</strong> sem assustar e agenda a avaliação —
+              24 horas por dia, enquanto você cuida das suas pacientes.
             </p>
 
             <div className="lp-anim lp-up flex flex-col gap-3 [animation-delay:.24s] sm:flex-row">
@@ -228,14 +232,14 @@ export default function LandingPage() {
                 href="/login"
                 className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-7 py-3.5 text-sm font-semibold shadow-lg shadow-brand/30 transition hover:shadow-brand/50"
               >
-                Montar a minha equipe
+                Ativar minha recepção 24/7
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
                 href="#agentes"
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-white/15 px-7 py-3.5 text-sm font-medium text-white/75 transition hover:border-white/35 hover:text-white"
               >
-                Conhecer os agentes
+                Conhecer a equipe
                 <ChevronRight size={14} />
               </a>
             </div>
@@ -275,14 +279,14 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <span className="mb-3 inline-block rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-              A sua equipe
+              A equipe da sua clínica
             </span>
             <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
-              Quatro agentes. Cada um, um especialista.
+              Quatro especialistas. Uma agenda cheia.
             </h2>
             <p className="mx-auto max-w-2xl text-black/50">
-              Do anúncio à reunião, do email ao relatório — cada agente domina a sua função e trabalha
-              em conjunto com os outros. Veja o que cada um entrega:
+              Do anúncio ao agendamento, da recepção ao relatório — cada agente domina a sua função e
+              trabalha junto com os outros pra lotar a sua agenda. Veja o que cada um faz pela clínica:
             </p>
           </div>
 
@@ -290,20 +294,20 @@ export default function LandingPage() {
             {/* -------- Agente SDR -------- */}
             <AgentCard
               icon={<MessageCircle size={20} className="text-emerald-600" />}
-              tag="WhatsApp · Comercial"
+              tag="WhatsApp · Recepção"
               tagCor="bg-emerald-100 text-emerald-700"
               nome="Agente SDR"
-              desc="Responde a cada lead em segundos, qualifica em conversa natural, contorna objeções e agenda a reunião com o seu consultor — ou transfere para humano quando faz sentido."
-              checks={["Qualificação automática 24/7", "Agendamento direto na agenda", "Histórico completo por lead"]}
+              desc="Atende cada cliente em segundos, entende qual procedimento ela quer, responde o “quanto custa?” sem assustar e agenda a avaliação na sua agenda — ou passa pra você quando faz sentido."
+              checks={["Atendimento automático 24/7", "Agendamento direto na sua agenda", "Histórico completo por cliente"]}
             >
               <div className="space-y-2 text-xs">
-                <ChatBubble lado="lead" delay=".2s">Vi o anúncio sobre gestão de tráfego. Como funciona?</ChatBubble>
-                <ChatBubble lado="agente" delay=".7s">Boa, Mariana! 👋 Para te orientar melhor: quanto você investe por mês em anúncios?</ChatBubble>
-                <ChatBubble lado="lead" delay="1.2s">Uns R$ 3.000</ChatBubble>
-                <ChatBubble lado="agente" delay="1.7s">Perfeito. Tenho quinta às 10h livre com o nosso consultor — confirmo?</ChatBubble>
+                <ChatBubble lado="lead" delay=".2s">Vi o anúncio do preenchimento labial. Quanto fica?</ChatBubble>
+                <ChatBubble lado="agente" delay=".7s">Oi, Mariana! 💉 Te explico tudo. Você já fez harmonização antes ou seria a primeira vez?</ChatBubble>
+                <ChatBubble lado="lead" delay="1.2s">Primeira vez</ChatBubble>
+                <ChatBubble lado="agente" delay="1.7s">Que delícia começar! Tenho avaliação quinta às 10h com a Dra. — confirmo pra você?</ChatBubble>
                 <div className="lp-anim lp-up flex items-center gap-1.5 pt-1 text-[11px] font-semibold text-emerald-700 [animation-delay:2.2s]">
                   <CheckCircle size={13} />
-                  Reunião agendada · lead qualificado
+                  Avaliação agendada · cliente qualificada
                 </div>
               </div>
             </AgentCard>
@@ -314,22 +318,22 @@ export default function LandingPage() {
               tag="Anúncios · Meta & Google"
               tagCor="bg-violet-100 text-violet-700"
               nome="Agente de Copywriting"
-              desc="Você dá o nicho e a dor do cliente; ele devolve duas variações de anúncio de alta conversão — com gatilho psicológico, dor e desejo mapeados e a palavra-chave que liga o anúncio ao WhatsApp."
-              checks={["2 variações prontas para publicar", "Publica no Facebook, Instagram e Discord", "Usa as Habilidades da sua marca"]}
+              desc="Você dá o procedimento e o público; ele devolve duas variações de anúncio de alta conversão — pra Instagram e Meta — com gatilho, dor e desejo mapeados e a palavra-chave que liga o anúncio direto ao WhatsApp da clínica."
+              checks={["2 variações prontas para publicar", "Publica no Instagram e Facebook", "Usa as Habilidades da sua clínica"]}
             >
               <div className="rounded-lg border border-violet-200 bg-white p-3.5">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-500">Anúncio A — Dor</div>
                 <p className="text-sm font-semibold leading-snug">
-                  “Ainda perde clientes porque demora horas para responder no WhatsApp?”
+                  “Cansada de esconder o sorriso por causa do bigode chinês?”
                 </p>
                 <p className="mt-1.5 text-xs leading-relaxed text-black/55">
-                  Enquanto você lê isto, um lead acabou de desistir. Automatize a resposta e nunca mais perca
-                  uma venda por demora. 👇
+                  O preenchimento certo devolve o contorno do seu rosto em 1 sessão. Avaliação gratuita
+                  essa semana — chame no WhatsApp. 👇
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-medium">
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">gatilho: urgência</span>
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">dor: lentidão</span>
-                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-black/60">palavra-chave: AGILIZA</span>
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">gatilho: autoestima</span>
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">dor: insegurança</span>
+                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-black/60">palavra-chave: PREENCHIMENTO</span>
                 </div>
               </div>
             </AgentCard>
@@ -337,11 +341,11 @@ export default function LandingPage() {
             {/* -------- Agente Executivo -------- */}
             <AgentCard
               icon={<Mail size={20} className="text-sky-600" />}
-              tag="Email & Atas · Novo"
+              tag="Email & Bastidores · Novo"
               tagCor="bg-sky-100 text-sky-700"
               nome="Agente Executivo"
-              desc="Conecte o seu Gmail e defina tarefas dirigidas — “lê os emails do fornecedor X e resume”. Ele lê só o que você pede, processa em paralelo e devolve prioridades, ações e decisões. Também resume atas de reunião."
-              checks={["Tarefas com frequência, hora e fuso", "Orquestrador + workers em paralelo", "Só lê o que você mandar — economiza tokens"]}
+              desc="Conecte o Gmail e ele resume o que importa nos bastidores da clínica — confirmações de fornecedor de toxina e preenchedor, boletos, convênios — em prioridades, ações e decisões. Sem você abrir a caixa de entrada."
+              checks={["Tarefas com frequência, hora e fuso", "Resume só o que você mandar", "Prioridades, ações e decisões"]}
             >
               <div className="rounded-lg border border-sky-200 bg-white p-3.5 text-xs">
                 <div className="mb-2 flex items-center justify-between">
@@ -351,15 +355,15 @@ export default function LandingPage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">alta</span>
-                    <span className="text-black/70">Renovar domínio até sexta — risco de expirar</span>
+                    <span className="text-black/70">Toxina chega sexta — confirmar recebimento na recepção</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">média</span>
-                    <span className="text-black/70">Fatura do fornecedor: confirmar valores</span>
+                    <span className="text-black/70">Boleto do preenchedor: conferir valor antes de pagar</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">baixa</span>
-                    <span className="text-black/70">Newsletter — sem ação necessária</span>
+                    <span className="text-black/70">Newsletter de congresso — sem ação necessária</span>
                   </div>
                 </div>
                 <div className="mt-2.5 border-t border-black/5 pt-2 text-[10px] text-black/45">
@@ -374,13 +378,13 @@ export default function LandingPage() {
               tag="Relatórios · Estratégia"
               tagCor="bg-amber-100 text-amber-700"
               nome="Agente Diretor de BI"
-              desc="Toda a semana agrega leads, reuniões, investimento e conversão, analisa a tendência e entrega um relatório estratégico escrito — direto no WhatsApp do dono. Sem abrir dashboards."
-              checks={["Taxa de conversão e custo por reunião", "Análise escrita, não só números", "Entregue no WhatsApp, toda a semana"]}
+              desc="Toda semana mostra quantas clientes entraram, quantas avaliações foram agendadas, quanto custou cada uma — e, o que mais importa, quantas clientes você teria perdido sem a IA. Direto no seu WhatsApp, sem abrir painel."
+              checks={["Clientes capturadas fora do horário", "Custo por avaliação agendada", "Entregue no WhatsApp, toda segunda"]}
             >
               <div className="rounded-lg border border-amber-200 bg-white p-3.5">
                 <div className="mb-3 flex items-end justify-between">
                   <div>
-                    <div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Conversão lead → reunião</div>
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Conversão DM → avaliação</div>
                     <div className="flex items-center gap-1.5 text-xl font-bold">
                       18%
                       <span className="flex items-center text-[11px] font-semibold text-emerald-600">
@@ -390,7 +394,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Custo / reunião</div>
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Custo / avaliação</div>
                     <div className="text-xl font-bold">R$ 42</div>
                   </div>
                 </div>
@@ -454,8 +458,8 @@ export default function LandingPage() {
             />
             <TechCard
               icon={<Shield size={18} className="text-sky-300" />}
-              titulo="Isolamento por empresa"
-              desc="Os seus dados, tokens e conexões ficam isolados por empresa, com autenticação em todas as operações."
+              titulo="Isolamento por clínica"
+              desc="Os dados das suas pacientes, tokens e conexões ficam isolados por clínica, com autenticação em todas as operações."
             />
           </div>
         </div>
@@ -470,17 +474,17 @@ export default function LandingPage() {
             </span>
             <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
               Agentes que conhecem
-              <br />o <span className="text-brand">seu</span> negócio.
+              <br />a <span className="text-brand">sua</span> clínica.
             </h2>
             <p className="mb-6 leading-relaxed text-black/55">
               IA genérica dá respostas genéricas. No TeamAgents, você cadastra <strong>Habilidades</strong> —
-              o tom de voz da marca, o seu produto, as objeções frequentes, as políticas da empresa — e
-              atribui a cada agente apenas o conhecimento que ele precisa.
+              o tom de voz da clínica, os seus procedimentos e valores, as objeções comuns (“tá caro”, “dói?”),
+              os seus protocolos — e atribui a cada agente apenas o conhecimento que ele precisa.
             </p>
             <ul className="space-y-3 text-sm">
               {[
-                "O SDR responde com o seu tom e os seus argumentos de venda",
-                "O Copywriting escreve como a sua marca escreve",
+                "O SDR responde com o seu tom e os valores certos de cada procedimento",
+                "O Copywriting escreve como a sua clínica fala",
                 "O Executivo extrai exatamente a informação que você pediu",
                 "Você atualiza uma vez — todos os agentes acompanham",
               ].map((t) => (
@@ -494,9 +498,9 @@ export default function LandingPage() {
 
           <div className="space-y-3">
             {[
-              { titulo: "Tom de voz da marca", agente: "Global", cor: "bg-black/5 text-black/60", linhas: "Próximo, direto, sem jargão corporativo. Tratamos o cliente por “você”…" },
-              { titulo: "Tabela de preços + objeções", agente: "Agente SDR", cor: "bg-emerald-100 text-emerald-700", linhas: "Plano mensal R$ 1.500. Se o lead achar caro, mostrar o custo de não agir…" },
-              { titulo: "O que destacar nos emails de fornecedores", agente: "Agente Executivo", cor: "bg-sky-100 text-sky-700", linhas: "Prazos de entrega, alterações de preço e pendências de pagamento…" },
+              { titulo: "Tom de voz da clínica", agente: "Global", cor: "bg-black/5 text-black/60", linhas: "Acolhedor e seguro, sem prometer milagre. Tratamos a paciente por “você”…" },
+              { titulo: "Procedimentos + objeções", agente: "Agente SDR", cor: "bg-emerald-100 text-emerald-700", linhas: "Preenchimento labial R$ 1.200. Se achar caro, explicar durabilidade e parcelamento…" },
+              { titulo: "O que destacar nos emails de fornecedores", agente: "Agente Executivo", cor: "bg-sky-100 text-sky-700", linhas: "Entregas de toxina/preenchedor, validade dos lotes e boletos a vencer…" },
             ].map((h, i) => (
               <div key={h.titulo} className="lp-anim lp-up rounded-xl border border-black/10 bg-paper p-4 shadow-sm" style={{ animationDelay: `${i * 0.12}s` }}>
                 <div className="mb-1.5 flex items-center justify-between gap-3">
@@ -561,12 +565,12 @@ export default function LandingPage() {
               Preços simples
             </span>
             <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
-              Menos do que um estagiário.
-              <br />A produção de uma equipe.
+              Menos do que meia diária de recepcionista.
+              <br />O trabalho de uma equipe inteira.
             </h2>
             <p className="mx-auto max-w-2xl text-black/50">
               Todos os planos incluem os <strong>4 agentes</strong>, todas as integrações, Habilidades e
-              dashboards. Só os créditos mensais mudam.
+              relatórios. Só os créditos mensais mudam.
             </p>
           </div>
 
@@ -664,18 +668,18 @@ export default function LandingPage() {
         </div>
         <div className="relative mx-auto max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-5xl">
-            A sua concorrência ainda
-            <br />responde leads na mão.
+            A clínica vizinha já responde
+            <br />em segundos. E a sua?
           </h2>
           <p className="mx-auto mb-9 max-w-lg text-white/55">
-            Monte a sua equipe de agentes hoje: conecte o WhatsApp, crie a primeira campanha e veja a
-            primeira reunião ser agendada sem você.
+            Ative sua recepção de IA hoje: conecte o WhatsApp em 1 clique e veja a primeira avaliação
+            ser agendada sozinha — enquanto você atende quem já está na cadeira.
           </p>
           <Link
             href="/login"
             className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-9 py-4 text-sm font-semibold shadow-lg shadow-brand/30 transition hover:shadow-brand/50"
           >
-            Montar a minha equipe de IA
+            Ativar minha recepção 24/7
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
           <p className="mt-4 text-xs text-white/35">A partir de R$ 179/mês · cancele quando quiser</p>
@@ -777,23 +781,23 @@ function OpsMockup() {
           delay=".5s"
           icon={<MessageCircle size={14} className="text-emerald-300" />}
           nome="Agente SDR"
-          acao="qualificando o lead Mariana · investimento confirmado"
-          badge="reunião agendada"
+          acao="atendendo a Mariana · preenchimento labial"
+          badge="avaliação agendada"
           badgeCor="bg-emerald-400/15 text-emerald-300"
         />
         <OpsRow
           delay="1.1s"
           icon={<Megaphone size={14} className="text-violet-300" />}
           nome="Agente de Copywriting"
-          acao="gerando 2 variações de anúncio · nicho estética"
-          badge="gatilho: urgência"
+          acao="gerando 2 anúncios · harmonização facial"
+          badge="gatilho: autoestima"
           badgeCor="bg-violet-400/15 text-violet-300"
         />
         <OpsRow
           delay="1.7s"
           icon={<Mail size={14} className="text-sky-300" />}
           nome="Agente Executivo"
-          acao="resumindo 5 emails em paralelo · 3 workers ativos"
+          acao="resumindo emails de fornecedores · 3 workers ativos"
           badge="2 ações extraídas"
           badgeCor="bg-sky-400/15 text-sky-300"
         />
@@ -814,7 +818,7 @@ function OpsMockup() {
         </span>
         <span className="flex items-center gap-1.5">
           <Shield size={11} />
-          Dados isolados por empresa
+          Dados isolados por clínica
         </span>
       </div>
     </div>
