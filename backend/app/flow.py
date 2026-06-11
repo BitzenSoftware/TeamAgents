@@ -88,7 +88,14 @@ def whatsapp_estado(cliente_id: str) -> dict:
 def whatsapp_conectar(cliente_id: str) -> dict:
     """Cria/reusa a instância do cliente no servidor central e devolve o QR Code."""
     cfg = get_config_by_cliente(cliente_id) or {}
-    res = evolution.criar_ou_conectar(cliente_id, cfg.get("whatsapp_instance_name"))
+    nome_empresa = cfg.get("nome_empresa")
+    if not nome_empresa:
+        try:
+            row = get_db().table("clientes").select("nome").eq("id", cliente_id).limit(1).execute().data
+            nome_empresa = row[0]["nome"] if row else None
+        except Exception:
+            nome_empresa = None
+    res = evolution.criar_ou_conectar(cliente_id, cfg.get("whatsapp_instance_name"), nome_empresa)
     update_config(cliente_id, {
         "whatsapp_instance_name": res["instance"],
         "whatsapp_token": res.get("token") or get_settings().whatsapp_api_key,

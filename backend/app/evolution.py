@@ -20,6 +20,7 @@ Descartamos:
 
 Z-API / Z-PRO usam um shape diferente; criar um parser análogo se mudares de provider.
 """
+import re
 import secrets
 import time
 
@@ -46,9 +47,16 @@ def central_disponivel() -> bool:
     return bool(base and key)
 
 
-def _novo_instance_name(cliente_id: str) -> str:
-    # Nome único por ligação → nunca colide com uma instância antiga presa.
-    return f"ta_{str(cliente_id).replace('-', '')[:8]}_{secrets.token_hex(3)}"
+def _slug(nome: str | None) -> str:
+    """Nome de empresa → slug seguro para nome de instância (a-z0-9, máx 24)."""
+    s = re.sub(r"[^a-z0-9]+", "", (nome or "").lower())
+    return s[:24]
+
+
+def _novo_instance_name(cliente_id: str, nome_empresa: str | None = None) -> str:
+    # Usa o nome da empresa (identificável no manager) + sufixo único.
+    base = _slug(nome_empresa) or f"ta{str(cliente_id).replace('-', '')[:8]}"
+    return f"{base}_{secrets.token_hex(3)}"
 
 
 def _h(key: str) -> dict:
@@ -68,7 +76,7 @@ def _qr_de(j: dict) -> str | None:
     return None
 
 
-def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None) -> dict:
+def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None, nome_empresa: str | None = None) -> dict:
     """Liga o WhatsApp do cliente e devolve o QR.
 
     Se `instancia_atual` já estiver ligada ("open"), devolve-a sem QR. Caso
@@ -106,7 +114,7 @@ def criar_ou_conectar(cliente_id: str, instancia_atual: str | None = None) -> di
                     pass
 
         # 1) Cria uma instância NOVA com nome único (com QR).
-        inst = _novo_instance_name(cliente_id)
+        inst = _novo_instance_name(cliente_id, nome_empresa)
         try:
             r = c.post(
                 f"{base}/instance/create",
