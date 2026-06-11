@@ -20,6 +20,7 @@ export default function HabilidadesPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [modelosAberto, setModelosAberto] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<AgenteSkill | "todos">("todos");
 
@@ -69,13 +70,22 @@ export default function HabilidadesPage() {
       <header className="mb-5">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold">Habilidades</h1>
-          <button
-            type="button"
-            onClick={() => setModalAberto(true)}
-            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            + Adicionar habilidade
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setModelosAberto(true)}
+              className="rounded-lg border border-brand/30 bg-brand/5 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/10"
+            >
+              ✨ Modelos de estética
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalAberto(true)}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              + Adicionar habilidade
+            </button>
+          </div>
         </div>
         <p className="mt-1 text-sm text-black/50">
           O conhecimento da sua empresa. Cada habilidade pertence a um agente (ou é global, usada por
@@ -180,6 +190,14 @@ export default function HabilidadesPage() {
             setModalAberto(false);
             carregar();
           }}
+        />
+      )}
+
+      {modelosAberto && (
+        <ModalModelos
+          existentes={lista.map((h) => h.titulo)}
+          onClose={() => setModelosAberto(false)}
+          onChanged={carregar}
         />
       )}
     </div>
@@ -319,6 +337,151 @@ function ModalAdicionar({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Modelos prontos para clínicas de estética ---------------- */
+type Modelo = { titulo: string; agente: AgenteSkill; conteudo: string };
+
+const TEMPLATES_ESTETICA: Modelo[] = [
+  {
+    titulo: "Tom de voz da clínica",
+    agente: "global",
+    conteudo:
+      "Fale de forma acolhedora, próxima e segura, tratando a paciente por \"você\". Use no máximo 1 emoji por mensagem. NUNCA prometa resultado garantido nem faça diagnóstico pelo WhatsApp — o resultado depende de avaliação presencial. Não passe preço fechado sem avaliação; quando perguntarem valores, fale \"a partir de\" e convide para a avaliação. Seja breve (2 a 3 frases). [Edite com o nome e a personalidade da sua clínica.]",
+  },
+  {
+    titulo: "Roteiro de qualificação (perguntas padrão)",
+    agente: "sdr",
+    conteudo:
+      "Ao receber uma cliente nova, conduza a conversa nesta ordem, uma pergunta de cada vez:\n1) Acolha pelo nome e pergunte qual procedimento ou incômodo ela quer resolver.\n2) Pergunte se já fez esse procedimento antes ou se seria a primeira vez.\n3) Entenda a urgência/ocasião (evento, casamento, só pesquisando).\n4) Explique em 1 frase como funciona e tranquilize a principal dúvida.\n5) Ofereça a AVALIAÇÃO como próximo passo e proponha 2 horários concretos.\nObjetivo final: agendar a avaliação. Se a cliente pedir para falar com humano ou for um caso clínico delicado, transfira.",
+  },
+  {
+    titulo: "Procedimentos, valores e objeções",
+    agente: "sdr",
+    conteudo:
+      "Tabela de referência (edite com os seus valores reais):\n• Preenchimento labial — a partir de R$ 1.200 · dura 8–12 meses\n• Botox (toxina) — a partir de R$ 900 · dura 4–6 meses\n• Harmonização facial — sob avaliação\n• Limpeza de pele — a partir de R$ 180\n\nObjeções:\n• \"Tá caro\": divida pela durabilidade (ex.: R$ 1.200 por ~10 meses) e ofereça parcelamento.\n• \"Dói?\": explique o anestésico/conforto e a experiência da profissional.\n• \"É seguro?\": reforce que é feito por profissional habilitada, com produto registrado.\n• \"Vou pensar\": ofereça a avaliação gratuita, sem compromisso, para tirar todas as dúvidas.",
+  },
+  {
+    titulo: "Política de agendamento e avaliação",
+    agente: "sdr",
+    conteudo:
+      "A avaliação é [gratuita/R$ X] e sem compromisso. Para confirmar, peça nome completo e o melhor dia/horário. Reforce o endereço e oriente chegar 10 min antes. Em caso de remarcação, peça aviso com [24h] de antecedência. Horário de atendimento: [seg–sáb, 9h–19h]. [Edite com as regras reais da sua clínica.]",
+  },
+  {
+    titulo: "Estilo dos anúncios da clínica",
+    agente: "copywriting",
+    conteudo:
+      "Os anúncios devem focar em autoestima e no resultado desejado (sentir-se bem, natural, renovada), nunca em medo ou em promessa absoluta. Evite \"cura\", \"garantido\", \"100%\". Sempre termine com CTA para chamar no WhatsApp. Respeite o conselho de classe: nada de antes/depois proibido e nada de prometer resultado. Tom: elegante, acolhedor e confiante. [Edite com os diferenciais e o público da sua clínica.]",
+  },
+  {
+    titulo: "O que destacar nos emails de fornecedores",
+    agente: "assistente",
+    conteudo:
+      "Ao resumir emails de fornecedores e administrativos, priorize: entregas de toxina e preenchedores (data e confirmação), validade dos lotes, boletos a vencer e valores a conferir, convênios e parcerias, e qualquer pendência que trave a agenda. Liste como ações com prazo. Ignore newsletters e propaganda sem ação.",
+  },
+];
+
+function ModalModelos({
+  existentes,
+  onClose,
+  onChanged,
+}: {
+  existentes: string[];
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const jaTem = useMemo(() => new Set(existentes.map((t) => t.toLowerCase())), [existentes]);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  function presente(m: Modelo) {
+    return jaTem.has(m.titulo.toLowerCase()) || added.has(m.titulo);
+  }
+
+  async function adicionar(m: Modelo) {
+    setBusy(m.titulo);
+    setErro(null);
+    try {
+      await api.criarHabilidade(m.titulo, m.conteudo, m.agente);
+      setAdded((s) => new Set(s).add(m.titulo));
+      onChanged();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao adicionar");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function adicionarTodos() {
+    for (const m of TEMPLATES_ESTETICA) {
+      if (!presente(m)) await adicionar(m);
+    }
+  }
+
+  const faltam = TEMPLATES_ESTETICA.filter((m) => !presente(m)).length;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+          <span className="text-sm font-semibold text-white">✨ Modelos de estética</span>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
+        </div>
+        <div className="border-b border-black/5 px-5 py-3">
+          <p className="text-xs leading-relaxed text-black/55">
+            Habilidades prontas para clínicas de estética. Adicione as que fizerem sentido e
+            depois <strong>edite com os valores e o jeito da sua clínica</strong> — elas já vêm ativas.
+          </p>
+        </div>
+        <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
+          {TEMPLATES_ESTETICA.map((m) => {
+            const ok = presente(m);
+            return (
+              <div key={m.titulo} className="rounded-xl border border-black/10 p-3.5">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold">{m.titulo}</span>
+                  <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-black/50">
+                    {AGENTE_LABEL[m.agente]}
+                  </span>
+                </div>
+                <p className="mb-2.5 line-clamp-2 whitespace-pre-wrap text-xs text-black/45">{m.conteudo}</p>
+                <button
+                  type="button"
+                  onClick={() => adicionar(m)}
+                  disabled={ok || busy === m.titulo}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                    ok
+                      ? "cursor-default bg-emerald-50 text-emerald-700"
+                      : "bg-brand text-white hover:opacity-90 disabled:opacity-40"
+                  }`}
+                >
+                  {ok ? "✓ Adicionada" : busy === m.titulo ? "Adicionando…" : "Adicionar"}
+                </button>
+              </div>
+            );
+          })}
+          {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-black/5 px-5 py-3">
+          <span className="text-xs text-black/40">{faltam > 0 ? `${faltam} por adicionar` : "Tudo adicionado ✓"}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
+              Fechar
+            </button>
+            <button
+              type="button"
+              onClick={adicionarTodos}
+              disabled={faltam === 0 || busy !== null}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+            >
+              Adicionar todos
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
