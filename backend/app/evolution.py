@@ -55,7 +55,7 @@ def _qr_de(j: dict) -> str | None:
     """Extrai o base64 do QR de respostas em formatos variados da Evolution."""
     if not isinstance(j, dict):
         return None
-    for caminho in (("qrcode", "base64"), ("base64",), ("qrcode", "code"), ("code",)):
+    for caminho in (("qrcode", "base64"), ("base64",), ("qrcode", "code"), ("code",), ("qrcode",)):
         cur: object = j
         for k in caminho:
             cur = cur.get(k) if isinstance(cur, dict) else None
@@ -78,10 +78,35 @@ def criar_ou_conectar(cliente_id: str) -> dict:
     webhook_url = ((s.backend_url or "").rstrip("/") + "/webhook/whatsapp") if s.backend_url else ""
     token: str | None = None
     qr: str | None = None
-    estado: str | None = None
     erros: list[str] = []
+
+    def estado(c: httpx.Client) -> str | None:
+        try:
+            rs = c.get(f"{base}/instance/connectionState/{inst}", headers=_h(key))
+            if rs.status_code < 300:
+                j = rs.json()
+                ji = j.get("instance")
+                return (ji.get("state") if isinstance(ji, dict) else None) or j.get("state")
+        except Exception:
+            pass
+        return None
+
     with httpx.Client(timeout=30) as c:
-        # 1) tenta criar a instância (com QR). Se já existir (403/409), segue para connect.
+        # 0) Já está ligada? Então não precisa de QR.
+        if estado(c) == "open":
+            return {"instance": inst, "token": None, "qr": None, "api_url": base}
+
+        # 1) Garante QR fresco: apaga a instância antiga (se existir) e recria limpa.
+        try:
+            c.delete(f"{base}/instance/logout/{inst}", headers=_h(key))
+        except Exception:
+            pass
+        try:
+            c.delete(f"{base}/instance/delete/{inst}", headers=_h(key))
+        except Exception:
+            pass
+
+        # 2) Cria a instância nova (com QR).
         try:
             r = c.post(
                 f"{base}/instance/create",
@@ -93,11 +118,14 @@ def criar_ou_conectar(cliente_id: str) -> dict:
                 qr = _qr_de(j)
                 hsh = j.get("hash")
                 token = hsh.get("apikey") if isinstance(hsh, dict) else (hsh if isinstance(hsh, str) else None)
-            elif r.status_code not in (403, 409):
-                erros.append(f"create HTTP {r.status_code}: {r.text[:160]}")
+                if not qr:
+                    erros.append(f"create sem QR: {r.text[:300]}")
+            else:
+                erros.append(f"create HTTP {r.status_code}: {r.text[:200]}")
         except Exception as e:
             erros.append(f"create: {e}")
-        # 2) configura o webhook (best-effort; cobre shapes v1 e v2).
+
+        # 3) Configura o webhook (best-effort; cobre shapes v1 e v2).
         if webhook_url:
             for body in (
                 {"webhook": {"enabled": True, "url": webhook_url, "events": ["MESSAGES_UPSERT"]}},
@@ -108,27 +136,21 @@ def criar_ou_conectar(cliente_id: str) -> dict:
                         break
                 except Exception:
                     pass
-        # 3) se não veio QR (instância já existia), pede um QR novo.
+
+        # 4) Se ainda sem QR, tenta o connect.
         if not qr:
             try:
                 rc = c.get(f"{base}/instance/connect/{inst}", headers=_h(key))
                 if rc.status_code < 300:
                     qr = _qr_de(rc.json())
+                    if not qr:
+                        erros.append(f"connect sem QR: {rc.text[:300]}")
                 else:
-                    erros.append(f"connect HTTP {rc.status_code}: {rc.text[:160]}")
+                    erros.append(f"connect HTTP {rc.status_code}: {rc.text[:200]}")
             except Exception as e:
                 erros.append(f"connect: {e}")
-        # 4) estado atual (se já estiver ligada, não há QR e está tudo bem).
-        try:
-            rs = c.get(f"{base}/instance/connectionState/{inst}", headers=_h(key))
-            if rs.status_code < 300:
-                j = rs.json()
-                ji = j.get("instance")
-                estado = (ji.get("state") if isinstance(ji, dict) else None) or j.get("state")
-        except Exception:
-            pass
 
-    if not qr and estado != "open":
+    if not qr:
         detalhe = "; ".join(erros) if erros else "sem resposta utilizável do servidor Evolution"
         raise ValueError(f"Não foi possível obter o QR Code. ({detalhe})")
     return {"instance": inst, "token": token, "qr": qr, "api_url": base}
