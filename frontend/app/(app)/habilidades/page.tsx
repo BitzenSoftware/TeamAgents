@@ -23,6 +23,13 @@ export default function HabilidadesPage() {
   const [modelosAberto, setModelosAberto] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<AgenteSkill | "todos">("todos");
+  const [semCreditos, setSemCreditos] = useState(false);
+
+  useEffect(() => {
+    api.consumo()
+      .then((c) => setSemCreditos(!c.ilimitado && (c.total ?? 0) === 0 && (c.creditos_avulsos ?? 0) === 0))
+      .catch(() => {});
+  }, []);
 
   const listaFiltrada = useMemo(
     () => (filtro === "todos" ? lista : lista.filter((h) => h.agente === filtro)),
@@ -74,14 +81,18 @@ export default function HabilidadesPage() {
             <button
               type="button"
               onClick={() => setModelosAberto(true)}
-              className="rounded-lg border border-brand/30 bg-brand/5 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/10"
+              disabled={semCreditos}
+              title={semCreditos ? "Assine um plano para adicionar habilidades" : undefined}
+              className="rounded-lg border border-brand/30 bg-brand/5 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ✨ Modelos de estética
             </button>
             <button
               type="button"
               onClick={() => setModalAberto(true)}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+              disabled={semCreditos}
+              title={semCreditos ? "Assine um plano para adicionar habilidades" : undefined}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               + Adicionar habilidade
             </button>

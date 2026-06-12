@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, type Config, type EmailAccount, type SocialConfig } from "@/lib/api";
 
@@ -22,8 +23,15 @@ const ABAS: { id: Aba; label: string; sub: string }[] = [
 export default function ConfiguracoesPage() {
   const [aba, setAba] = useState<Aba>("whatsapp");
   const [oauthMsg, setOauthMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [semCreditos, setSemCreditos] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
+
+  useEffect(() => {
+    api.consumo()
+      .then((c) => setSemCreditos(!c.ilimitado && (c.total ?? 0) === 0 && (c.creditos_avulsos ?? 0) === 0))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const code = params.get("code");
@@ -95,11 +103,28 @@ export default function ConfiguracoesPage() {
         })}
       </div>
 
-      {aba === "whatsapp"  && <AbaWhatsApp />}
-      {aba === "discord"   && <AbaDiscord />}
-      {aba === "facebook"  && <AbaFacebook />}
-      {aba === "instagram" && <AbaInstagram />}
-      {aba === "email"     && <AbaEmail />}
+      {semCreditos && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <span className="text-sm text-amber-900">
+            🔒 <strong>Assine um plano para conectar as integrações.</strong> Sem um plano ativo, as
+            conexões (WhatsApp, redes sociais, Gmail, agenda) ficam bloqueadas.
+          </span>
+          <Link
+            href="/assinatura"
+            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            Escolher plano →
+          </Link>
+        </div>
+      )}
+
+      <div className={semCreditos ? "pointer-events-none select-none opacity-50" : ""}>
+        {aba === "whatsapp"  && <AbaWhatsApp />}
+        {aba === "discord"   && <AbaDiscord />}
+        {aba === "facebook"  && <AbaFacebook />}
+        {aba === "instagram" && <AbaInstagram />}
+        {aba === "email"     && <AbaEmail />}
+      </div>
     </div>
   );
 }
