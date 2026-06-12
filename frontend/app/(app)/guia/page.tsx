@@ -125,8 +125,8 @@ function Geral() {
               d: "Menu Habilidades → botão “✨ Modelos de estética” → “Adicionar todos” → edite cada um com os seus valores reais. É isto que faz o agente entender os procedimentos e responder “quanto custa” sem fugir.",
             },
             {
-              t: "Coloque o seu link de agenda",
-              d: "Menu Configurações → campo “Link de calendário” (o seu Calendly ou Cal.com). É o link que o agente envia para a cliente marcar a avaliação.",
+              t: "Defina como o agendamento acontece",
+              d: "Simples: em Configurações → “Link de calendário”, cole o seu Calendly/Cal.com — o agente envia o link para a cliente marcar. Automático (recomendado): no card “📅 Agendamento automático (Cal.com)”, ligue a sua conta Cal.com (API key + Event Type ID) e o agente marca a avaliação sozinho nos horários livres da sua agenda.",
             },
             {
               t: "Crie a primeira campanha e pegue o link de captação",
@@ -257,6 +257,7 @@ function Configuracoes() {
         itens={[
           "O número de WhatsApp da empresa (via Evolution API) — por onde o vendedor atende",
           "O link de agenda (Calendly / Cal.com) — que o vendedor envia para marcar reunião",
+          "Agendamento automático (Cal.com): ligue a sua conta e o agente marca a avaliação sozinho na agenda — sem você mexer",
           "O número do dono — onde recebe o relatório semanal",
         ]}
       />

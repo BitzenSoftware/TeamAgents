@@ -69,6 +69,7 @@ const INTEGRACOES = [
   { nome: "Facebook", desc: "publicação direta" },
   { nome: "Instagram", desc: "publicação direta" },
   { nome: "Discord", desc: "publicação direta" },
+  { nome: "Cal.com", desc: "agenda automática" },
   { nome: "Stripe", desc: "assinatura segura" },
 ];
 
@@ -223,7 +224,7 @@ export default function LandingPage() {
 
             <p className="lp-anim lp-up mb-9 max-w-xl text-lg leading-relaxed text-white/60 [animation-delay:.16s]">
               O TeamAgents atende cada mensagem no WhatsApp da sua clínica em segundos, entende o procedimento,
-              responde o <strong className="text-white/85">“quanto custa?”</strong> sem assustar e conduz ao agendamento da avaliação —
+              responde o <strong className="text-white/85">“quanto custa?”</strong> sem assustar e <strong className="text-white/85">agenda a avaliação direto na sua agenda</strong> —
               24 horas por dia, enquanto você cuida das suas pacientes.
             </p>
 
