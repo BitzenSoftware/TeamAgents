@@ -419,6 +419,8 @@ export const api = {
     req<ConsumoDashboard>(`/me/consumo/dashboard?de=${de}&ate=${ate}&gran=${gran}`),
   leads: () => req<Lead[]>("/me/leads"),
   conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
+  reativarIaLead: (leadId: string) =>
+    req<{ ok: boolean }>(`/me/leads/${leadId}/reativar-ia`, { method: "POST" }),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),

@@ -517,6 +517,12 @@ def listar_conversas(lead_id: str, cliente_id: str = Depends(auth.current_client
     return flow.listar_conversas(cliente_id, lead_id)
 
 
+@app.post("/me/leads/{lead_id}/reativar-ia")
+def reativar_ia_lead(lead_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Reativa o SDR num contato que tinha sido transferido para humano."""
+    return flow.reativar_ia_lead(cliente_id, lead_id)
+
+
 # ===================== Social Config =====================
 @app.get("/me/social-config")
 def get_social_config(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:

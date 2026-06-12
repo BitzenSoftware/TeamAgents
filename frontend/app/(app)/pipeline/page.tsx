@@ -92,14 +92,15 @@ export default function PipelinePage() {
         })}
       </div>
 
-      {aberto && <ConversaDrawer lead={aberto} onClose={() => setAberto(null)} />}
+      {aberto && <ConversaDrawer lead={aberto} onClose={() => setAberto(null)} onChange={carregar} />}
     </div>
   );
 }
 
-function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+function ConversaDrawer({ lead, onClose, onChange }: { lead: Lead; onClose: () => void; onChange: () => void }) {
   const [msgs, setMsgs] = useState<Conversa[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reativando, setReativando] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -108,6 +109,17 @@ function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) 
       .then(setMsgs)
       .finally(() => setLoading(false));
   }, [lead.id]);
+
+  async function reativarIa() {
+    setReativando(true);
+    try {
+      await api.reativarIaLead(lead.id);
+      onChange();
+      onClose();
+    } catch {
+      setReativando(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-20 flex justify-end bg-black/20" onClick={onClose}>
@@ -129,6 +141,21 @@ function ConversaDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             <p className="mt-2 text-xs text-black/60">
               <span className="font-medium">Gargalo:</span> {lead.maior_gargalo}
             </p>
+          )}
+          {lead.transferido_humano && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5">
+              <span className="text-[11px] leading-snug text-blue-800">
+                Atendimento assumido por humano — a IA está em silêncio aqui.
+              </span>
+              <button
+                type="button"
+                onClick={reativarIa}
+                disabled={reativando}
+                className="shrink-0 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {reativando ? "…" : "Reativar IA"}
+              </button>
+            </div>
           )}
         </header>
         <div className="flex-1 space-y-3 overflow-auto p-4">

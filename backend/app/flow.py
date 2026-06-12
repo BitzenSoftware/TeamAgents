@@ -684,6 +684,11 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     lead = _get_or_create_lead(cliente_id, campanha["id"], whatsapp_num, nome)
     _save_msg(lead["id"], "LEAD", text)
 
+    # Humano já assumiu este contato: o bot fica em silêncio (só guarda a mensagem
+    # para a equipe ler o histórico). Evita o agente "falar por cima" do atendente.
+    if lead.get("transferido_humano"):
+        return
+
     # Regra de plano: sem créditos, o SDR não responde (a mensagem do lead fica gravada).
     try:
         verificar_limite(cliente_id, CREDITOS_SDR)
@@ -1829,6 +1834,20 @@ def listar_conversas(cliente_id: str, lead_id: str) -> list[dict]:
         .execute()
         .data
     )
+
+
+def reativar_ia_lead(cliente_id: str, lead_id: str) -> dict:
+    """Desfaz a transferência para humano — o SDR volta a atender este contato.
+    Validado por cliente_id (não mexe em lead de outro tenant)."""
+    res = (
+        get_db()
+        .table("leads")
+        .update({"transferido_humano": False})
+        .eq("id", lead_id)
+        .eq("cliente_id", cliente_id)
+        .execute()
+    )
+    return {"ok": bool(res.data)}
 
 
 # ===================== Agente 3: relatório SEMANAL por tenant (Cron) =====================
