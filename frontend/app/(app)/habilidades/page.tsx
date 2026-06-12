@@ -172,7 +172,7 @@ export default function HabilidadesPage() {
           {/* Detalhe (detail) */}
           <section className="md:col-span-8 lg:col-span-9">
             {selecionada ? (
-              <Detalhe h={selecionada} onToggle={() => toggle(selecionada)} onApagar={() => apagar(selecionada)} />
+              <Detalhe key={selecionada.id} h={selecionada} onToggle={() => toggle(selecionada)} onApagar={() => apagar(selecionada)} onSaved={carregar} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
                 Selecione uma habilidade à esquerda para ver o conteúdo.
@@ -209,16 +209,48 @@ function Detalhe({
   h,
   onToggle,
   onApagar,
+  onSaved,
 }: {
   h: Habilidade;
   onToggle: () => void;
   onApagar: () => void;
+  onSaved: () => void;
 }) {
+  const [editando, setEditando] = useState(false);
+  const [titulo, setTitulo] = useState(h.titulo);
+  const [conteudo, setConteudo] = useState(h.conteudo);
+  const [agente, setAgente] = useState<AgenteSkill>(h.agente);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  function cancelar() {
+    setTitulo(h.titulo);
+    setConteudo(h.conteudo);
+    setAgente(h.agente);
+    setErro(null);
+    setEditando(false);
+  }
+
+  async function salvar() {
+    if (!titulo.trim() || !conteudo.trim()) return;
+    setSaving(true);
+    setErro(null);
+    try {
+      await api.atualizarHabilidade(h.id, { titulo: titulo.trim(), conteudo: conteudo.trim(), agente });
+      setEditando(false);
+      onSaved();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
         <div className="min-w-0">
-          <h2 className="min-w-0 break-words text-base font-semibold text-white">{h.titulo}</h2>
+          <h2 className="min-w-0 break-words text-base font-semibold text-white">{editando ? "Editando habilidade" : h.titulo}</h2>
           <div className="mt-0.5 text-[11px] text-white/70">{AGENTE_LABEL[h.agente]}</div>
         </div>
         <span
@@ -230,23 +262,80 @@ function Detalhe({
         </span>
       </div>
       <div className="p-5">
-        <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-black/80">{h.conteudo}</p>
-        <div className="mt-5 flex gap-2 border-t border-black/5 pt-4">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5"
-          >
-            {h.ativo ? "Desativar" : "Ativar"}
-          </button>
-          <button
-            type="button"
-            onClick={onApagar}
-            className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
-          >
-            Apagar
-          </button>
-        </div>
+        {editando ? (
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-black/50">Agente</span>
+              <select
+                value={agente}
+                onChange={(e) => setAgente(e.target.value as AgenteSkill)}
+                className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+              >
+                {AGENTES.map((a) => (
+                  <option key={a.valor} value={a.valor}>{a.label}</option>
+                ))}
+              </select>
+            </label>
+            <input
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Título"
+              className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+            />
+            <textarea
+              value={conteudo}
+              onChange={(e) => setConteudo(e.target.value)}
+              placeholder="Conteúdo"
+              className="h-72 w-full resize-y rounded-lg border border-black/15 bg-white px-3 py-2 text-sm leading-relaxed"
+            />
+            {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+            <div className="flex gap-2 border-t border-black/5 pt-4">
+              <button
+                type="button"
+                onClick={salvar}
+                disabled={saving || !titulo.trim() || !conteudo.trim()}
+                className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+              >
+                {saving ? "Salvando…" : "Salvar"}
+              </button>
+              <button
+                type="button"
+                onClick={cancelar}
+                disabled={saving}
+                className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5 disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-black/80">{h.conteudo}</p>
+            <div className="mt-5 flex gap-2 border-t border-black/5 pt-4">
+              <button
+                type="button"
+                onClick={() => setEditando(true)}
+                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5"
+              >
+                {h.ativo ? "Desativar" : "Ativar"}
+              </button>
+              <button
+                type="button"
+                onClick={onApagar}
+                className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
+              >
+                Apagar
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
