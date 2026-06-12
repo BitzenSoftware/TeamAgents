@@ -113,23 +113,58 @@ function Geral() {
         </p>
       </Section>
 
-      <Section title="Primeiros passos">
-        <ol className="space-y-2 text-sm">
+      <Section title="Como ativar (passo a passo)">
+        <ol className="space-y-3 text-sm">
           {[
-            "Em Configurações, ligue o seu WhatsApp e o link de agenda",
-            "Em Campanhas, gere o seu primeiro anúncio e copie a palavra-chave",
-            "Publique o anúncio no Meta/Google Ads com essa palavra-chave",
-            "Acompanhe os leads a entrar no Pipeline",
-            "Receba o seu primeiro relatório na Consultoria",
-          ].map((t, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand text-[11px] text-white">
+            {
+              t: "Ligue o WhatsApp da clínica",
+              d: "Menu Configurações → aba WhatsApp → botão “Ligar WhatsApp”. Leia o QR Code com o celular da clínica. Pronto: o número aparece sozinho no campo logo abaixo.",
+            },
+            {
+              t: "Ensine os procedimentos e preços ao agente",
+              d: "Menu Habilidades → botão “✨ Modelos de estética” → “Adicionar todos” → edite cada um com os seus valores reais. É isto que faz o agente entender os procedimentos e responder “quanto custa” sem fugir.",
+            },
+            {
+              t: "Coloque o seu link de agenda",
+              d: "Menu Configurações → campo “Link de calendário” (o seu Calendly ou Cal.com). É o link que o agente envia para a cliente marcar a avaliação.",
+            },
+            {
+              t: "Crie a primeira campanha e pegue o link de captação",
+              d: "Menu Agente de Copywriting → botão “+ Nova campanha” → gere. Clique na campanha à esquerda e, no detalhe, copie o “📲 Link de captação” (ou baixe o QR Code).",
+            },
+            {
+              t: "Espalhe o link para as clientes chegarem",
+              d: "Cole o link na bio do Instagram, no story, no botão do anúncio ou imprima o QR na recepção. Quem clicar já cai no seu WhatsApp — e o agente assume a conversa.",
+            },
+            {
+              t: "Acompanhe no Pipeline e receba o relatório",
+              d: "As conversas aparecem no menu Agente SDR (Pipeline) e o balanço semanal chega no menu Agente Diretor de BI (Consultoria).",
+            },
+          ].map((p, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-semibold text-white">
                 {i + 1}
               </span>
-              <span>{t}</span>
+              <span>
+                <span className="font-semibold">{p.t}</span>
+                <span className="mt-0.5 block text-[13px] leading-relaxed text-black/55">{p.d}</span>
+              </span>
             </li>
           ))}
         </ol>
+        <Nota>
+          Para testar agora: abra o link de captação <strong>em outro celular</strong>, mande a mensagem
+          (ela já vem escrita) e veja a conversa surgir no Pipeline com o agente respondendo em segundos.
+        </Nota>
+      </Section>
+
+      <Section title="O agente responde cada mensagem — é normal">
+        <p className="text-[15px] leading-relaxed">
+          O Agente SDR é uma <strong>conversa</strong>, não um robô de uma resposta só. A cada mensagem
+          da cliente ele lê o histórico todo e responde — como uma recepcionista faria. Ele segue
+          conversando até <strong>agendar a avaliação</strong> ou <strong>passar para um humano</strong>
+          (ex.: dúvida clínica). Cada resposta usa 1 crédito.
+        </p>
       </Section>
     </div>
   );
@@ -156,6 +191,12 @@ function Campanhas() {
         — escolha as redes abaixo de cada versão e clique em <strong>Postar</strong> (basta ter as
         contas conectadas em Configurações).
       </p>
+      <Nota>
+        <strong>📲 O link de captação é o mais importante.</strong> No detalhe de cada campanha aparece
+        um <strong>link e um QR Code</strong> que levam direto pro WhatsApp da clínica, já com a
+        palavra-chave. Cole na bio, no story ou no botão do anúncio: quem clicar vira atendimento na
+        hora — e cai automaticamente nesta campanha. É a ponte entre o anúncio e a conversa.
+      </Nota>
       <Nota>
         Pode escolher quais <strong>Habilidades</strong> (conhecimento da empresa) entram na geração —
         usa menos tokens e foca o anúncio. Todas as campanhas ficam salvas e podem ser editadas ou
