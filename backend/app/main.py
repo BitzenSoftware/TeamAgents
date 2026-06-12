@@ -29,6 +29,7 @@ from .schemas import (
     OAuthFacebookExchange,
     SocialConfigUpdate,
     SocialPostRequest,
+    SuporteMensagem,
     TarefaExecutivoCreate,
     TarefaExecutivoUpdate,
     TokenExchangeRequest,
@@ -527,6 +528,43 @@ def reativar_ia_lead(lead_id: str, cliente_id: str = Depends(auth.current_client
 def verificar_calcom(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
     """Valida a ligação Cal.com do tenant (API key + Event Type ID já salvos)."""
     return flow.verificar_calcom(cliente_id)
+
+
+# ===================== Suporte (chat cliente <-> admin) =====================
+@app.get("/me/suporte")
+def suporte_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Conversa de suporte do tenant autenticado (marca respostas do admin como lidas)."""
+    return flow.suporte_listar(cliente_id)
+
+
+@app.post("/me/suporte", status_code=201)
+def suporte_enviar(payload: SuporteMensagem, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """O cliente envia uma mensagem ao suporte."""
+    return flow.suporte_enviar(cliente_id, payload.mensagem)
+
+
+@app.get("/me/suporte/nao-lidas")
+def suporte_nao_lidas(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Nº de respostas do suporte ainda não vistas (badge no menu)."""
+    return {"n": flow.suporte_nao_lidas(cliente_id)}
+
+
+@app.get("/admin/suporte")
+def admin_suporte_threads(_: str = Depends(auth.require_superadmin)) -> list[dict]:
+    """Caixa de entrada do admin: uma linha por cliente."""
+    return flow.suporte_admin_threads()
+
+
+@app.get("/admin/suporte/{cliente_id}")
+def admin_suporte_listar(cliente_id: str, _: str = Depends(auth.require_superadmin)) -> list[dict]:
+    """Conversa de um cliente (admin) — marca as mensagens do cliente como lidas."""
+    return flow.suporte_admin_listar(cliente_id)
+
+
+@app.post("/admin/suporte/{cliente_id}", status_code=201)
+def admin_suporte_responder(cliente_id: str, payload: SuporteMensagem, _: str = Depends(auth.require_superadmin)) -> dict:
+    """O admin responde a um cliente."""
+    return flow.suporte_admin_responder(cliente_id, payload.mensagem)
 
 
 # ===================== Social Config =====================

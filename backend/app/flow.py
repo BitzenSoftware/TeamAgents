@@ -1885,6 +1885,76 @@ def reativar_ia_lead(cliente_id: str, lead_id: str) -> dict:
     return {"ok": bool(res.data)}
 
 
+# ===================== Suporte (chat cliente <-> admin) =====================
+def suporte_listar(cliente_id: str) -> list[dict]:
+    """Mensagens do cliente (cronológico) + marca as do admin como lidas (cliente viu)."""
+    db = get_db()
+    msgs = (
+        db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
+        .order("created_at").execute().data
+    )
+    db.table("suporte_mensagens").update({"lida": True}) \
+        .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
+    return msgs
+
+
+def suporte_enviar(cliente_id: str, mensagem: str) -> dict:
+    """O cliente envia uma mensagem para o suporte."""
+    return get_db().table("suporte_mensagens").insert(
+        {"cliente_id": cliente_id, "autor": "cliente", "mensagem": mensagem}
+    ).execute().data[0]
+
+
+def suporte_nao_lidas(cliente_id: str) -> int:
+    """Nº de respostas do admin ainda não vistas pelo cliente (badge no menu)."""
+    r = (
+        get_db().table("suporte_mensagens").select("id", count="exact")
+        .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
+    )
+    return r.count or 0
+
+
+def suporte_admin_threads() -> list[dict]:
+    """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
+    db = get_db()
+    msgs = db.table("suporte_mensagens").select("*").order("created_at", desc=True).execute().data
+    clientes = {c["id"]: c for c in db.table("clientes").select("id, nome, email").execute().data}
+    threads: dict[str, dict] = {}
+    for m in msgs:  # desc -> a 1ª de cada cliente é a mais recente
+        cid = m["cliente_id"]
+        c = clientes.get(cid) or {}
+        t = threads.setdefault(cid, {
+            "cliente_id": cid,
+            "nome": c.get("nome"),
+            "email": c.get("email"),
+            "ultima": m["mensagem"],
+            "ultima_em": m["created_at"],
+            "nao_lidas": 0,
+        })
+        if m["autor"] == "cliente" and not m["lida"]:
+            t["nao_lidas"] += 1
+    return list(threads.values())
+
+
+def suporte_admin_listar(cliente_id: str) -> list[dict]:
+    """Mensagens de um cliente (admin) + marca as do cliente como lidas."""
+    db = get_db()
+    msgs = (
+        db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
+        .order("created_at").execute().data
+    )
+    db.table("suporte_mensagens").update({"lida": True}) \
+        .eq("cliente_id", cliente_id).eq("autor", "cliente").eq("lida", False).execute()
+    return msgs
+
+
+def suporte_admin_responder(cliente_id: str, mensagem: str) -> dict:
+    """O admin responde a um cliente."""
+    return get_db().table("suporte_mensagens").insert(
+        {"cliente_id": cliente_id, "autor": "admin", "mensagem": mensagem}
+    ).execute().data[0]
+
+
 # ===================== Agente 3: relatório SEMANAL por tenant (Cron) =====================
 def _metricas_semana(cliente_id: str, dias: int) -> dict:
     """Agrega as métricas dos últimos `dias` dias para um cliente."""

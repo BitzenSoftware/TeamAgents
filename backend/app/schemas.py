@@ -304,6 +304,11 @@ class TarefaExecutivoUpdate(BaseModel):
     habilidade_ids: list[str] | None = None
 
 
+# ===================== Suporte (chat cliente <-> admin) =====================
+class SuporteMensagem(BaseModel):
+    mensagem: str = Field(min_length=1, max_length=4000)
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

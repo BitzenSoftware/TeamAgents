@@ -198,6 +198,24 @@ export type Config = {
   limite_mensal_leads: number;
 };
 
+export type SuporteMensagem = {
+  id: string;
+  cliente_id: string;
+  autor: "cliente" | "admin";
+  mensagem: string;
+  lida: boolean;
+  created_at: string;
+};
+
+export type SuporteThread = {
+  cliente_id: string;
+  nome: string | null;
+  email: string | null;
+  ultima: string;
+  ultima_em: string;
+  nao_lidas: number;
+};
+
 export type Plano = {
   id: string;
   nome: string;
@@ -427,6 +445,16 @@ export const api = {
     req<{ ok: boolean }>(`/me/leads/${leadId}/reativar-ia`, { method: "POST" }),
   verificarCalcom: () =>
     req<{ ok: boolean; erro?: string }>("/me/calcom/verificar", { method: "POST" }),
+
+  // --- Suporte (chat cliente <-> admin) ---
+  suporte: () => req<SuporteMensagem[]>("/me/suporte"),
+  enviarSuporte: (mensagem: string) =>
+    req<SuporteMensagem>("/me/suporte", { method: "POST", body: JSON.stringify({ mensagem }) }),
+  suporteNaoLidas: () => req<{ n: number }>("/me/suporte/nao-lidas"),
+  adminSuporteThreads: () => req<SuporteThread[]>("/admin/suporte"),
+  adminSuporteMensagens: (clienteId: string) => req<SuporteMensagem[]>(`/admin/suporte/${clienteId}`),
+  adminResponderSuporte: (clienteId: string, mensagem: string) =>
+    req<SuporteMensagem>(`/admin/suporte/${clienteId}`, { method: "POST", body: JSON.stringify({ mensagem }) }),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),

@@ -16,11 +16,13 @@ const NAV = [
   { href: "/consumo", label: "Consumo", hint: "Créditos / Dashboard" },
   { href: "/assinatura", label: "Assinatura", hint: "Planos & Pacotes" },
   { href: "/configuracoes", label: "Configurações", hint: "WhatsApp / Agenda" },
+  { href: "/suporte", label: "Suporte", hint: "Fale conosco" },
   { href: "/guia", label: "Guia do Usuário", hint: "Como funciona" },
 ];
 
 const NAV_ADMIN = [
   { href: "/empresas", label: "Empresas", hint: "Cadastro / Métricas" },
+  { href: "/admin-suporte", label: "Suporte (admin)", hint: "Caixa de entrada" },
   { href: "/planos", label: "Planos", hint: "Admin / Stripe" },
   { href: "/pacotes", label: "Pacotes", hint: "Créditos avulsos" },
 ];
@@ -37,6 +39,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (cliente) api.consumo().then(setConsumo).catch(() => {});
   }, [cliente, pathname]);
+
+  // Badges de suporte (respostas não lidas pelo cliente; e mensagens de clientes p/ admin).
+  const [naoLidas, setNaoLidas] = useState(0);
+  const [adminNaoLidas, setAdminNaoLidas] = useState(0);
+  useEffect(() => {
+    if (!cliente) return;
+    const tick = () => {
+      api.suporteNaoLidas().then((r) => setNaoLidas(r.n)).catch(() => {});
+      if (isAdmin) {
+        api.adminSuporteThreads()
+          .then((ts) => setAdminNaoLidas(ts.reduce((a, t) => a + (t.nao_lidas || 0), 0)))
+          .catch(() => {});
+      }
+    };
+    tick();
+    const id = setInterval(tick, 15000);
+    return () => clearInterval(id);
+  }, [cliente, isAdmin, pathname]);
   const semCreditos =
     !!consumo &&
     !consumo.ilimitado &&
@@ -54,6 +74,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-col gap-1">
           {nav.map((item) => {
             const active = pathname.startsWith(item.href);
+            const badge = item.href === "/suporte" ? naoLidas : item.href === "/admin-suporte" ? adminNaoLidas : 0;
             return (
               <Link
                 key={item.href}
@@ -62,7 +83,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   active ? "bg-brand text-white" : "hover:bg-black/5"
                 }`}
               >
-                <div className="font-medium">{item.label}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{item.label}</span>
+                  {badge > 0 && (
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-white text-brand" : "bg-rose-500 text-white"}`}>
+                      {badge}
+                    </span>
+                  )}
+                </div>
                 <div className={`text-xs ${active ? "text-white/60" : "text-black/40"}`}>
                   {item.hint}
                 </div>
