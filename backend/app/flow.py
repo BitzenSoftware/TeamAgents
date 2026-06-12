@@ -1701,17 +1701,20 @@ def admin_empresas_consumo(de: str, ate: str) -> list[dict]:
             a[o] = a.get(o, 0) + q
     except Exception:
         pass
-    clientes = db.table("clientes").select("id, nome, plano_id").execute().data
+    clientes = db.table("clientes").select("id, nome, plano_id, auth_user_id").execute().data
     planos = {p["id"]: p for p in db.table("planos").select("id, nome, creditos_mensais").execute().data}
+    emails = _mapa_emails()
+    superadmin_email = get_settings().superadmin_email.lower()
     out = []
     for c in clientes:
         a = agg.get(c["id"], {})
         plano = planos.get(c.get("plano_id"))
+        ilimitado = (emails.get(c.get("auth_user_id"), "").lower() == superadmin_email) and bool(superadmin_email)
         out.append({
             "id": c["id"],
             "nome": c.get("nome"),
-            "plano_nome": plano["nome"] if plano else None,
-            "creditos_mensais": plano["creditos_mensais"] if plano else None,
+            "plano_nome": "Ilimitado" if ilimitado else (plano["nome"] if plano else None),
+            "creditos_mensais": None if ilimitado else (plano["creditos_mensais"] if plano else None),
             "total": a.get("total", 0),
             "campanhas": a.get("campanhas", 0),
             "sdr": a.get("sdr", 0),
