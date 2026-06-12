@@ -191,6 +191,8 @@ export type Config = {
   whatsapp_token: string;
   whatsapp_api_url: string | null;
   whatsapp_numero: string | null;
+  calcom_api_key: string | null;
+  calcom_event_type_id: number | null;
   calendario_link: string;
   whatsapp_dono: string | null;
   limite_mensal_leads: number;
@@ -329,6 +331,8 @@ export type ConfigUpdate = Partial<{
   whatsapp_token: string;
   whatsapp_api_url: string;
   whatsapp_numero: string;
+  calcom_api_key: string;
+  calcom_event_type_id: number;
   calendario_link: string;
   whatsapp_dono: string;
   limite_mensal_leads: number;
@@ -421,6 +425,8 @@ export const api = {
   conversas: (leadId: string) => req<Conversa[]>(`/me/leads/${leadId}/conversas`),
   reativarIaLead: (leadId: string) =>
     req<{ ok: boolean }>(`/me/leads/${leadId}/reativar-ia`, { method: "POST" }),
+  verificarCalcom: () =>
+    req<{ ok: boolean; erro?: string }>("/me/calcom/verificar", { method: "POST" }),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),

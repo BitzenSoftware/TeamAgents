@@ -257,6 +257,8 @@ function AbaWhatsApp() {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [calcomBusy, setCalcomBusy] = useState(false);
+  const [calcomMsg, setCalcomMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     api.getConfig().then(setCfg).catch((e) => setErro(e.message)).finally(() => setLoading(false));
@@ -277,6 +279,8 @@ function AbaWhatsApp() {
         whatsapp_token: cfg.whatsapp_token,
         whatsapp_api_url: cfg.whatsapp_api_url ?? "",
         whatsapp_numero: (cfg.whatsapp_numero ?? "").replace(/\D/g, ""),
+        calcom_api_key: cfg.calcom_api_key ?? "",
+        calcom_event_type_id: cfg.calcom_event_type_id ?? undefined,
         calendario_link: cfg.calendario_link,
         whatsapp_dono: cfg.whatsapp_dono ?? "",
         limite_mensal_leads: cfg.limite_mensal_leads,
@@ -285,6 +289,17 @@ function AbaWhatsApp() {
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao salvar");
     } finally { setSaving(false); }
+  }
+
+  async function verificarCalcom() {
+    setCalcomBusy(true);
+    setCalcomMsg(null);
+    try {
+      const r = await api.verificarCalcom();
+      setCalcomMsg(r.ok ? { ok: true, texto: "Conexão OK — o agente já consegue agendar na sua agenda." } : { ok: false, texto: r.erro ?? "Não foi possível verificar." });
+    } catch (e) {
+      setCalcomMsg({ ok: false, texto: e instanceof Error ? e.message : "Falha ao verificar." });
+    } finally { setCalcomBusy(false); }
   }
 
   if (loading) return <Carregando />;
@@ -346,6 +361,43 @@ function AbaWhatsApp() {
                   onChange={(e) => set("calendario_link", e.target.value)}
                   placeholder="https://cal.com/voce/15min" />
               </Campo>
+
+              {/* Agendamento automático via Cal.com (conta da própria clínica) */}
+              <div className="col-span-2 rounded-lg border border-brand/20 bg-brand/[0.03] p-3">
+                <div className="mb-1 text-sm font-semibold text-ink">📅 Agendamento automático (Cal.com)</div>
+                <p className="mb-3 text-xs leading-relaxed text-black/50">
+                  Conecte a <strong>sua</strong> conta Cal.com e o Agente SDR passa a <strong>marcar a avaliação sozinho</strong> nos
+                  horários livres da sua agenda — sem você mexer. A conta é sua (plano Free serve);
+                  o TeamAgents só lê os horários e cria a reserva. Deixe em branco para o agente apenas enviar o link acima.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo label="Cal.com API key" className="col-span-2">
+                    <CampoSecreto value={cfg.calcom_api_key ?? ""}
+                      onChange={(v) => set("calcom_api_key", v)}
+                      placeholder="cal_live_..." />
+                  </Campo>
+                  <Campo label="Event Type ID">
+                    <input type="number" className="campo" value={cfg.calcom_event_type_id ?? ""}
+                      onChange={(e) => set("calcom_event_type_id", e.target.value ? Number(e.target.value) : null)}
+                      placeholder="ex: 123456" />
+                  </Campo>
+                  <div className="flex items-end">
+                    <button type="button" onClick={verificarCalcom} disabled={calcomBusy}
+                      className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40">
+                      {calcomBusy ? "Verificando…" : "Verificar conexão"}
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-[11px] text-black/40">
+                  O Event Type é o tipo de agendamento (ex.: “Avaliação 30 min”). O ID aparece no painel do Cal.com.
+                  <strong> Salve antes de verificar.</strong>
+                </p>
+                {calcomMsg && (
+                  <p className={`mt-2 text-xs ${calcomMsg.ok ? "text-emerald-700" : "text-rose-700"}`}>
+                    {calcomMsg.ok ? "✓ " : "✗ "}{calcomMsg.texto}
+                  </p>
+                )}
+              </div>
               <Campo label="WhatsApp do dono (recebe relatórios)">
                 <input className="campo" value={cfg.whatsapp_dono ?? ""}
                   onChange={(e) => set("whatsapp_dono", e.target.value)}

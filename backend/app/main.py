@@ -523,6 +523,12 @@ def reativar_ia_lead(lead_id: str, cliente_id: str = Depends(auth.current_client
     return flow.reativar_ia_lead(cliente_id, lead_id)
 
 
+@app.post("/me/calcom/verificar")
+def verificar_calcom(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Valida a ligação Cal.com do tenant (API key + Event Type ID já salvos)."""
+    return flow.verificar_calcom(cliente_id)
+
+
 # ===================== Social Config =====================
 @app.get("/me/social-config")
 def get_social_config(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:

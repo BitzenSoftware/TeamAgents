@@ -49,6 +49,10 @@ class SdrOutput(BaseModel):
     response: str = Field(description="Texto curto (máx 3 frases) a enviar ao lead no WhatsApp")
     action: SdrAction
     qualification_status: SdrStatus
+    agendar_em: str | None = Field(
+        default=None,
+        description="SÓ quando action=SCHEDULE_MEETING e a pessoa confirmou um horário: copie aqui o inicio_iso EXATO do horário escolhido (da lista de horários reais). Caso contrário, deixe nulo.",
+    )
 
 
 # ===================== Agente 3: Diretor de BI =====================
@@ -79,6 +83,8 @@ class ConfigUpdate(BaseModel):
     whatsapp_token: str | None = None
     whatsapp_api_url: str | None = None
     whatsapp_numero: str | None = None  # número da linha (E.164) p/ link de captação
+    calcom_api_key: str | None = None
+    calcom_event_type_id: int | None = None
     calendario_link: str | None = None
     whatsapp_dono: str | None = None
     limite_mensal_leads: int | None = None

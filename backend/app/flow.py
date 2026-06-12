@@ -10,7 +10,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import email_ingest, evolution, executivo, llm, pricing, whatsapp
+from . import calcom, email_ingest, evolution, executivo, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
@@ -126,6 +126,15 @@ def whatsapp_desligar(cliente_id: str) -> dict:
     evolution.apagar_instancia(cfg.get("whatsapp_instance_name"))
     update_config(cliente_id, {"whatsapp_instance_name": None, "whatsapp_token": None})
     return {"ok": True}
+
+
+def verificar_calcom(cliente_id: str) -> dict:
+    """Valida a ligação Cal.com do cliente (API key + Event Type ID já salvos)."""
+    cfg = get_config_by_cliente(cliente_id) or {}
+    key, etid = cfg.get("calcom_api_key"), cfg.get("calcom_event_type_id")
+    if not key or not etid:
+        return {"ok": False, "erro": "Preencha a API key e o Event Type ID e salve antes de verificar."}
+    return calcom.verificar(key, etid)
 
 
 def update_config(cliente_id: str, fields: dict) -> dict | None:
@@ -703,6 +712,20 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     # fallback para o da campanha.
     link_calendario = config.get("calendario_link") or campanha.get("link_calendario") or ""
 
+    # Se a clínica ligou o Cal.com, injeta os horários REAIS livres — o agente
+    # propõe só esses e devolve o inicio_iso escolhido em `agendar_em`.
+    horarios_txt = ""
+    if calcom.configurado(config):
+        livres = calcom.proximos_horarios(config["calcom_api_key"], config["calcom_event_type_id"])
+        if livres:
+            linhas = "\n".join(f"- {h['rotulo']}  (inicio_iso: {h['inicio_iso']})" for h in livres)
+            horarios_txt = (
+                "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n"
+                f"{linhas}\n"
+                "Ao confirmar um horário com a pessoa, devolva action=SCHEDULE_MEETING e copie "
+                "o `inicio_iso` EXATO do horário escolhido no campo `agendar_em`. Não invente horários.\n"
+            )
+
     out, uso = llm.responder_sdr(
         lead_message=text,
         historico=historico,
@@ -711,6 +734,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
         palavra_chave_gatilho=campanha.get("palavra_chave_gatilho") or "",
         link_calendario=link_calendario,
         habilidades=_habilidades_texto(cliente_id, agente="sdr"),
+        horarios=horarios_txt,
     )
 
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
@@ -721,6 +745,17 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     if out.action == SdrAction.SCHEDULE_MEETING:
         updates["reuniao_agendada"] = True
         updates["status_qualificacao"] = "QUALIFICADO"
+        # Agendamento autônomo: se o Cal.com está ligado e o agente escolheu um
+        # horário, cria a reserva real na agenda (best-effort — não quebra o fluxo).
+        agendar_em = getattr(out, "agendar_em", None)
+        if agendar_em and calcom.configurado(config):
+            calcom.criar_reserva(
+                api_key=config["calcom_api_key"],
+                event_type_id=config["calcom_event_type_id"],
+                inicio_iso=agendar_em,
+                nome=lead.get("nome") or nome or "",
+                whatsapp=whatsapp_num,
+            )
     elif out.action == SdrAction.TRANSFER_TO_HUMAN:
         updates["transferido_humano"] = True
     db.table("leads").update(updates).eq("id", lead["id"]).execute()

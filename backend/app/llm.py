@@ -87,6 +87,7 @@ def responder_sdr(
     palavra_chave_gatilho: str,
     link_calendario: str,
     habilidades: str = "",
+    horarios: str = "",
 ) -> tuple[SdrOutput, UsoLLM]:
     """Gera a resposta do SDR.
 
@@ -103,6 +104,8 @@ def responder_sdr(
     )
     if habilidades:
         contexto += "\n" + habilidades
+    if horarios:
+        contexto += "\n" + horarios
     messages = [*historico, {"role": "user", "content": lead_message}]
     resp = _client().messages.parse(
         model=s.model_sdr,
