@@ -570,6 +570,12 @@ def admin_suporte_debug2(_: str = Depends(auth.require_superadmin)) -> dict:
     return flow.suporte_debug()
 
 
+@app.get("/diag-suporte-publico-temp")
+def diag_suporte_publico_temp() -> dict:
+    """TEMPORÁRIO E PÚBLICO (será removido): diagnóstico das queries de suporte."""
+    return flow.suporte_debug()
+
+
 @app.get("/admin/suporte/{cliente_id}")
 def admin_suporte_listar(cliente_id: str, _: str = Depends(auth.require_superadmin)) -> list[dict]:
     """Conversa de um cliente (admin) — marca as mensagens do cliente como lidas."""
