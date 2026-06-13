@@ -16,13 +16,7 @@ export default function AdminSuportePage() {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [debug, setDebug] = useState<string>("");
   const fimRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    api.adminSuporteDebug().then((d) => setDebug(JSON.stringify(d))).catch((e) => setDebug("debug erro: " + (e instanceof Error ? e.message : String(e))));
-  }, [isAdmin]);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) router.replace("/pipeline");
@@ -87,11 +81,6 @@ export default function AdminSuportePage() {
         {erro && (
           <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">
             Erro ao carregar: {erro}
-          </p>
-        )}
-        {debug && (
-          <p className="mt-2 break-all rounded-lg bg-amber-50 p-2.5 font-mono text-[11px] text-amber-900">
-            diag: {debug}
           </p>
         )}
       </header>

@@ -1901,10 +1901,9 @@ def reativar_ia_lead(cliente_id: str, lead_id: str) -> dict:
 def suporte_listar(cliente_id: str) -> list[dict]:
     """Mensagens do cliente (cronológico) + marca as do admin como lidas (cliente viu)."""
     db = get_db()
-    msgs = (
-        db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
-        .order("created_at").execute().data
-    )
+    # Sem .order() na query (PostgREST tropeça nessa tabela nova) — ordenamos em Python.
+    msgs = db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id).execute().data or []
+    msgs.sort(key=lambda m: m.get("created_at") or "")
     try:  # marcar como lida é secundário — nunca pode quebrar a listagem
         db.table("suporte_mensagens").update({"lida": True}) \
             .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
@@ -1932,23 +1931,12 @@ def suporte_nao_lidas(cliente_id: str) -> int:
         return 0
 
 
-def suporte_debug() -> dict:
-    """TEMPORÁRIO: diagnóstico — o que o backend (service_role) enxerga e em que projeto."""
-    s = get_settings()
-    out: dict = {"projeto": (s.supabase_url or "").split("//")[-1].split(".")[0]}
-    for t in ("suporte_mensagens", "clientes"):
-        try:
-            out[t] = len(get_db().table(t).select("id").execute().data)
-        except Exception as e:
-            out[t] = f"ERRO: {str(e)[:140]}"
-    return out
-
-
 def suporte_admin_threads() -> list[dict]:
     """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
     db = get_db()
-    msgs = db.table("suporte_mensagens").select("*").order("created_at", desc=True).execute().data
-    clientes = {c["id"]: c for c in db.table("clientes").select("id, nome, email").execute().data}
+    msgs = db.table("suporte_mensagens").select("*").execute().data or []
+    msgs.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+    clientes = {c["id"]: c for c in (db.table("clientes").select("id, nome, email").execute().data or [])}
     threads: dict[str, dict] = {}
     for m in msgs:  # desc -> a 1ª de cada cliente é a mais recente
         cid = m.get("cliente_id")
@@ -1971,10 +1959,8 @@ def suporte_admin_threads() -> list[dict]:
 def suporte_admin_listar(cliente_id: str) -> list[dict]:
     """Mensagens de um cliente (admin) + marca as do cliente como lidas."""
     db = get_db()
-    msgs = (
-        db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
-        .order("created_at").execute().data
-    )
+    msgs = db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id).execute().data or []
+    msgs.sort(key=lambda m: m.get("created_at") or "")
     try:
         db.table("suporte_mensagens").update({"lida": True}) \
             .eq("cliente_id", cliente_id).eq("autor", "cliente").eq("lida", False).execute()
