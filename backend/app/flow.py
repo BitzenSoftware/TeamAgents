@@ -1932,6 +1932,18 @@ def suporte_nao_lidas(cliente_id: str) -> int:
         return 0
 
 
+def suporte_debug() -> dict:
+    """TEMPORÁRIO: diagnóstico — o que o backend (service_role) enxerga e em que projeto."""
+    s = get_settings()
+    out: dict = {"projeto": (s.supabase_url or "").split("//")[-1].split(".")[0]}
+    for t in ("suporte_mensagens", "clientes"):
+        try:
+            out[t] = len(get_db().table(t).select("id").execute().data)
+        except Exception as e:
+            out[t] = f"ERRO: {str(e)[:140]}"
+    return out
+
+
 def suporte_admin_threads() -> list[dict]:
     """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
     db = get_db()

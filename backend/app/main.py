@@ -564,6 +564,12 @@ def admin_suporte_threads(_: str = Depends(auth.require_superadmin)) -> list[dic
     return flow.suporte_admin_threads()
 
 
+@app.get("/admin/suporte-debug")
+def admin_suporte_debug(_: str = Depends(auth.require_superadmin)) -> dict:
+    """TEMPORÁRIO: diagnóstico do que o backend enxerga e em qual projeto Supabase."""
+    return flow.suporte_debug()
+
+
 @app.get("/admin/suporte/{cliente_id}")
 def admin_suporte_listar(cliente_id: str, _: str = Depends(auth.require_superadmin)) -> list[dict]:
     """Conversa de um cliente (admin) — marca as mensagens do cliente como lidas."""

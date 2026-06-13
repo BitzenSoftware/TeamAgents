@@ -467,6 +467,7 @@ export const api = {
     req<SuporteMensagem>("/me/suporte", { method: "POST", body: JSON.stringify({ mensagem }) }),
   suporteNaoLidas: () => req<{ n: number }>("/me/suporte/nao-lidas"),
   adminSuporteThreads: () => req<SuporteThread[]>("/admin/suporte"),
+  adminSuporteDebug: () => req<Record<string, unknown>>("/admin/suporte-debug"),
   adminSuporteMensagens: (clienteId: string) => req<SuporteMensagem[]>(`/admin/suporte/${clienteId}`),
   adminResponderSuporte: (clienteId: string, mensagem: string) =>
     req<SuporteMensagem>(`/admin/suporte/${clienteId}`, { method: "POST", body: JSON.stringify({ mensagem }) }),
