@@ -211,7 +211,7 @@ export default function LandingPage() {
           <div>
             <div className="lp-anim lp-up mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/70">
               <Sparkles size={13} className="text-amber-300" />
-              Recepção de IA para clínicas de estética
+              Chatbot de IA para clínicas de estética
             </div>
 
             <h1 className="lp-anim lp-up mb-6 text-4xl font-bold leading-[1.08] tracking-tight [animation-delay:.08s] md:text-6xl">
@@ -286,8 +286,8 @@ export default function LandingPage() {
               Quatro especialistas. Uma agenda cheia.
             </h2>
             <p className="mx-auto max-w-2xl text-black/50">
-              Do anúncio ao agendamento, da recepção ao relatório — cada agente domina a sua função e
-              trabalha junto com os outros pra lotar a sua agenda. Veja o que cada um faz pela clínica:
+              Do anúncio ao agendamento, da recepção ao relatório — uma automação de WhatsApp completa.
+              Cada agente domina a sua função e trabalha junto com os outros pra lotar a sua agenda. Veja o que cada um faz pela clínica:
             </p>
           </div>
 
@@ -298,7 +298,7 @@ export default function LandingPage() {
               tag="WhatsApp · Recepção"
               tagCor="bg-emerald-100 text-emerald-700"
               nome="Agente SDR"
-              desc="Atende cada cliente em segundos, entende qual procedimento ela quer, responde o “quanto custa?” sem assustar e agenda a avaliação na sua agenda — ou passa pra você quando faz sentido."
+              desc="Um chatbot que atende cada cliente em segundos, entende qual procedimento ela quer, responde o “quanto custa?” sem assustar e faz o agendamento automático na sua agenda — ou passa pra você quando faz sentido."
               checks={["Atendimento automático 24/7", "Agendamento direto na sua agenda", "Histórico completo por cliente"]}
             >
               <div className="space-y-2 text-xs">
