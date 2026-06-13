@@ -564,16 +564,6 @@ def admin_suporte_threads(_: str = Depends(auth.require_superadmin)) -> list[dic
     return flow.suporte_admin_threads()
 
 
-@app.get("/admin/suporte-debug2")
-def admin_suporte_debug2(_: str = Depends(auth.require_superadmin)) -> dict:
-    """TEMPORÁRIO: diagnóstico detalhado das queries de suporte."""
-    return flow.suporte_debug()
-
-
-@app.get("/diag-suporte-publico-temp")
-def diag_suporte_publico_temp() -> dict:
-    """TEMPORÁRIO E PÚBLICO (será removido): diagnóstico das queries de suporte."""
-    return flow.suporte_debug()
 
 
 @app.get("/admin/suporte/{cliente_id}")

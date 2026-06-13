@@ -1936,35 +1936,14 @@ def suporte_nao_lidas(cliente_id: str) -> int:
         return 0
 
 
-def suporte_debug() -> dict:
-    """TEMPORÁRIO: o que CADA formato de query retorna (n + amostra) — diagnóstico."""
-    db = get_db()
-    out: dict = {}
-    variantes = {
-        "id": "id",
-        "star": "*",
-        "cols": _SUP_COLS,
-        "id_cli": "id, cliente_id",
-    }
-    for label, sel in variantes.items():
-        try:
-            d = db.table("suporte_mensagens").select(sel).execute().data or []
-            out[label] = {"n": len(d), "amostra": (d[0] if d else None)}
-        except Exception as e:
-            out[label] = {"erro": str(e)[:200]}
-    try:
-        out["threads_len"] = len(suporte_admin_threads())
-    except Exception as e:
-        out["threads_len"] = f"ERRO: {str(e)[:160]}"
-    return out
-
-
 def suporte_admin_threads() -> list[dict]:
     """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
     db = get_db()
     msgs = db.table("suporte_mensagens").select(_SUP_COLS).execute().data or []
     msgs.sort(key=lambda m: m.get("created_at") or "", reverse=True)
-    clientes = {c["id"]: c for c in (db.table("clientes").select("id, nome, email").execute().data or [])}
+    # `clientes` NÃO tem coluna email — o email vem do Auth/GoTrue (igual à tela Empresas).
+    clientes = {c["id"]: c for c in (db.table("clientes").select("id, nome, auth_user_id").execute().data or [])}
+    emails = _mapa_emails()  # auth_user_id -> email
     threads: dict[str, dict] = {}
     for m in msgs:  # desc -> a 1ª de cada cliente é a mais recente
         cid = m.get("cliente_id")
@@ -1974,7 +1953,7 @@ def suporte_admin_threads() -> list[dict]:
         t = threads.setdefault(cid, {
             "cliente_id": cid,
             "nome": c.get("nome"),
-            "email": c.get("email"),
+            "email": emails.get(c.get("auth_user_id")),
             "ultima": m.get("mensagem"),
             "ultima_em": m.get("created_at"),
             "nao_lidas": 0,
