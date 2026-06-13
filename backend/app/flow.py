@@ -1905,8 +1905,11 @@ def suporte_listar(cliente_id: str) -> list[dict]:
         db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
         .order("created_at").execute().data
     )
-    db.table("suporte_mensagens").update({"lida": True}) \
-        .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
+    try:  # marcar como lida é secundário — nunca pode quebrar a listagem
+        db.table("suporte_mensagens").update({"lida": True}) \
+            .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
+    except Exception:
+        pass
     return msgs
 
 
@@ -1919,11 +1922,14 @@ def suporte_enviar(cliente_id: str, mensagem: str) -> dict:
 
 def suporte_nao_lidas(cliente_id: str) -> int:
     """Nº de respostas do admin ainda não vistas pelo cliente (badge no menu)."""
-    r = (
-        get_db().table("suporte_mensagens").select("id", count="exact")
-        .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
-    )
-    return r.count or 0
+    try:
+        r = (
+            get_db().table("suporte_mensagens").select("id", count="exact")
+            .eq("cliente_id", cliente_id).eq("autor", "admin").eq("lida", False).execute()
+        )
+        return r.count or 0
+    except Exception:
+        return 0
 
 
 def suporte_admin_threads() -> list[dict]:
@@ -1933,17 +1939,19 @@ def suporte_admin_threads() -> list[dict]:
     clientes = {c["id"]: c for c in db.table("clientes").select("id, nome, email").execute().data}
     threads: dict[str, dict] = {}
     for m in msgs:  # desc -> a 1ª de cada cliente é a mais recente
-        cid = m["cliente_id"]
+        cid = m.get("cliente_id")
+        if not cid:
+            continue
         c = clientes.get(cid) or {}
         t = threads.setdefault(cid, {
             "cliente_id": cid,
             "nome": c.get("nome"),
             "email": c.get("email"),
-            "ultima": m["mensagem"],
-            "ultima_em": m["created_at"],
+            "ultima": m.get("mensagem"),
+            "ultima_em": m.get("created_at"),
             "nao_lidas": 0,
         })
-        if m["autor"] == "cliente" and not m["lida"]:
+        if m.get("autor") == "cliente" and not m.get("lida"):
             t["nao_lidas"] += 1
     return list(threads.values())
 
@@ -1955,8 +1963,11 @@ def suporte_admin_listar(cliente_id: str) -> list[dict]:
         db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id)
         .order("created_at").execute().data
     )
-    db.table("suporte_mensagens").update({"lida": True}) \
-        .eq("cliente_id", cliente_id).eq("autor", "cliente").eq("lida", False).execute()
+    try:
+        db.table("suporte_mensagens").update({"lida": True}) \
+            .eq("cliente_id", cliente_id).eq("autor", "cliente").eq("lida", False).execute()
+    except Exception:
+        pass
     return msgs
 
 
