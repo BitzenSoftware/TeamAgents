@@ -167,6 +167,11 @@ class CompraPacoteRequest(BaseModel):
     pacote_id: str = Field(min_length=1)
 
 
+class ConcederCreditosRequest(BaseModel):
+    """Admin concede créditos de cortesia (avulsos) a uma empresa."""
+    creditos: int = Field(gt=0, le=100000)
+
+
 # ===================== Social Config =====================
 class SocialConfigUpdate(BaseModel):
     discord_webhook_url: str | None = None

@@ -609,6 +609,11 @@ export const api = {
 
   // --- Painel do superadmin: Empresas ---
   empresas: () => req<Empresa[]>("/admin/empresas"),
+  adminConcederCreditos: (clienteId: string, creditos: number) =>
+    req<{ ok: boolean; creditos_avulsos: number }>(`/admin/empresas/${clienteId}/creditos`, {
+      method: "POST",
+      body: JSON.stringify({ creditos }),
+    }),
   empresasConsumo: (de: string, ate: string) =>
     req<EmpresaConsumo[]>(`/admin/empresas/consumo?de=${de}&ate=${ate}`),
   adminDashboards: (de: string, ate: string, gran: "semana" | "mes" | "trimestre" | "ano") =>

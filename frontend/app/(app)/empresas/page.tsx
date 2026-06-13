@@ -76,10 +76,12 @@ function AbaCadastro() {
   const [busca, setBusca] = useState("");
   const [plano, setPlano] = useState("todos");
   const [status, setStatus] = useState("todos");
+  const [sel, setSel] = useState<Empresa | null>(null);
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
     api.empresas().then(setLinhas).catch(() => {}).finally(() => setLoading(false));
   }, []);
+  useEffect(() => { carregar(); }, [carregar]);
 
   const planos = useMemo(
     () => Array.from(new Set(linhas.map((l) => l.plano_nome).filter(Boolean))) as string[],
@@ -124,7 +126,9 @@ function AbaCadastro() {
         colunas={["Empresa", "Email", "Plano", "Créditos/mês", "Avulsos", "Consumo (mês)", "Assinatura", "Desde"]}
         alinhar={["left", "left", "left", "right", "right", "right", "center", "left"]}
         linhas={filtradas.map((l) => [
-          l.nome ?? "—",
+          <button key="n" type="button" onClick={() => setSel(l)} className="font-medium text-brand hover:underline">
+            {l.nome ?? "—"}
+          </button>,
           l.email || "—",
           l.ilimitado ? "Ilimitado" : (l.plano_nome ?? "—"),
           l.ilimitado ? "∞" : (l.creditos_mensais?.toLocaleString("pt-BR") ?? "—"),
@@ -138,6 +142,107 @@ function AbaCadastro() {
           fmtData(l.created_at),
         ])}
       />
+
+      {sel && <ModalEmpresa empresa={sel} onClose={() => setSel(null)} onChanged={carregar} />}
+    </div>
+  );
+}
+
+/* =============================== Modal da empresa (Dados / Créditos) =============================== */
+function ModalEmpresa({ empresa, onClose, onChanged }: { empresa: Empresa; onClose: () => void; onChanged: () => void }) {
+  const [aba, setAba] = useState<"dados" | "creditos">("dados");
+  const [avulsos, setAvulsos] = useState(empresa.creditos_avulsos);
+  const [qtd, setQtd] = useState(100);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function conceder() {
+    if (!qtd || qtd <= 0) return;
+    setBusy(true); setMsg(null); setErro(null);
+    try {
+      const r = await api.adminConcederCreditos(empresa.id, qtd);
+      setAvulsos(r.creditos_avulsos);
+      setMsg(`+${qtd.toLocaleString("pt-BR")} créditos concedidos. Novo saldo: ${r.creditos_avulsos.toLocaleString("pt-BR")}.`);
+      onChanged();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao conceder créditos.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+          <span className="min-w-0 truncate text-sm font-semibold text-white">{empresa.nome ?? "Empresa"}</span>
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
+        </div>
+
+        <div className="flex gap-1 border-b border-black/10 px-3 pt-3">
+          {([["dados", "Dados"], ["creditos", "Créditos"]] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setAba(id)}
+              className={`rounded-t-lg px-4 py-2 text-sm font-medium transition ${aba === id ? "bg-brand/10 text-brand" : "text-black/50 hover:bg-black/5"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5">
+          {aba === "dados" ? (
+            <div className="space-y-2 text-sm">
+              <Linha k="Empresa" v={empresa.nome ?? "—"} />
+              <Linha k="Email" v={empresa.email || "—"} />
+              <Linha k="Plano" v={empresa.ilimitado ? "Ilimitado" : (empresa.plano_nome ?? "—")} />
+              <Linha k="Créditos/mês" v={empresa.ilimitado ? "∞" : (empresa.creditos_mensais?.toLocaleString("pt-BR") ?? "—")} />
+              <Linha k="Créditos avulsos" v={avulsos.toLocaleString("pt-BR")} />
+              <Linha k="Consumo (mês)" v={empresa.consumo_mes.toLocaleString("pt-BR")} />
+              <Linha k="Assinatura" v={empresa.ilimitado ? "Superadmin" : empresa.tem_assinatura ? "Ativa" : "Sem assinatura"} />
+              <Linha k="Cliente desde" v={fmtData(empresa.created_at)} />
+            </div>
+          ) : (
+            <div>
+              <p className="mb-3 text-sm text-black/60">
+                Conceda créditos de <strong>cortesia</strong> a esta empresa. Eles entram como <strong>avulsos</strong>
+                {" "}(não-mensais, nunca expiram) e aparecem no menu Consumo. Você pode conceder quantas vezes quiser — é acumulativo.
+              </p>
+              <div className="mb-3 rounded-lg bg-paper p-3 text-sm">
+                Saldo avulso atual: <strong>{avulsos.toLocaleString("pt-BR")}</strong> créditos
+              </div>
+              <label className="mb-1 block text-xs font-medium text-black/55">Quantidade a conceder</label>
+              <div className="flex gap-2">
+                <input type="number" min={1} value={qtd}
+                  onChange={(e) => setQtd(Number(e.target.value))}
+                  className="w-40 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <button type="button" onClick={conceder} disabled={busy || qtd <= 0}
+                  className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
+                  {busy ? "Concedendo…" : "Conceder créditos"}
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[100, 200, 500].map((n) => (
+                  <button key={n} type="button" onClick={() => setQtd(n)}
+                    className="rounded-full border border-black/15 px-2.5 py-1 text-xs text-black/60 hover:bg-black/5">
+                    +{n}
+                  </button>
+                ))}
+              </div>
+              {msg && <p className="mt-3 text-sm text-emerald-700">✓ {msg}</p>}
+              {erro && <p className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Linha({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-black/5 py-1.5">
+      <span className="text-black/45">{k}</span>
+      <span className="min-w-0 truncate font-medium">{v}</span>
     </div>
   );
 }

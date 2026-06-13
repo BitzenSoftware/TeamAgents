@@ -16,6 +16,7 @@ from .schemas import (
     CompraPacoteRequest,
     BlogPostCreate,
     BlogPostUpdate,
+    ConcederCreditosRequest,
     ConfigUpdate,
     CopyRequest,
     EmailSyncRequest,
@@ -190,6 +191,12 @@ def admin_empresas(_: str = Depends(auth.require_superadmin)) -> list[dict]:
 def admin_empresas_consumo(de: str, ate: str, _: str = Depends(auth.require_superadmin)) -> list[dict]:
     """Consumo de tokens por empresa no intervalo [de, ate]."""
     return flow.admin_empresas_consumo(de, ate)
+
+
+@app.post("/admin/empresas/{cliente_id}/creditos")
+def admin_conceder_creditos(cliente_id: str, payload: ConcederCreditosRequest, _: str = Depends(auth.require_superadmin)) -> dict:
+    """Concede créditos de cortesia (avulsos) a uma empresa — acumulativo."""
+    return flow.admin_conceder_creditos(cliente_id, payload.creditos)
 
 
 @app.get("/admin/dashboards")

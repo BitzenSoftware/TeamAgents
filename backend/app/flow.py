@@ -1445,6 +1445,14 @@ def creditar_compra_avulsa(cliente_id: str, creditos: int, valor: float, pacote_
     return True
 
 
+def admin_conceder_creditos(cliente_id: str, creditos: int) -> dict:
+    """Admin concede créditos de cortesia (avulsos) a uma empresa.
+    Acumulativo (soma ao saldo existente) e não-mensal — não expiram."""
+    novo = saldo_avulso(cliente_id) + int(creditos)
+    get_db().table("clientes").update({"creditos_avulsos": novo}).eq("id", cliente_id).execute()
+    return {"ok": True, "creditos_avulsos": novo}
+
+
 def registar_faturamento(cliente_id: str | None, tipo: str, valor: float, descricao: str | None, stripe_ref: str | None) -> bool:
     """Regista um pagamento no livro de faturamento. Idempotente por stripe_ref.
 
