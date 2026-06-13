@@ -276,6 +276,9 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* ====================== SELETOR DE AGENTES ====================== */}
+      <SeletorAgentes />
+
       {/* ====================== AGENTES ====================== */}
       <section id="agentes" className="px-6 py-24">
         <div className="mx-auto max-w-6xl">
@@ -734,6 +737,110 @@ export default function LandingPage() {
 }
 
 /* ============================== Componentes ============================== */
+
+const SEL_AGENTES = [
+  {
+    id: "sdr",
+    icon: <MessageCircle size={20} className="text-emerald-600" />,
+    tagCor: "bg-emerald-100 text-emerald-700",
+    nome: "Atendimento",
+    chip: "WhatsApp · SDR",
+    headline: "O recepcionista que nunca dorme — atende, responde preço e agenda a avaliação 24/7.",
+    bullets: ["Responde cada mensagem em segundos", "Qualifica e contorna o “quanto custa?”", "Agenda sozinho na sua agenda"],
+  },
+  {
+    id: "copy",
+    icon: <Megaphone size={20} className="text-violet-600" />,
+    tagCor: "bg-violet-100 text-violet-700",
+    nome: "Marketing",
+    chip: "Anúncios & Posts",
+    headline: "O redator que cria seus anúncios e posts com a voz da sua clínica em segundos.",
+    bullets: ["2 variações de alta conversão", "Publica no Instagram e Facebook", "Gera link/QR que traz a cliente"],
+  },
+  {
+    id: "bi",
+    icon: <BarChart3 size={20} className="text-amber-600" />,
+    tagCor: "bg-amber-100 text-amber-700",
+    nome: "Gestão",
+    chip: "Relatórios · BI",
+    headline: "O braço direito que te mostra, toda semana, quantas clientes você quase perdeu.",
+    bullets: ["Relatório direto no seu WhatsApp", "Clientes capturadas fora do horário", "Custo por avaliação agendada"],
+  },
+  {
+    id: "exec",
+    icon: <Mail size={20} className="text-sky-600" />,
+    tagCor: "bg-sky-100 text-sky-700",
+    nome: "Executivo",
+    chip: "Email & Bastidores",
+    headline: "O assistente que lê e resume seus emails e fornecedores — você só vê o que importa.",
+    bullets: ["Resumo com prioridades e ações", "Tarefas automáticas no seu horário", "Lê só o que você manda"],
+  },
+] as const;
+
+function SeletorAgentes() {
+  const [sel, setSel] = useState<(typeof SEL_AGENTES)[number]["id"]>("sdr");
+  const atual = SEL_AGENTES.find((a) => a.id === sel) ?? SEL_AGENTES[0];
+  return (
+    <section className="border-b border-black/5 bg-paper px-6 py-20">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-10 text-center">
+          <span className="mb-3 inline-block rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">Monte a sua equipe</span>
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Qual ajuda a sua clínica precisa hoje?</h2>
+          <p className="mx-auto mt-2 max-w-xl text-black/50">
+            Escolha o agente que resolve a sua dor agora — ou junte todos numa equipe só.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {SEL_AGENTES.map((a) => {
+            const on = a.id === sel;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setSel(a.id)}
+                className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition ${
+                  on ? "border-brand bg-white shadow-lg shadow-brand/10 ring-1 ring-brand/30" : "border-black/10 bg-white/60 hover:border-brand/30 hover:bg-white"
+                }`}
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-xl border border-black/8 bg-paper">{a.icon}</span>
+                <span className="text-sm font-bold">{a.nome}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${a.tagCor}`}>{a.chip}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Painel dinâmico — muda conforme o agente escolhido */}
+        <div key={atual.id} className="lp-anim lp-up mt-6 rounded-2xl border border-black/10 bg-white p-7 shadow-sm">
+          <h3 className="max-w-2xl text-2xl font-bold leading-snug tracking-tight">{atual.headline}</h3>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-3">
+            {atual.bullets.map((b) => (
+              <li key={b} className="flex items-start gap-2 text-sm text-black/70">
+                <Check size={16} className="mt-0.5 shrink-0 text-brand" />
+                {b}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/login"
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-brand/40"
+            >
+              Quero esse agente <ArrowRight size={16} />
+            </Link>
+            <a
+              href="#agentes"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-black/15 px-7 py-3 text-sm font-medium text-black/70 transition hover:border-black/30"
+            >
+              Ver os 4 agentes <ChevronRight size={14} />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function HeroMedia() {
   // Vídeo real do produto: basta adicionar o arquivo frontend/public/demo.mp4
