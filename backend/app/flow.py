@@ -1936,6 +1936,29 @@ def suporte_nao_lidas(cliente_id: str) -> int:
         return 0
 
 
+def suporte_debug() -> dict:
+    """TEMPORÁRIO: o que CADA formato de query retorna (n + amostra) — diagnóstico."""
+    db = get_db()
+    out: dict = {}
+    variantes = {
+        "id": "id",
+        "star": "*",
+        "cols": _SUP_COLS,
+        "id_cli": "id, cliente_id",
+    }
+    for label, sel in variantes.items():
+        try:
+            d = db.table("suporte_mensagens").select(sel).execute().data or []
+            out[label] = {"n": len(d), "amostra": (d[0] if d else None)}
+        except Exception as e:
+            out[label] = {"erro": str(e)[:200]}
+    try:
+        out["threads_len"] = len(suporte_admin_threads())
+    except Exception as e:
+        out["threads_len"] = f"ERRO: {str(e)[:160]}"
+    return out
+
+
 def suporte_admin_threads() -> list[dict]:
     """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
     db = get_db()
