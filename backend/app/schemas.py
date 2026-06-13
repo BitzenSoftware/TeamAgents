@@ -304,6 +304,27 @@ class TarefaExecutivoUpdate(BaseModel):
     habilidade_ids: list[str] | None = None
 
 
+# ===================== Blog (CMS do superadmin) =====================
+class BlogPostCreate(BaseModel):
+    titulo: str = Field(min_length=1)
+    slug: str | None = None
+    resumo: str | None = None
+    meta_description: str | None = None
+    conteudo: str = ""
+    capa_url: str | None = None
+    publicado: bool = False
+
+
+class BlogPostUpdate(BaseModel):
+    titulo: str | None = None
+    slug: str | None = None
+    resumo: str | None = None
+    meta_description: str | None = None
+    conteudo: str | None = None
+    capa_url: str | None = None
+    publicado: bool | None = None
+
+
 # ===================== Suporte (chat cliente <-> admin) =====================
 class SuporteMensagem(BaseModel):
     mensagem: str = Field(min_length=1, max_length=4000)

@@ -216,6 +216,21 @@ export type SuporteThread = {
   nao_lidas: number;
 };
 
+export type BlogPost = {
+  id: string;
+  slug: string;
+  titulo: string;
+  resumo: string | null;
+  meta_description: string | null;
+  conteudo: string;
+  capa_url: string | null;
+  publicado: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BlogPostResumo = Pick<BlogPost, "slug" | "titulo" | "resumo" | "capa_url" | "created_at">;
+
 export type Plano = {
   id: string;
   nome: string;
@@ -455,6 +470,15 @@ export const api = {
   adminSuporteMensagens: (clienteId: string) => req<SuporteMensagem[]>(`/admin/suporte/${clienteId}`),
   adminResponderSuporte: (clienteId: string, mensagem: string) =>
     req<SuporteMensagem>(`/admin/suporte/${clienteId}`, { method: "POST", body: JSON.stringify({ mensagem }) }),
+
+  // --- Blog (CMS do superadmin) ---
+  adminBlogListar: () => req<BlogPost[]>("/admin/blog"),
+  adminBlogCriar: (body: Partial<BlogPost>) =>
+    req<BlogPost>("/admin/blog", { method: "POST", body: JSON.stringify(body) }),
+  adminBlogAtualizar: (id: string, body: Partial<BlogPost>) =>
+    req<BlogPost>(`/admin/blog/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  adminBlogApagar: (id: string) =>
+    req<void>(`/admin/blog/${id}`, { method: "DELETE" }),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),

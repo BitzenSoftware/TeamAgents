@@ -23,6 +23,7 @@ const NAV = [
 const NAV_ADMIN = [
   { href: "/empresas", label: "Empresas", hint: "Cadastro / Métricas" },
   { href: "/admin-suporte", label: "Suporte (admin)", hint: "Caixa de entrada" },
+  { href: "/admin-blog", label: "Blog", hint: "Artigos / SEO" },
   { href: "/planos", label: "Planos", hint: "Admin / Stripe" },
   { href: "/pacotes", label: "Pacotes", hint: "Créditos avulsos" },
 ];

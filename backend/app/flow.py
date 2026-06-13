@@ -6,6 +6,7 @@ import asyncio
 import calendar
 import re
 import time
+import unicodedata
 import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -1956,6 +1957,73 @@ def suporte_admin_responder(cliente_id: str, mensagem: str) -> dict:
     return get_db().table("suporte_mensagens").insert(
         {"cliente_id": cliente_id, "autor": "admin", "mensagem": mensagem}
     ).execute().data[0]
+
+
+# ===================== Blog (CMS do superadmin) =====================
+def _slugify(s: str) -> str:
+    s = unicodedata.normalize("NFKD", (s or "").lower().strip()).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return s[:80] or "artigo"
+
+
+def _blog_slug_unico(base: str, ignorar_id: str | None = None) -> str:
+    db = get_db()
+    slug, i = base, 2
+    while True:
+        rows = [r for r in db.table("blog_posts").select("id").eq("slug", slug).execute().data
+                if r["id"] != ignorar_id]
+        if not rows:
+            return slug
+        slug, i = f"{base}-{i}", i + 1
+
+
+def blog_listar_publicos() -> list[dict]:
+    """Artigos publicados (para a página de vendas /blog), mais recentes primeiro."""
+    return (
+        get_db().table("blog_posts")
+        .select("slug, titulo, resumo, capa_url, created_at")
+        .eq("publicado", True).order("created_at", desc=True).execute().data
+    )
+
+
+def blog_obter_publico(slug: str) -> dict | None:
+    rows = get_db().table("blog_posts").select("*").eq("slug", slug).eq("publicado", True).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def blog_admin_listar() -> list[dict]:
+    return get_db().table("blog_posts").select("*").order("created_at", desc=True).execute().data
+
+
+def blog_admin_criar(payload: dict) -> dict:
+    titulo = (payload.get("titulo") or "Sem título").strip()
+    base = _slugify(payload.get("slug") or titulo)
+    row = {
+        "titulo": titulo,
+        "slug": _blog_slug_unico(base),
+        "resumo": payload.get("resumo"),
+        "meta_description": payload.get("meta_description"),
+        "conteudo": payload.get("conteudo") or "",
+        "capa_url": payload.get("capa_url"),
+        "publicado": bool(payload.get("publicado")),
+    }
+    return get_db().table("blog_posts").insert(row).execute().data[0]
+
+
+def blog_admin_atualizar(post_id: str, payload: dict) -> dict | None:
+    fields = dict(payload)
+    # Só muda o slug se o admin enviar um explicitamente (mantém URLs estáveis p/ SEO).
+    if fields.get("slug"):
+        fields["slug"] = _blog_slug_unico(_slugify(fields["slug"]), ignorar_id=post_id)
+    else:
+        fields.pop("slug", None)
+    fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = get_db().table("blog_posts").update(fields).eq("id", post_id).execute()
+    return res.data[0] if res.data else None
+
+
+def blog_admin_apagar(post_id: str) -> None:
+    get_db().table("blog_posts").delete().eq("id", post_id).execute()
 
 
 # ===================== Agente 3: relatório SEMANAL por tenant (Cron) =====================

@@ -14,6 +14,8 @@ from .schemas import (
     CampanhaUpdate,
     CheckoutRequest,
     CompraPacoteRequest,
+    BlogPostCreate,
+    BlogPostUpdate,
     ConfigUpdate,
     CopyRequest,
     EmailSyncRequest,
@@ -565,6 +567,45 @@ def admin_suporte_listar(cliente_id: str, _: str = Depends(auth.require_superadm
 def admin_suporte_responder(cliente_id: str, payload: SuporteMensagem, _: str = Depends(auth.require_superadmin)) -> dict:
     """O admin responde a um cliente."""
     return flow.suporte_admin_responder(cliente_id, payload.mensagem)
+
+
+# ===================== Blog (público + admin/CMS) =====================
+@app.get("/blog/publicos")
+def blog_publicos() -> list[dict]:
+    """Artigos publicados (página de vendas). Público, sem auth."""
+    return flow.blog_listar_publicos()
+
+
+@app.get("/blog/publicos/{slug}")
+def blog_publico(slug: str) -> dict:
+    """Um artigo publicado pelo slug. Público, sem auth."""
+    post = flow.blog_obter_publico(slug)
+    if not post:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado.")
+    return post
+
+
+@app.get("/admin/blog")
+def admin_blog_listar(_: str = Depends(auth.require_superadmin)) -> list[dict]:
+    return flow.blog_admin_listar()
+
+
+@app.post("/admin/blog", status_code=201)
+def admin_blog_criar(payload: BlogPostCreate, _: str = Depends(auth.require_superadmin)) -> dict:
+    return flow.blog_admin_criar(payload.model_dump(exclude_none=True))
+
+
+@app.patch("/admin/blog/{post_id}")
+def admin_blog_atualizar(post_id: str, payload: BlogPostUpdate, _: str = Depends(auth.require_superadmin)) -> dict:
+    res = flow.blog_admin_atualizar(post_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado.")
+    return res
+
+
+@app.delete("/admin/blog/{post_id}", status_code=204)
+def admin_blog_apagar(post_id: str, _: str = Depends(auth.require_superadmin)) -> None:
+    flow.blog_admin_apagar(post_id)
 
 
 # ===================== Social Config =====================

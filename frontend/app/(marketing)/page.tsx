@@ -186,6 +186,7 @@ export default function LandingPage() {
             <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
             <a href="#precos" className="transition hover:text-white">Preços</a>
             <a href="#faq" className="transition hover:text-white">FAQ</a>
+            <Link href="/blog" className="transition hover:text-white">Blog</Link>
           </div>
           <Link
             href="/login"
@@ -699,6 +700,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-6 text-xs text-white/40">
             <a href="#agentes" className="transition hover:text-white/70">Agentes</a>
             <a href="#precos" className="transition hover:text-white/70">Preços</a>
+            <Link href="/blog" className="transition hover:text-white/70">Blog</Link>
             <Link href="/privacidade" className="transition hover:text-white/70">Privacidade</Link>
             <Link href="/login" className="transition hover:text-white/70">Entrar</Link>
           </div>
