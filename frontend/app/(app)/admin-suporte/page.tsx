@@ -15,6 +15,7 @@ export default function AdminSuportePage() {
   const [msgs, setMsgs] = useState<SuporteMensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const fimRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +24,9 @@ export default function AdminSuportePage() {
 
   const carregarThreads = useCallback(() => {
     if (!isAdmin) return;
-    api.adminSuporteThreads().then(setThreads).catch(() => {});
+    api.adminSuporteThreads()
+      .then((t) => { setThreads(t); setErro(null); })
+      .catch((e) => setErro(e instanceof Error ? e.message : String(e)));
   }, [isAdmin]);
 
   const carregarMsgs = useCallback(() => {
@@ -75,6 +78,11 @@ export default function AdminSuportePage() {
       <header className="mb-5">
         <h1 className="text-xl font-semibold">Suporte — Caixa de entrada</h1>
         <p className="mt-1 text-sm text-black/50">Mensagens dos clientes. Responda direto por aqui.</p>
+        {erro && (
+          <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">
+            Erro ao carregar: {erro}
+          </p>
+        )}
       </header>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
