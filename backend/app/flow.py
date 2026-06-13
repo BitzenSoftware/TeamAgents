@@ -1898,11 +1898,16 @@ def reativar_ia_lead(cliente_id: str, lead_id: str) -> dict:
 
 
 # ===================== Suporte (chat cliente <-> admin) =====================
+# Colunas pedidas explicitamente (evita "*", que falha no cache do PostgREST nesta tabela).
+_SUP_COLS = "id, cliente_id, autor, mensagem, lida, created_at"
+
+
 def suporte_listar(cliente_id: str) -> list[dict]:
     """Mensagens do cliente (cronológico) + marca as do admin como lidas (cliente viu)."""
     db = get_db()
-    # Sem .order() na query (PostgREST tropeça nessa tabela nova) — ordenamos em Python.
-    msgs = db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id).execute().data or []
+    # Colunas explícitas (não "*") e sem .order() — o "*"/order tropeça no cache do
+    # PostgREST nesta tabela nova. Ordenamos em Python.
+    msgs = db.table("suporte_mensagens").select(_SUP_COLS).eq("cliente_id", cliente_id).execute().data or []
     msgs.sort(key=lambda m: m.get("created_at") or "")
     try:  # marcar como lida é secundário — nunca pode quebrar a listagem
         db.table("suporte_mensagens").update({"lida": True}) \
@@ -1934,7 +1939,7 @@ def suporte_nao_lidas(cliente_id: str) -> int:
 def suporte_admin_threads() -> list[dict]:
     """Caixa de entrada do admin: uma linha por cliente, mais recente primeiro."""
     db = get_db()
-    msgs = db.table("suporte_mensagens").select("*").execute().data or []
+    msgs = db.table("suporte_mensagens").select(_SUP_COLS).execute().data or []
     msgs.sort(key=lambda m: m.get("created_at") or "", reverse=True)
     clientes = {c["id"]: c for c in (db.table("clientes").select("id, nome, email").execute().data or [])}
     threads: dict[str, dict] = {}
@@ -1959,7 +1964,7 @@ def suporte_admin_threads() -> list[dict]:
 def suporte_admin_listar(cliente_id: str) -> list[dict]:
     """Mensagens de um cliente (admin) + marca as do cliente como lidas."""
     db = get_db()
-    msgs = db.table("suporte_mensagens").select("*").eq("cliente_id", cliente_id).execute().data or []
+    msgs = db.table("suporte_mensagens").select(_SUP_COLS).eq("cliente_id", cliente_id).execute().data or []
     msgs.sort(key=lambda m: m.get("created_at") or "")
     try:
         db.table("suporte_mensagens").update({"lida": True}) \
