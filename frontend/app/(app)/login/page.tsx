@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  Bot,
   Mail,
   Megaphone,
   MessageCircle,
@@ -13,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { Logo } from "@/components/Logo";
 
 const AGENTES = [
   {
@@ -109,8 +109,8 @@ export default function LoginPage() {
 
         {/* topo: logo */}
         <Link href="/" className="relative flex w-fit items-center gap-2.5 transition hover:opacity-80">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-dark shadow-lg shadow-brand/30">
-            <Bot size={18} />
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-lg shadow-brand/30">
+            <Logo size={20} />
           </span>
           <span className="text-lg font-semibold tracking-tight">TeamAgents</span>
         </Link>
@@ -171,7 +171,7 @@ export default function LoginPage() {
           {/* logo no mobile (painel escondido) */}
           <Link href="/" className="mb-8 flex items-center justify-center gap-2 lg:hidden">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-dark text-white">
-              <Bot size={18} />
+              <Logo size={20} />
             </span>
             <span className="text-lg font-semibold tracking-tight">TeamAgents</span>
           </Link>

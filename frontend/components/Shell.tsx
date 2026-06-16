@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, BookOpen, Bot, Building2, CreditCard, Gauge, Inbox,
+  BarChart3, BookOpen, Building2, CreditCard, Gauge, Inbox,
   Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Newspaper,
   Package, Settings, Sparkles, X, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
+import { Logo } from "@/components/Logo";
 import { api, SUPERADMIN_EMAIL, type Consumo } from "@/lib/api";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; grupo: string };
@@ -95,7 +96,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {/* Marca */}
         <div className="flex items-center gap-2.5 px-2 pb-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-sm">
-            <Bot size={18} />
+            <Logo size={20} />
           </span>
           <div className="min-w-0">
             <div className="truncate text-[15px] font-bold tracking-tight">TeamAgents</div>
@@ -179,7 +180,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
           <span className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white">
-              <Bot size={15} />
+              <Logo size={16} />
             </span>
             <span className="text-sm font-bold tracking-tight">TeamAgents</span>
           </span>
