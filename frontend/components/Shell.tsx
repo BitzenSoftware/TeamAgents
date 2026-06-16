@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3, BookOpen, Bot, Building2, CreditCard, Gauge, Inbox,
-  Layers, LifeBuoy, LogOut, Mail, Megaphone, MessageCircle, Newspaper,
-  Package, Settings, Sparkles, type LucideIcon,
+  Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Newspaper,
+  Package, Settings, Sparkles, X, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
@@ -45,6 +45,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   const nav = isAdmin ? [...NAV, ...NAV_ADMIN] : NAV;
 
+  // Menu lateral vira drawer no mobile; fecha ao navegar.
+  const [menuAberto, setMenuAberto] = useState(false);
+  useEffect(() => { setMenuAberto(false); }, [pathname]);
+
   // Aviso global: conta sem créditos (sem plano pago e sem avulsos) → Assinatura.
   const [consumo, setConsumo] = useState<Consumo | null>(null);
   useEffect(() => {
@@ -78,7 +82,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-paper">
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col gap-2 border-r border-black/10 bg-white px-3 py-4">
+      {/* Backdrop (só mobile, quando o drawer está aberto) */}
+      {menuAberto && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMenuAberto(false)} aria-hidden />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col gap-2 border-r border-black/10 bg-white px-3 py-4 transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          menuAberto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         {/* Marca */}
         <div className="flex items-center gap-2.5 px-2 pb-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-dark text-white shadow-sm">
@@ -88,6 +101,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <div className="truncate text-[15px] font-bold tracking-tight">TeamAgents</div>
             <div className="truncate text-[11px] text-black/45">{nomeConta}</div>
           </div>
+          {/* Fechar drawer (só mobile) */}
+          <button
+            type="button"
+            onClick={() => setMenuAberto(false)}
+            aria-label="Fechar menu"
+            className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg text-black/40 hover:bg-black/[0.04] lg:hidden"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Navegação agrupada */}
@@ -144,22 +166,42 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-paper">
-        {mostrarAviso && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
-            <span className="text-sm text-amber-900">
-              <strong>Sua conta ainda não tem créditos.</strong> Escolha um plano para ativar os agentes.
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Barra de topo (só mobile) com o botão do menu */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-black/10 bg-white px-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuAberto(true)}
+            aria-label="Abrir menu"
+            className="grid h-9 w-9 place-items-center rounded-lg text-ink hover:bg-black/[0.04]"
+          >
+            <Menu size={20} />
+          </button>
+          <span className="flex items-center gap-2">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white">
+              <Bot size={15} />
             </span>
-            <Link
-              href="/assinatura"
-              className="shrink-0 rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
-            >
-              Escolher plano →
-            </Link>
-          </div>
-        )}
-        {children}
-      </main>
+            <span className="text-sm font-bold tracking-tight">TeamAgents</span>
+          </span>
+        </header>
+
+        <main className="flex-1 overflow-auto bg-paper">
+          {mostrarAviso && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
+              <span className="text-sm text-amber-900">
+                <strong>Sua conta ainda não tem créditos.</strong> Escolha um plano para ativar os agentes.
+              </span>
+              <Link
+                href="/assinatura"
+                className="shrink-0 rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Escolher plano →
+              </Link>
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
