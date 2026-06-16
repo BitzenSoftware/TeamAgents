@@ -335,6 +335,71 @@ class SuporteMensagem(BaseModel):
     mensagem: str = Field(min_length=1, max_length=4000)
 
 
+# ===================== Diretoria Growth (menu do superadmin) =====================
+# IDs dos diretores que o CEO pode acionar na orquestração.
+GROWTH_DIRETORES = ("growth-marketing", "growth-comercial", "growth-projetos")
+# Agentes com quem o superadmin pode conversar diretamente (chat).
+GROWTH_AGENTES_CHAT = (
+    "growth-ceo", "growth-marketing", "growth-comercial",
+    "growth-projetos", "growth-ghostwriter",
+)
+
+
+class GrowthMensagem(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1)
+
+
+class GrowthChatRequest(BaseModel):
+    """Conversa direta com um agente da diretoria (ex.: Coach de Vendas)."""
+    agente: str = "growth-ceo"
+    mensagens: list[GrowthMensagem] = Field(min_length=1)
+
+
+class GrowthComandoRequest(BaseModel):
+    """Objetivo passado ao CEO; ele planeja, aciona os diretores e consolida."""
+    objetivo: str = Field(min_length=3, max_length=4000)
+
+
+class DiretivaGrowth(BaseModel):
+    """O CEO atribui uma diretiva a um diretor (saída do planejamento)."""
+    diretor: str = Field(description="Um de: growth-marketing | growth-comercial | growth-projetos")
+    foco: str = Field(description="O que esse diretor deve entregar, específico e acionável")
+
+
+class PlanoGrowth(BaseModel):
+    """Saída estruturada do CEO no papel de orquestrador."""
+    leitura_estrategica: str = Field(description="Leitura curta do que importa neste objetivo")
+    diretivas: list[DiretivaGrowth] = Field(description="Só os diretores realmente necessários")
+
+
+class PostGerado(BaseModel):
+    titulo: str = Field(description="Rótulo interno curto do post")
+    conteudo: str = Field(description="Texto completo pronto para publicar (gancho + corpo + CTA + hashtags)")
+
+
+class PostsGerados(BaseModel):
+    posts: list[PostGerado]
+
+
+class GrowthPostsRequest(BaseModel):
+    """Pede ao Ghostwriter N posts sobre um tema."""
+    tema: str = Field(min_length=3, max_length=2000)
+    quantidade: int = Field(default=3, ge=1, le=6)
+    tom: str | None = Field(default=None, description="Exemplos/observações de tom de voz do fundador")
+
+
+class GrowthPostUpdate(BaseModel):
+    titulo: str | None = None
+    conteudo: str | None = None
+    status: str | None = Field(default=None, pattern="^(rascunho|aprovado|agendado|publicado)$")
+    agendado_para: str | None = None
+
+
+class GrowthConfigUpdate(BaseModel):
+    modo_aprovacao: str | None = Field(default=None, pattern="^(manual|auto)$")
+
+
 # ===================== Webhook do WhatsApp =====================
 class InboundMessage(BaseModel):
     """Mensagem normalizada vinda do provider de WhatsApp."""

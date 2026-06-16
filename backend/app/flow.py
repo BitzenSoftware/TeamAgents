@@ -11,7 +11,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calcom, email_ingest, evolution, executivo, llm, pricing, whatsapp
+from . import calcom, email_ingest, evolution, executivo, growth, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
@@ -2130,3 +2130,88 @@ def gerar_relatorio_semanal_cliente(cliente: dict, dias: int = 7) -> dict | None
     rel = get_db().table("relatorios").insert(row).execute().data[0]
     consumir_creditos(cliente["id"], pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_BI), "bi", uso=uso)
     return rel
+
+
+# ===================== Diretoria Growth (menu privado do superadmin) =====================
+_GROWTH_COLS = "id, cliente_id, titulo, conteudo, status, agendado_para, origem, created_at, updated_at"
+
+
+def growth_config(cliente_id: str) -> dict:
+    """Lê (ou cria) a config da diretoria do superadmin."""
+    db = get_db()
+    rows = db.table("growth_config").select("*").eq("cliente_id", cliente_id).limit(1).execute().data
+    if rows:
+        return rows[0]
+    novo = {"cliente_id": cliente_id, "modo_aprovacao": "manual", "linkedin_conectado": False}
+    try:
+        return db.table("growth_config").insert(novo).execute().data[0]
+    except Exception:
+        return novo  # migração 032 ainda não corrida — devolve default sem persistir
+
+
+def growth_set_config(cliente_id: str, patch: dict) -> dict:
+    db = get_db()
+    growth_config(cliente_id)  # garante a linha
+    patch = {**patch, "updated_at": datetime.now(timezone.utc).isoformat()}
+    db.table("growth_config").update(patch).eq("cliente_id", cliente_id).execute()
+    return growth_config(cliente_id)
+
+
+def growth_comando(cliente_id: str, objetivo: str) -> dict:
+    """CEO planeja → diretores executam → CEO consolida. Loga o consumo."""
+    resultado, uso = growth.orquestrar(objetivo)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    return resultado
+
+
+def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
+    """Chat direto com um agente da diretoria (ex.: Coach de Vendas)."""
+    resposta, uso = growth.conversar(agente, mensagens)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    return {"resposta": resposta}
+
+
+def growth_gerar_posts(cliente_id: str, tema: str, quantidade: int = 3, tom: str = "") -> list[dict]:
+    """Ghostwriter gera posts e salva como rascunhos na fila de aprovação."""
+    posts, uso = growth.gerar_posts(tema, quantidade, tom)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    db = get_db()
+    salvos: list[dict] = []
+    for p in posts:
+        row = {
+            "cliente_id": cliente_id,
+            "titulo": p.titulo,
+            "conteudo": p.conteudo,
+            "status": "rascunho",
+            "origem": tema[:500],
+        }
+        salvos.append(db.table("growth_posts").insert(row).execute().data[0])
+    return salvos
+
+
+def growth_listar_posts(cliente_id: str) -> list[dict]:
+    db = get_db()
+    rows = db.table("growth_posts").select(_GROWTH_COLS).eq("cliente_id", cliente_id).execute().data or []
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return rows
+
+
+def growth_atualizar_post(cliente_id: str, post_id: str, patch: dict) -> dict | None:
+    if not patch:
+        return _growth_post(cliente_id, post_id)
+    db = get_db()
+    patch = {**patch, "updated_at": datetime.now(timezone.utc).isoformat()}
+    db.table("growth_posts").update(patch).eq("id", post_id).eq("cliente_id", cliente_id).execute()
+    return _growth_post(cliente_id, post_id)
+
+
+def growth_apagar_post(cliente_id: str, post_id: str) -> None:
+    get_db().table("growth_posts").delete().eq("id", post_id).eq("cliente_id", cliente_id).execute()
+
+
+def _growth_post(cliente_id: str, post_id: str) -> dict | None:
+    rows = (
+        get_db().table("growth_posts").select(_GROWTH_COLS)
+        .eq("id", post_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    )
+    return rows[0] if rows else None

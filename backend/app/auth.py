@@ -71,3 +71,14 @@ def current_cliente_id(user_id: str = Depends(verify_user)) -> str:
             detail="Utilizador sem cliente associado. Conclua o onboarding primeiro.",
         )
     return cliente["id"]
+
+
+def superadmin_cliente_id(authorization: str | None = Header(default=None)) -> str:
+    """Dependência: garante superadmin E devolve o cliente_id dele (para o menu Growth)."""
+    u = _fetch_user(authorization)
+    if (u.get("email") or "").lower() != get_settings().superadmin_email.lower():
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador.")
+    cliente = cliente_do_user(u["id"])
+    if not cliente:
+        raise HTTPException(status_code=403, detail="Superadmin sem cliente associado.")
+    return cliente["id"]

@@ -21,6 +21,12 @@ from .schemas import (
     CopyRequest,
     EmailSyncRequest,
     ExecutivoRequest,
+    GROWTH_AGENTES_CHAT,
+    GrowthChatRequest,
+    GrowthComandoRequest,
+    GrowthConfigUpdate,
+    GrowthPostsRequest,
+    GrowthPostUpdate,
     HabilidadeCreate,
     HabilidadeUpdate,
     OAuthGoogleExchange,
@@ -615,6 +621,55 @@ def admin_blog_atualizar(post_id: str, payload: BlogPostUpdate, _: str = Depends
 @app.delete("/admin/blog/{post_id}", status_code=204)
 def admin_blog_apagar(post_id: str, _: str = Depends(auth.require_superadmin)) -> None:
     flow.blog_admin_apagar(post_id)
+
+
+# ===================== Diretoria Growth (menu privado do superadmin) =====================
+@app.get("/growth/config")
+def growth_config(cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    return flow.growth_config(cliente_id)
+
+
+@app.patch("/growth/config")
+def growth_set_config(payload: GrowthConfigUpdate, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    return flow.growth_set_config(cliente_id, payload.model_dump(exclude_none=True))
+
+
+@app.post("/growth/comando")
+def growth_comando(req: GrowthComandoRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Sala de Comando: o CEO planeja, aciona os diretores e devolve o briefing."""
+    return flow.growth_comando(cliente_id, req.objetivo)
+
+
+@app.post("/growth/chat")
+def growth_chat(req: GrowthChatRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Chat direto com um agente da diretoria (ex.: Coach de Vendas)."""
+    if req.agente not in GROWTH_AGENTES_CHAT:
+        raise HTTPException(status_code=400, detail="Agente inválido.")
+    mensagens = [m.model_dump() for m in req.mensagens]
+    return flow.growth_chat(cliente_id, req.agente, mensagens)
+
+
+@app.get("/growth/posts")
+def growth_listar_posts(cliente_id: str = Depends(auth.superadmin_cliente_id)) -> list[dict]:
+    return flow.growth_listar_posts(cliente_id)
+
+
+@app.post("/growth/posts/gerar", status_code=201)
+def growth_gerar_posts(req: GrowthPostsRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> list[dict]:
+    return flow.growth_gerar_posts(cliente_id, req.tema, req.quantidade, req.tom or "")
+
+
+@app.patch("/growth/posts/{post_id}")
+def growth_atualizar_post(post_id: str, payload: GrowthPostUpdate, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    res = flow.growth_atualizar_post(cliente_id, post_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Post não encontrado.")
+    return res
+
+
+@app.delete("/growth/posts/{post_id}", status_code=204)
+def growth_apagar_post(post_id: str, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> None:
+    flow.growth_apagar_post(cliente_id, post_id)
 
 
 # ===================== Social Config =====================

@@ -231,6 +231,50 @@ export type BlogPost = {
 
 export type BlogPostResumo = Pick<BlogPost, "slug" | "titulo" | "resumo" | "capa_url" | "created_at">;
 
+// --- Diretoria Growth (menu privado do superadmin) ---
+export type GrowthAgente =
+  | "growth-ceo"
+  | "growth-marketing"
+  | "growth-comercial"
+  | "growth-projetos"
+  | "growth-ghostwriter";
+
+export type GrowthMensagem = { role: "user" | "assistant"; content: string };
+
+export type GrowthEntregavel = {
+  diretor: string;
+  diretor_nome: string;
+  foco: string;
+  conteudo: string;
+};
+
+export type GrowthBriefing = {
+  leitura_estrategica: string;
+  entregaveis: GrowthEntregavel[];
+  briefing: string;
+};
+
+export type GrowthPostStatus = "rascunho" | "aprovado" | "agendado" | "publicado";
+
+export type GrowthPost = {
+  id: string;
+  cliente_id: string;
+  titulo: string;
+  conteudo: string;
+  status: GrowthPostStatus;
+  agendado_para: string | null;
+  origem: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GrowthConfig = {
+  cliente_id: string;
+  modo_aprovacao: "manual" | "auto";
+  linkedin_conectado: boolean;
+  linkedin_perfil: string | null;
+};
+
 export type Plano = {
   id: string;
   nome: string;
@@ -479,6 +523,22 @@ export const api = {
     req<BlogPost>(`/admin/blog/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   adminBlogApagar: (id: string) =>
     req<void>(`/admin/blog/${id}`, { method: "DELETE" }),
+
+  // --- Diretoria Growth (menu privado do superadmin) ---
+  growthConfig: () => req<GrowthConfig>("/growth/config"),
+  growthSetConfig: (body: Partial<Pick<GrowthConfig, "modo_aprovacao">>) =>
+    req<GrowthConfig>("/growth/config", { method: "PATCH", body: JSON.stringify(body) }),
+  growthComando: (objetivo: string) =>
+    req<GrowthBriefing>("/growth/comando", { method: "POST", body: JSON.stringify({ objetivo }) }),
+  growthChat: (agente: string, mensagens: GrowthMensagem[]) =>
+    req<{ resposta: string }>("/growth/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
+  growthPosts: () => req<GrowthPost[]>("/growth/posts"),
+  growthGerarPosts: (tema: string, quantidade: number, tom?: string) =>
+    req<GrowthPost[]>("/growth/posts/gerar", { method: "POST", body: JSON.stringify({ tema, quantidade, tom }) }),
+  growthAtualizarPost: (id: string, body: Partial<Pick<GrowthPost, "titulo" | "conteudo" | "status">>) =>
+    req<GrowthPost>(`/growth/posts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  growthApagarPost: (id: string) =>
+    req<void>(`/growth/posts/${id}`, { method: "DELETE" }),
   relatorios: () => req<Relatorio[]>("/me/relatorios"),
   criarCampanha: (body: CampanhaInput) =>
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),

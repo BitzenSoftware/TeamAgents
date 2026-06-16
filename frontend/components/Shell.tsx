@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
 ];
 
 const NAV_ADMIN: NavItem[] = [
+  { href: "/growth", label: "Growth (minha diretoria)", icon: Sparkles, grupo: "Admin" },
   { href: "/empresas", label: "Empresas", icon: Building2, grupo: "Admin" },
   { href: "/admin-suporte", label: "Suporte (admin)", icon: Inbox, grupo: "Admin" },
   { href: "/admin-blog", label: "Blog", icon: Newspaper, grupo: "Admin" },

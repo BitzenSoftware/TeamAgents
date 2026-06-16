@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     model_exec_orchestrator: str = "claude-opus-4-8"
     model_exec_worker: str = "claude-haiku-4-5"
 
+    # Diretoria Growth (menu privado do superadmin): CEO/Comercial em Opus
+    # (raciocínio estratégico e nuance de venda), demais diretores em Sonnet.
+    model_growth_ceo: str = "claude-opus-4-8"
+    model_growth_comercial: str = "claude-opus-4-8"
+    model_growth_diretor: str = "claude-sonnet-4-6"
+
 
 @lru_cache
 def get_settings() -> Settings:
