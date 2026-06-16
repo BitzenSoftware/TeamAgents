@@ -378,6 +378,21 @@ class GrowthSinteseRequest(BaseModel):
     entregaveis: list[GrowthEntregavelIn] = Field(min_length=1)
 
 
+class GrowthEntregavelFull(BaseModel):
+    diretor: str = ""
+    diretor_nome: str
+    foco: str = ""
+    conteudo: str = ""
+
+
+class GrowthBriefingSave(BaseModel):
+    """Salva um planejamento completo da Sala de Comando."""
+    objetivo: str = Field(min_length=1, max_length=4000)
+    leitura_estrategica: str = ""
+    entregaveis: list[GrowthEntregavelFull] = Field(default_factory=list)
+    briefing: str = ""
+
+
 class DiretivaGrowth(BaseModel):
     """O CEO atribui uma diretiva a um diretor (saída do planejamento)."""
     diretor: str = Field(description="Um de: growth-marketing | growth-comercial | growth-projetos")

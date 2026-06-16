@@ -23,6 +23,7 @@ from .schemas import (
     ExecutivoRequest,
     GROWTH_AGENTES_CHAT,
     GrowthChatRequest,
+    GrowthBriefingSave,
     GrowthComandoRequest,
     GrowthConfigUpdate,
     GrowthDiretorRequest,
@@ -663,6 +664,22 @@ def growth_sintese(req: GrowthSinteseRequest, cliente_id: str = Depends(auth.sup
     """Etapa 3: o CEO consolida os entregáveis num briefing executivo."""
     entregaveis = [e.model_dump() for e in req.entregaveis]
     return flow.growth_sintese(cliente_id, req.objetivo, entregaveis)
+
+
+# Planejamentos salvos (histórico da Sala de Comando)
+@app.get("/growth/briefings")
+def growth_listar_briefings(cliente_id: str = Depends(auth.superadmin_cliente_id)) -> list[dict]:
+    return flow.growth_listar_briefings(cliente_id)
+
+
+@app.post("/growth/briefings", status_code=201)
+def growth_salvar_briefing(req: GrowthBriefingSave, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    return flow.growth_salvar_briefing(cliente_id, req.model_dump())
+
+
+@app.delete("/growth/briefings/{briefing_id}", status_code=204)
+def growth_apagar_briefing(briefing_id: str, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> None:
+    flow.growth_apagar_briefing(cliente_id, briefing_id)
 
 
 @app.post("/growth/chat")

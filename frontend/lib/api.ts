@@ -258,6 +258,16 @@ export type GrowthBriefing = {
 export type GrowthDiretiva = { diretor: string; diretor_nome: string; foco: string };
 export type GrowthPlano = { leitura_estrategica: string; diretivas: GrowthDiretiva[] };
 
+// Planejamento salvo (histórico da Sala de Comando).
+export type GrowthBriefingSalvo = {
+  id: string;
+  objetivo: string;
+  leitura_estrategica: string;
+  entregaveis: GrowthEntregavel[];
+  briefing: string;
+  created_at: string;
+};
+
 export type GrowthPostStatus = "rascunho" | "aprovado" | "agendado" | "publicado";
 
 export type GrowthPost = {
@@ -541,6 +551,12 @@ export const api = {
     req<{ conteudo: string }>("/growth/diretor", { method: "POST", body: JSON.stringify({ diretor, foco, objetivo }) }),
   growthSintese: (objetivo: string, entregaveis: { diretor_nome: string; conteudo: string }[]) =>
     req<{ briefing: string }>("/growth/sintese", { method: "POST", body: JSON.stringify({ objetivo, entregaveis }) }),
+  // Planejamentos salvos (histórico)
+  growthBriefings: () => req<GrowthBriefingSalvo[]>("/growth/briefings"),
+  growthSalvarBriefing: (body: Omit<GrowthBriefingSalvo, "id" | "created_at">) =>
+    req<GrowthBriefingSalvo>("/growth/briefings", { method: "POST", body: JSON.stringify(body) }),
+  growthApagarBriefing: (id: string) =>
+    req<void>(`/growth/briefings/${id}`, { method: "DELETE" }),
   growthChat: (agente: string, mensagens: GrowthMensagem[]) =>
     req<{ resposta: string }>("/growth/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
   growthPosts: () => req<GrowthPost[]>("/growth/posts"),

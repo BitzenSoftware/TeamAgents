@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   api, SUPERADMIN_EMAIL,
-  type GrowthConfig, type GrowthMensagem, type GrowthPost,
+  type GrowthBriefingSalvo, type GrowthConfig, type GrowthMensagem, type GrowthPost,
 } from "@/lib/api";
 import { useAuth } from "@/components/auth-context";
 
@@ -80,13 +80,29 @@ type Etapa = {
   conteudo?: string;
 };
 
+function etapasDeBriefing(b: GrowthBriefingSalvo): Etapa[] {
+  const es: Etapa[] = [
+    { chave: "ceo-plano", titulo: "CEO — leitura estratégica", status: "ok", conteudo: b.leitura_estrategica },
+  ];
+  b.entregaveis.forEach((e, i) =>
+    es.push({ chave: `dir-${e.diretor || i}`, titulo: e.diretor_nome, subtitulo: e.foco, status: "ok", conteudo: e.conteudo }),
+  );
+  if (b.briefing) es.push({ chave: "ceo-sintese", titulo: "CEO — briefing executivo", status: "ok", conteudo: b.briefing });
+  return es;
+}
+
 function SalaDeComando() {
   const [objetivo, setObjetivo] = useState("");
   const [rodando, setRodando] = useState(false);
   const [etapas, setEtapas] = useState<Etapa[]>([]);
+  const [tituloFluxo, setTituloFluxo] = useState("Fluxo de trabalho da diretoria");
   const [erro, setErro] = useState<string | null>(null);
+  const [salvos, setSalvos] = useState<GrowthBriefingSalvo[]>([]);
+  const [selId, setSelId] = useState<string | null>(null);
 
-  // helpers para atualizar uma etapa pela chave
+  const carregarSalvos = useCallback(() => { api.growthBriefings().then(setSalvos).catch(() => {}); }, []);
+  useEffect(() => { carregarSalvos(); }, [carregarSalvos]);
+
   const patchEtapa = (chave: string, patch: Partial<Etapa>) =>
     setEtapas((es) => es.map((e) => (e.chave === chave ? { ...e, ...patch } : e)));
 
@@ -95,8 +111,8 @@ function SalaDeComando() {
     if (!o || rodando) return;
     setRodando(true);
     setErro(null);
-
-    // Etapa 1 já visível como "rodando".
+    setSelId(null);
+    setTituloFluxo("Fluxo de trabalho da diretoria");
     setEtapas([{ chave: "ceo-plano", titulo: "CEO — leitura estratégica", status: "rodando" }]);
 
     try {
@@ -104,33 +120,40 @@ function SalaDeComando() {
       const plano = await api.growthPlano(o);
       patchEtapa("ceo-plano", { status: "ok", conteudo: plano.leitura_estrategica });
 
-      // Revela as etapas dos diretores escolhidos (ainda pendentes).
       const dirEtapas: Etapa[] = plano.diretivas.map((d) => ({
-        chave: `dir-${d.diretor}`,
-        titulo: d.diretor_nome,
-        subtitulo: d.foco,
-        status: "pendente",
+        chave: `dir-${d.diretor}`, titulo: d.diretor_nome, subtitulo: d.foco, status: "pendente",
       }));
       const sinteseEtapa: Etapa = { chave: "ceo-sintese", titulo: "CEO — briefing executivo", status: "pendente" };
       setEtapas((es) => [...es, ...dirEtapas, sinteseEtapa]);
 
-      // 2) Cada diretor entrega, um a um (o fluxo avança visivelmente).
-      const entregaveis: { diretor_nome: string; conteudo: string }[] = [];
+      // 2) Cada diretor entrega, um a um.
+      const entregaveis: { diretor: string; diretor_nome: string; foco: string; conteudo: string }[] = [];
       for (const d of plano.diretivas) {
         patchEtapa(`dir-${d.diretor}`, { status: "rodando" });
         const { conteudo } = await api.growthDiretor(d.diretor, d.foco, o);
         patchEtapa(`dir-${d.diretor}`, { status: "ok", conteudo });
-        entregaveis.push({ diretor_nome: d.diretor_nome, conteudo });
+        entregaveis.push({ diretor: d.diretor, diretor_nome: d.diretor_nome, foco: d.foco, conteudo });
       }
 
       // 3) CEO consolida.
+      let briefing = "";
       if (entregaveis.length > 0) {
         patchEtapa("ceo-sintese", { status: "rodando" });
-        const { briefing } = await api.growthSintese(o, entregaveis);
+        const r = await api.growthSintese(o, entregaveis.map((e) => ({ diretor_nome: e.diretor_nome, conteudo: e.conteudo })));
+        briefing = r.briefing;
         patchEtapa("ceo-sintese", { status: "ok", conteudo: briefing });
       } else {
         setEtapas((es) => es.filter((e) => e.chave !== "ceo-sintese"));
       }
+
+      // 4) Persiste o planejamento e atualiza a lista lateral.
+      try {
+        const salvo = await api.growthSalvarBriefing({
+          objetivo: o, leitura_estrategica: plano.leitura_estrategica, entregaveis, briefing,
+        });
+        setSelId(salvo.id);
+        carregarSalvos();
+      } catch { /* não bloqueia o resultado já exibido */ }
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
       setEtapas((es) => es.map((x) => (x.status === "rodando" ? { ...x, status: "erro" } : x)));
@@ -139,46 +162,102 @@ function SalaDeComando() {
     }
   }
 
+  function abrirSalvo(b: GrowthBriefingSalvo) {
+    setSelId(b.id);
+    setErro(null);
+    setTituloFluxo(b.objetivo);
+    setEtapas(etapasDeBriefing(b));
+  }
+
+  async function apagarSalvo(id: string) {
+    if (!confirm("Apagar este planejamento?")) return;
+    await api.growthApagarBriefing(id);
+    if (selId === id) { setEtapas([]); setSelId(null); }
+    carregarSalvos();
+  }
+
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <label className="mb-1.5 block text-sm font-medium">Qual o objetivo?</label>
-        <p className="mb-2 text-xs text-black/45">
-          O CEO faz a leitura estratégica, aciona os diretores certos (Marketing, Comercial, Projetos) e
-          devolve um briefing executivo. Ex.: <em>&quot;Quero conseguir 10 clínicas-piloto em 90 dias&quot;</em>.
-        </p>
-        <textarea
-          value={objetivo}
-          onChange={(e) => setObjetivo(e.target.value)}
-          rows={3}
-          placeholder="Descreva o objetivo…"
-          disabled={rodando}
-          className="w-full resize-none rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-black/[0.02]"
-        />
-        <button
-          type="button"
-          onClick={acionar}
-          disabled={rodando || !objetivo.trim()}
-          className="mt-2 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
-        >
-          {rodando ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
-          {rodando ? "A diretoria está trabalhando…" : "Acionar a diretoria"}
-        </button>
-        {erro && <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+      {/* Coluna principal: objetivo + fluxo */}
+      <div className="space-y-4 lg:col-span-8">
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <label className="mb-1.5 block text-sm font-medium">Qual o objetivo?</label>
+          <p className="mb-2 text-xs text-black/45">
+            O CEO faz a leitura estratégica, aciona os diretores certos (Marketing, Comercial, Projetos) e
+            devolve um briefing executivo. Ex.: <em>&quot;Quero conseguir 10 clínicas-piloto em 90 dias&quot;</em>.
+          </p>
+          <textarea
+            value={objetivo}
+            onChange={(e) => setObjetivo(e.target.value)}
+            rows={3}
+            placeholder="Descreva o objetivo…"
+            disabled={rodando}
+            className="w-full resize-none rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-black/[0.02]"
+          />
+          <button
+            type="button"
+            onClick={acionar}
+            disabled={rodando || !objetivo.trim()}
+            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+          >
+            {rodando ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
+            {rodando ? "A diretoria está trabalhando…" : "Acionar a diretoria"}
+          </button>
+          {erro && <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
+        </div>
+
+        {etapas.length > 0 && (
+          <div className="rounded-xl border border-black/10 bg-white p-4">
+            <div className="mb-3 truncate text-xs font-semibold uppercase tracking-wider text-black/35">{tituloFluxo}</div>
+            <ol className="space-y-1">
+              {etapas.map((e, i) => (
+                <EtapaItem key={e.chave} etapa={e} ultimo={i === etapas.length - 1} />
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
 
-      {etapas.length > 0 && (
-        <div className="rounded-xl border border-black/10 bg-white p-4">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-black/35">
-            Fluxo de trabalho da diretoria
-          </div>
-          <ol className="space-y-1">
-            {etapas.map((e, i) => (
-              <EtapaItem key={e.chave} etapa={e} ultimo={i === etapas.length - 1} />
-            ))}
-          </ol>
+      {/* Coluna lateral: planejamentos salvos */}
+      <aside className="lg:col-span-4">
+        <div className="sticky top-4">
+          <div className="mb-2 text-xs font-medium text-black/50">Planejamentos salvos ({salvos.length})</div>
+          {salvos.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
+              Seus planejamentos ficam salvos aqui.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {salvos.map((b) => {
+                const ativo = b.id === selId;
+                return (
+                  <div
+                    key={b.id}
+                    className={`group flex items-start gap-2 rounded-lg border px-3 py-2.5 transition ${
+                      ativo ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    <button type="button" onClick={() => abrirSalvo(b)} className="min-w-0 flex-1 text-left">
+                      <div className={`line-clamp-2 text-sm ${ativo ? "font-semibold text-brand" : "font-medium"}`}>{b.objetivo}</div>
+                      <div className="mt-0.5 text-[11px] text-black/40">
+                        {new Date(b.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Apagar planejamento"
+                      onClick={() => apagarSalvo(b.id)}
+                      className="shrink-0 rounded p-1 text-black/30 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </aside>
     </div>
   );
 }

@@ -2193,6 +2193,32 @@ def growth_sintese(cliente_id: str, objetivo: str, entregaveis: list[dict]) -> d
     return {"briefing": briefing}
 
 
+# --- Planejamentos salvos (histórico da Sala de Comando) ---
+_BRIEFING_COLS = "id, objetivo, leitura_estrategica, entregaveis, briefing, created_at"
+
+
+def growth_salvar_briefing(cliente_id: str, data: dict) -> dict:
+    row = {
+        "cliente_id": cliente_id,
+        "objetivo": data.get("objetivo", ""),
+        "leitura_estrategica": data.get("leitura_estrategica", ""),
+        "entregaveis": data.get("entregaveis", []),
+        "briefing": data.get("briefing", ""),
+    }
+    return get_db().table("growth_briefings").insert(row).execute().data[0]
+
+
+def growth_listar_briefings(cliente_id: str) -> list[dict]:
+    db = get_db()
+    rows = db.table("growth_briefings").select(_BRIEFING_COLS).eq("cliente_id", cliente_id).execute().data or []
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return rows
+
+
+def growth_apagar_briefing(cliente_id: str, briefing_id: str) -> None:
+    get_db().table("growth_briefings").delete().eq("id", briefing_id).eq("cliente_id", cliente_id).execute()
+
+
 def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
     """Chat direto com um agente da diretoria (ex.: Coach de Vendas)."""
     resposta, uso = growth.conversar(agente, mensagens)
