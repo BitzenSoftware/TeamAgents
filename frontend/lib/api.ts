@@ -50,6 +50,7 @@ export type Campanha = {
   dor_alvo: string;
   desejo_alvo: string;
   palavra_chave_gatilho: string;
+  servico_ids?: string[];
   created_at: string;
 };
 
@@ -173,6 +174,7 @@ export type CampanhaInput = {
   nome_campanha: string;
   link_calendario?: string;
   habilidade_ids?: string[];
+  servico_ids?: string[];
 };
 
 export type OnboardingInput = {
@@ -288,6 +290,80 @@ export type GrowthConfig = {
   modo_aprovacao: "manual" | "auto";
   linkedin_conectado: boolean;
   linkedin_perfil: string | null;
+};
+
+// --- Profissionais, Serviços e Agenda ---
+export type Servico = {
+  id: string;
+  nome: string;
+  duracao_min: number;
+  preco: number | null;
+  ativo: boolean;
+  created_at: string;
+};
+
+export type Escala = {
+  id?: string;
+  dia_semana: number; // 0=domingo .. 6=sábado
+  hora_inicio: string; // "HH:MM"
+  hora_fim: string;
+  intervalo_min: number;
+  almoco_inicio: string | null;
+  almoco_fim: string | null;
+};
+
+export type Profissional = {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  created_at: string;
+  servico_ids: string[];
+  escalas: Escala[];
+};
+
+export type Ausencia = {
+  id: string;
+  tipo: "dia_todo" | "horas";
+  data_inicio: string;
+  data_fim: string;
+  hora_inicio: string | null;
+  hora_fim: string | null;
+  motivo: string | null;
+  created_at: string;
+};
+
+export type AgendamentoStatus = "confirmado" | "cancelado" | "realizado" | "no_show";
+
+export type Agendamento = {
+  id: string;
+  profissional_id: string;
+  servico_id: string | null;
+  lead_id: string | null;
+  inicio: string;
+  fim: string;
+  status: AgendamentoStatus;
+  origem: "manual" | "agente";
+  cliente_nome: string | null;
+  contato: string | null;
+  observacao: string | null;
+  created_at: string;
+};
+
+export type Slot = {
+  inicio_iso: string;
+  fim_iso: string;
+  rotulo: string;
+  profissional_id: string;
+  profissional_nome: string;
+};
+
+export type AgendamentoConfig = {
+  cliente_id: string;
+  fluxo_ordem: string[];
+  perguntar_profissional: boolean;
+  permitir_qualquer: boolean;
+  profissional_padrao_id: string | null;
+  dias_futuros: number;
 };
 
 export type Plano = {
@@ -560,6 +636,56 @@ export const api = {
     req<void>(`/growth/briefings/${id}`, { method: "DELETE" }),
   growthRefinarBriefing: (id: string, mensagem: string) =>
     req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
+
+  // --- Serviços ---
+  servicos: () => req<Servico[]>("/me/servicos"),
+  criarServico: (body: Partial<Servico>) =>
+    req<Servico>("/me/servicos", { method: "POST", body: JSON.stringify(body) }),
+  atualizarServico: (id: string, body: Partial<Servico>) =>
+    req<Servico>(`/me/servicos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarServico: (id: string) => req<void>(`/me/servicos/${id}`, { method: "DELETE" }),
+
+  // --- Profissionais ---
+  profissionais: () => req<Profissional[]>("/me/profissionais"),
+  criarProfissional: (body: { nome: string; ativo?: boolean; servico_ids?: string[]; escalas?: Escala[] }) =>
+    req<Profissional>("/me/profissionais", { method: "POST", body: JSON.stringify(body) }),
+  atualizarProfissional: (id: string, body: { nome?: string; ativo?: boolean; servico_ids?: string[]; escalas?: Escala[] }) =>
+    req<Profissional>(`/me/profissionais/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarProfissional: (id: string) => req<void>(`/me/profissionais/${id}`, { method: "DELETE" }),
+
+  // --- Ausências ---
+  ausencias: (profId: string) => req<Ausencia[]>(`/me/profissionais/${profId}/ausencias`),
+  criarAusencia: (profId: string, body: Partial<Ausencia>) =>
+    req<Ausencia>(`/me/profissionais/${profId}/ausencias`, { method: "POST", body: JSON.stringify(body) }),
+  apagarAusencia: (profId: string, ausenciaId: string) =>
+    req<void>(`/me/profissionais/${profId}/ausencias/${ausenciaId}`, { method: "DELETE" }),
+
+  // --- Disponibilidade + Agendamentos ---
+  disponibilidade: (servicoId?: string, profId?: string) => {
+    const p = new URLSearchParams();
+    if (servicoId) p.set("servico_id", servicoId);
+    if (profId) p.set("profissional_id", profId);
+    return req<Slot[]>(`/me/disponibilidade?${p.toString()}`);
+  },
+  agendamentos: (de?: string, ate?: string, profId?: string) => {
+    const p = new URLSearchParams();
+    if (de) p.set("de", de);
+    if (ate) p.set("ate", ate);
+    if (profId) p.set("profissional_id", profId);
+    return req<Agendamento[]>(`/me/agendamentos?${p.toString()}`);
+  },
+  criarAgendamento: (body: {
+    profissional_id: string; servico_id?: string; inicio: string; fim?: string;
+    cliente_nome?: string; contato?: string; observacao?: string;
+  }) => req<Agendamento>("/me/agendamentos", { method: "POST", body: JSON.stringify(body) }),
+  atualizarAgendamento: (id: string, body: Partial<Pick<Agendamento, "status" | "inicio" | "fim" | "observacao">>) =>
+    req<Agendamento>(`/me/agendamentos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarAgendamento: (id: string) => req<void>(`/me/agendamentos/${id}`, { method: "DELETE" }),
+
+  // --- Customizar Agendamento (config global) ---
+  agendamentoConfig: () => req<AgendamentoConfig>("/me/agendamento-config"),
+  setAgendamentoConfig: (body: Partial<Omit<AgendamentoConfig, "cliente_id">>) =>
+    req<AgendamentoConfig>("/me/agendamento-config", { method: "PATCH", body: JSON.stringify(body) }),
   growthChat: (agente: string, mensagens: GrowthMensagem[]) =>
     req<{ resposta: string }>("/growth/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
   growthPosts: () => req<GrowthPost[]>("/growth/posts"),
@@ -574,7 +700,7 @@ export const api = {
     req<Campanha>("/campanhas", { method: "POST", body: JSON.stringify(body) }),
   atualizarCampanha: (
     id: string,
-    body: Partial<Pick<Campanha, "nome_campanha" | "anuncio_dor" | "anuncio_beneficio" | "palavra_chave_gatilho">>,
+    body: Partial<Pick<Campanha, "nome_campanha" | "anuncio_dor" | "anuncio_beneficio" | "palavra_chave_gatilho" | "servico_ids">>,
   ) => req<Campanha>(`/me/campanhas/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarCampanha: (id: string) =>
     req<void>(`/me/campanhas/${id}`, { method: "DELETE" }),

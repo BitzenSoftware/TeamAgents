@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, BookOpen, Building2, CreditCard, Gauge, Inbox,
+  BarChart3, BookOpen, Building2, CalendarClock, CreditCard, Gauge, Inbox,
   Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Newspaper,
-  Package, Settings, Sparkles, X, type LucideIcon,
+  Package, Scissors, Settings, Sparkles, Users, X, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
@@ -20,6 +20,9 @@ const NAV: NavItem[] = [
   { href: "/campanhas", label: "Agente de Copywriting", icon: Megaphone, grupo: "Agentes" },
   { href: "/executivo", label: "Agente Executivo", icon: Mail, grupo: "Agentes" },
   { href: "/consultoria", label: "Agente Diretor de BI", icon: BarChart3, grupo: "Agentes" },
+  { href: "/profissionais", label: "Profissionais", icon: Users, grupo: "Workspace" },
+  { href: "/servicos", label: "Serviços", icon: Scissors, grupo: "Workspace" },
+  { href: "/agenda", label: "Agenda", icon: CalendarClock, grupo: "Workspace" },
   { href: "/habilidades", label: "Habilidades", icon: Sparkles, grupo: "Workspace" },
   { href: "/consumo", label: "Consumo", icon: Gauge, grupo: "Workspace" },
   { href: "/assinatura", label: "Assinatura", icon: CreditCard, grupo: "Workspace" },

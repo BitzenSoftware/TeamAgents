@@ -29,6 +29,8 @@ class CopyRequest(BaseModel):
     # IDs das habilidades a injetar no prompt. [] ou omitido = nenhuma (poupa tokens).
     # A lista é explícita: para "todas", o frontend envia todos os IDs.
     habilidade_ids: list[str] | None = None
+    # Serviços vinculados à campanha (agenda nativa): o agente agenda esses serviços.
+    servico_ids: list[str] | None = None
 
 
 # ===================== Agente 2: SDR =====================
@@ -88,6 +90,10 @@ class ConfigUpdate(BaseModel):
     calendario_link: str | None = None
     whatsapp_dono: str | None = None
     limite_mensal_leads: int | None = None
+    # Horário de funcionamento da empresa (limita as escalas dos profissionais)
+    horario_func_inicio: str | None = None   # "HH:MM"
+    horario_func_fim: str | None = None
+    dias_trabalho: list[int] | None = None   # 0=domingo .. 6=sábado
 
 
 # ===================== Habilidades (base de conhecimento) =====================
@@ -119,6 +125,7 @@ class CampanhaUpdate(BaseModel):
     anuncio_dor: str | None = None
     anuncio_beneficio: str | None = None
     palavra_chave_gatilho: str | None = None
+    servico_ids: list[str] | None = None
 
 
 # ===================== Planos (superadmin) =====================
@@ -435,6 +442,78 @@ class GrowthPostUpdate(BaseModel):
 
 class GrowthConfigUpdate(BaseModel):
     modo_aprovacao: str | None = Field(default=None, pattern="^(manual|auto)$")
+
+
+# ===================== Profissionais, Serviços e Agenda =====================
+class ServicoCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    duracao_min: int = Field(default=30, ge=5, le=600)
+    preco: float | None = None
+    ativo: bool = True
+
+
+class ServicoUpdate(BaseModel):
+    nome: str | None = None
+    duracao_min: int | None = Field(default=None, ge=5, le=600)
+    preco: float | None = None
+    ativo: bool | None = None
+
+
+class EscalaItem(BaseModel):
+    dia_semana: int = Field(ge=0, le=6)  # 0=domingo .. 6=sábado
+    hora_inicio: str           # "HH:MM"
+    hora_fim: str
+    intervalo_min: int = Field(default=30, ge=5, le=240)
+    almoco_inicio: str | None = None
+    almoco_fim: str | None = None
+
+
+class ProfissionalCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    ativo: bool = True
+    servico_ids: list[str] = Field(default_factory=list)  # serviços habilitados
+    escalas: list[EscalaItem] = Field(default_factory=list)
+
+
+class ProfissionalUpdate(BaseModel):
+    nome: str | None = None
+    ativo: bool | None = None
+    servico_ids: list[str] | None = None
+    escalas: list[EscalaItem] | None = None
+
+
+class AusenciaCreate(BaseModel):
+    tipo: str = Field(default="dia_todo", pattern="^(dia_todo|horas)$")
+    data_inicio: str            # "YYYY-MM-DD"
+    data_fim: str
+    hora_inicio: str | None = None  # só quando tipo='horas'
+    hora_fim: str | None = None
+    motivo: str | None = None
+
+
+class AgendamentoCreate(BaseModel):
+    profissional_id: str
+    servico_id: str | None = None
+    inicio: str                 # ISO datetime
+    fim: str | None = None      # se omitido, calcula pela duração do serviço
+    cliente_nome: str | None = None
+    contato: str | None = None
+    observacao: str | None = None
+
+
+class AgendamentoUpdate(BaseModel):
+    status: str | None = Field(default=None, pattern="^(confirmado|cancelado|realizado|no_show)$")
+    inicio: str | None = None
+    fim: str | None = None
+    observacao: str | None = None
+
+
+class AgendamentoConfigUpdate(BaseModel):
+    fluxo_ordem: list[str] | None = None
+    perguntar_profissional: bool | None = None
+    permitir_qualquer: bool | None = None
+    profissional_padrao_id: str | None = None
+    dias_futuros: int | None = Field(default=None, ge=1, le=90)
 
 
 # ===================== Webhook do WhatsApp =====================

@@ -11,7 +11,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import calcom, email_ingest, evolution, executivo, growth, llm, pricing, whatsapp
+from . import agenda, calcom, email_ingest, evolution, executivo, growth, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
 from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
@@ -609,9 +609,13 @@ def criar_campanha(cliente_id: str, req: CopyRequest) -> dict:
         "status": "ATIVA",
     }
     res = db.table("campanhas").insert(row).execute()
+    camp = res.data[0]
+    if req.servico_ids:
+        _set_campanha_servicos(camp["id"], req.servico_ids)
+    camp["servico_ids"] = _campanha_servico_ids(camp["id"])
     cr = pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_CAMPANHA)  # piso = valor atual
     consumir_creditos(cliente_id, cr, "campanhas", uso=uso)  # só desconta após êxito
-    return res.data[0]
+    return camp
 
 
 # ===================== Agente 2: processar mensagem do lead =====================
@@ -713,19 +717,25 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     # fallback para o da campanha.
     link_calendario = config.get("calendario_link") or campanha.get("link_calendario") or ""
 
-    # Se a clínica ligou o Cal.com, injeta os horários REAIS livres — o agente
-    # propõe só esses e devolve o inicio_iso escolhido em `agendar_em`.
+    # Disponibilidade: prioriza a AGENDA NATIVA (profissionais/serviços da campanha).
+    # Se não houver profissionais configurados, cai no Cal.com (legado).
     horarios_txt = ""
-    if calcom.configurado(config):
+    slot_map: dict = {}
+    _confirma = (
+        "Ao confirmar um horário com a pessoa, devolva action=SCHEDULE_MEETING e copie "
+        "o `inicio_iso` EXATO do horário escolhido no campo `agendar_em`. Não invente horários.\n"
+    )
+    nat_linhas, slot_map = _slots_campanha(cliente_id, campanha)
+    if nat_linhas:
+        horarios_txt = (
+            "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n"
+            + "\n".join(nat_linhas) + "\n" + _confirma
+        )
+    elif calcom.configurado(config):
         livres = calcom.proximos_horarios(config["calcom_api_key"], config["calcom_event_type_id"])
         if livres:
             linhas = "\n".join(f"- {h['rotulo']}  (inicio_iso: {h['inicio_iso']})" for h in livres)
-            horarios_txt = (
-                "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n"
-                f"{linhas}\n"
-                "Ao confirmar um horário com a pessoa, devolva action=SCHEDULE_MEETING e copie "
-                "o `inicio_iso` EXATO do horário escolhido no campo `agendar_em`. Não invente horários.\n"
-            )
+            horarios_txt = "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n" + linhas + "\n" + _confirma
 
     out, uso = llm.responder_sdr(
         lead_message=text,
@@ -749,7 +759,19 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
         # Agendamento autônomo: se o Cal.com está ligado e o agente escolheu um
         # horário, cria a reserva real na agenda (best-effort — não quebra o fluxo).
         agendar_em = getattr(out, "agendar_em", None)
-        if agendar_em and calcom.configurado(config):
+        if agendar_em and agendar_em in slot_map:
+            sel = slot_map[agendar_em]
+            try:
+                agendamento_criar(
+                    cliente_id,
+                    {"profissional_id": sel["prof_id"], "servico_id": sel.get("servico_id"),
+                     "inicio": agendar_em, "cliente_nome": lead.get("nome") or nome,
+                     "contato": whatsapp_num},
+                    origem="agente", lead_id=lead["id"],
+                )
+            except (ConflitoAgendaError, ValueError):
+                pass  # horário tomado nesse meio-tempo — best-effort
+        elif agendar_em and calcom.configurado(config):
             calcom.criar_reserva(
                 api_key=config["calcom_api_key"],
                 event_type_id=config["calcom_event_type_id"],
@@ -1186,9 +1208,23 @@ def listar_clientes() -> list[dict]:
     return get_db().table("clientes").select("id, nome, created_at").order("nome").execute().data
 
 
+def _campanha_servico_ids(campanha_id: str) -> list[str]:
+    rows = get_db().table("campanha_servicos").select("servico_id").eq("campanha_id", campanha_id).execute().data or []
+    return [r["servico_id"] for r in rows]
+
+
+def _set_campanha_servicos(campanha_id: str, servico_ids: list[str]) -> None:
+    db = get_db()
+    db.table("campanha_servicos").delete().eq("campanha_id", campanha_id).execute()
+    if servico_ids:
+        db.table("campanha_servicos").insert(
+            [{"campanha_id": campanha_id, "servico_id": sid} for sid in servico_ids]
+        ).execute()
+
+
 def listar_campanhas(cliente_id: str) -> list[dict]:
     """Campanhas de um cliente, mais recentes primeiro."""
-    return (
+    rows = (
         get_db()
         .table("campanhas")
         .select("*")
@@ -1196,23 +1232,28 @@ def listar_campanhas(cliente_id: str) -> list[dict]:
         .order("created_at", desc=True)
         .execute()
         .data
-    )
+    ) or []
+    for c in rows:
+        c["servico_ids"] = _campanha_servico_ids(c["id"])
+    return rows
 
 
 def atualizar_campanha(cliente_id: str, cid: str, fields: dict) -> dict | None:
     """Edita uma campanha do cliente. Devolve None se não existir/não for dele."""
-    if not fields:
-        rows = get_db().table("campanhas").select("*").eq("id", cid).eq("cliente_id", cliente_id).execute().data
-        return rows[0] if rows else None
-    res = (
-        get_db()
-        .table("campanhas")
-        .update(fields)
-        .eq("id", cid)
-        .eq("cliente_id", cliente_id)
-        .execute()
-    )
-    return res.data[0] if res.data else None
+    servico_ids = fields.pop("servico_ids", None)
+    db = get_db()
+    rows = db.table("campanhas").select("id").eq("id", cid).eq("cliente_id", cliente_id).limit(1).execute().data
+    if not rows:
+        return None
+    if fields:
+        db.table("campanhas").update(fields).eq("id", cid).eq("cliente_id", cliente_id).execute()
+    if servico_ids is not None:
+        _set_campanha_servicos(cid, servico_ids)
+    out = db.table("campanhas").select("*").eq("id", cid).eq("cliente_id", cliente_id).execute().data
+    if not out:
+        return None
+    out[0]["servico_ids"] = _campanha_servico_ids(cid)
+    return out[0]
 
 
 def apagar_campanha(cliente_id: str, cid: str) -> None:
@@ -2311,3 +2352,363 @@ def _growth_post(cliente_id: str, post_id: str) -> dict | None:
         .eq("id", post_id).eq("cliente_id", cliente_id).limit(1).execute().data
     )
     return rows[0] if rows else None
+
+
+# ===================== Profissionais, Serviços e Agenda nativa =====================
+class ConflitoAgendaError(Exception):
+    """Horário já ocupado ou fora da disponibilidade do profissional."""
+
+
+_SERVICO_COLS = "id, nome, duracao_min, preco, ativo, created_at"
+_PROF_COLS = "id, nome, ativo, created_at"
+_ESCALA_COLS = "id, dia_semana, hora_inicio, hora_fim, intervalo_min, almoco_inicio, almoco_fim"
+_AUS_COLS = "id, tipo, data_inicio, data_fim, hora_inicio, hora_fim, motivo, created_at"
+_AGEND_COLS = ("id, profissional_id, servico_id, lead_id, inicio, fim, status, origem, "
+               "cliente_nome, contato, observacao, created_at")
+
+
+# ---------------------------- Serviços ----------------------------
+def servicos_listar(cliente_id: str) -> list[dict]:
+    db = get_db()
+    rows = db.table("servicos").select(_SERVICO_COLS).eq("cliente_id", cliente_id).execute().data or []
+    rows.sort(key=lambda r: r.get("nome") or "")
+    return rows
+
+
+def servico_criar(cliente_id: str, data: dict) -> dict:
+    row = {"cliente_id": cliente_id, **{k: data[k] for k in ("nome", "duracao_min", "preco", "ativo") if k in data}}
+    return get_db().table("servicos").insert(row).execute().data[0]
+
+
+def servico_atualizar(cliente_id: str, servico_id: str, patch: dict) -> dict | None:
+    if patch:
+        get_db().table("servicos").update(patch).eq("id", servico_id).eq("cliente_id", cliente_id).execute()
+    rows = get_db().table("servicos").select(_SERVICO_COLS).eq("id", servico_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def servico_apagar(cliente_id: str, servico_id: str) -> None:
+    get_db().table("servicos").delete().eq("id", servico_id).eq("cliente_id", cliente_id).execute()
+
+
+# ---------------------------- Profissionais ----------------------------
+def _prof_do_cliente(cliente_id: str, prof_id: str) -> bool:
+    return bool(get_db().table("profissionais").select("id").eq("id", prof_id).eq("cliente_id", cliente_id).limit(1).execute().data)
+
+
+def _prof_servico_ids(prof_id: str) -> list[str]:
+    rows = get_db().table("servico_profissional").select("servico_id").eq("profissional_id", prof_id).execute().data or []
+    return [r["servico_id"] for r in rows]
+
+
+def _prof_escalas(prof_id: str) -> list[dict]:
+    rows = get_db().table("profissional_escalas").select(_ESCALA_COLS).eq("profissional_id", prof_id).execute().data or []
+    rows.sort(key=lambda r: r.get("dia_semana") or 0)
+    return rows
+
+
+def _set_prof_servicos(prof_id: str, servico_ids: list[str]) -> None:
+    db = get_db()
+    db.table("servico_profissional").delete().eq("profissional_id", prof_id).execute()
+    if servico_ids:
+        db.table("servico_profissional").insert(
+            [{"servico_id": sid, "profissional_id": prof_id} for sid in servico_ids]
+        ).execute()
+
+
+def _set_prof_escalas(prof_id: str, escalas: list[dict]) -> None:
+    db = get_db()
+    db.table("profissional_escalas").delete().eq("profissional_id", prof_id).execute()
+    linhas = []
+    for e in escalas:
+        linhas.append({
+            "profissional_id": prof_id,
+            "dia_semana": e["dia_semana"],
+            "hora_inicio": e["hora_inicio"],
+            "hora_fim": e["hora_fim"],
+            "intervalo_min": e.get("intervalo_min", 30),
+            "almoco_inicio": e.get("almoco_inicio"),
+            "almoco_fim": e.get("almoco_fim"),
+        })
+    if linhas:
+        db.table("profissional_escalas").insert(linhas).execute()
+
+
+def profissionais_listar(cliente_id: str) -> list[dict]:
+    db = get_db()
+    profs = db.table("profissionais").select(_PROF_COLS).eq("cliente_id", cliente_id).execute().data or []
+    profs.sort(key=lambda r: r.get("nome") or "")
+    for p in profs:
+        p["servico_ids"] = _prof_servico_ids(p["id"])
+        p["escalas"] = _prof_escalas(p["id"])
+    return profs
+
+
+def profissional_criar(cliente_id: str, data: dict) -> dict:
+    db = get_db()
+    row = {"cliente_id": cliente_id, "nome": data["nome"], "ativo": data.get("ativo", True)}
+    prof = db.table("profissionais").insert(row).execute().data[0]
+    _set_prof_servicos(prof["id"], data.get("servico_ids") or [])
+    _set_prof_escalas(prof["id"], data.get("escalas") or [])
+    prof["servico_ids"] = _prof_servico_ids(prof["id"])
+    prof["escalas"] = _prof_escalas(prof["id"])
+    return prof
+
+
+def profissional_atualizar(cliente_id: str, prof_id: str, patch: dict) -> dict | None:
+    if not _prof_do_cliente(cliente_id, prof_id):
+        return None
+    db = get_db()
+    base = {k: patch[k] for k in ("nome", "ativo") if k in patch}
+    if base:
+        db.table("profissionais").update(base).eq("id", prof_id).eq("cliente_id", cliente_id).execute()
+    if patch.get("servico_ids") is not None:
+        _set_prof_servicos(prof_id, patch["servico_ids"])
+    if patch.get("escalas") is not None:
+        _set_prof_escalas(prof_id, patch["escalas"])
+    rows = db.table("profissionais").select(_PROF_COLS).eq("id", prof_id).limit(1).execute().data
+    if not rows:
+        return None
+    p = rows[0]
+    p["servico_ids"] = _prof_servico_ids(prof_id)
+    p["escalas"] = _prof_escalas(prof_id)
+    return p
+
+
+def profissional_apagar(cliente_id: str, prof_id: str) -> None:
+    get_db().table("profissionais").delete().eq("id", prof_id).eq("cliente_id", cliente_id).execute()
+
+
+# ---------------------------- Ausências ----------------------------
+def ausencias_listar(cliente_id: str, prof_id: str) -> list[dict]:
+    if not _prof_do_cliente(cliente_id, prof_id):
+        return []
+    rows = get_db().table("profissional_ausencias").select(_AUS_COLS).eq("profissional_id", prof_id).execute().data or []
+    rows.sort(key=lambda r: r.get("data_inicio") or "")
+    return rows
+
+
+def ausencia_criar(cliente_id: str, prof_id: str, data: dict) -> dict | None:
+    if not _prof_do_cliente(cliente_id, prof_id):
+        return None
+    row = {"profissional_id": prof_id, **{k: data.get(k) for k in
+           ("tipo", "data_inicio", "data_fim", "hora_inicio", "hora_fim", "motivo")}}
+    return get_db().table("profissional_ausencias").insert(row).execute().data[0]
+
+
+def ausencia_apagar(cliente_id: str, prof_id: str, ausencia_id: str) -> None:
+    if not _prof_do_cliente(cliente_id, prof_id):
+        return
+    get_db().table("profissional_ausencias").delete().eq("id", ausencia_id).eq("profissional_id", prof_id).execute()
+
+
+# ---------------------------- Disponibilidade ----------------------------
+def _escala_por_dia(prof_id: str) -> dict[int, dict]:
+    return {e["dia_semana"]: e for e in _prof_escalas(prof_id)}
+
+
+def _ocupados(prof_id: str) -> list[tuple]:
+    rows = (
+        get_db().table("agendamentos").select("inicio, fim, status")
+        .eq("profissional_id", prof_id).neq("status", "cancelado").execute().data or []
+    )
+    out = []
+    for r in rows:
+        ini, fim = agenda._parse_dt(r.get("inicio")), agenda._parse_dt(r.get("fim"))
+        if ini and fim:
+            out.append((ini, fim))
+    return out
+
+
+def _servico_profissionais(cliente_id: str, servico_id: str) -> list[dict]:
+    rows = get_db().table("servico_profissional").select("profissional_id").eq("servico_id", servico_id).execute().data or []
+    ids = [r["profissional_id"] for r in rows]
+    if not ids:
+        return []
+    profs = get_db().table("profissionais").select(_PROF_COLS).in_("id", ids).eq("cliente_id", cliente_id).eq("ativo", True).execute().data or []
+    return profs
+
+
+def disponibilidade(cliente_id: str, servico_id: str | None = None,
+                    profissional_id: str | None = None, dias_futuros: int | None = None) -> list[dict]:
+    """Slots livres, marcados com o profissional. Núcleo do agendamento."""
+    cfg = agendamento_config_get(cliente_id)
+    dias = dias_futuros or cfg.get("dias_futuros") or 14
+
+    duracao = 30
+    if servico_id:
+        srow = get_db().table("servicos").select("duracao_min").eq("id", servico_id).eq("cliente_id", cliente_id).limit(1).execute().data
+        if srow:
+            duracao = int(srow[0].get("duracao_min") or 30)
+
+    if profissional_id:
+        profs = get_db().table("profissionais").select(_PROF_COLS).eq("id", profissional_id).eq("cliente_id", cliente_id).execute().data or []
+    elif servico_id:
+        profs = _servico_profissionais(cliente_id, servico_id)
+    else:
+        profs = get_db().table("profissionais").select(_PROF_COLS).eq("cliente_id", cliente_id).eq("ativo", True).execute().data or []
+
+    slots: list[dict] = []
+    for p in profs:
+        livres = agenda.slots_profissional(
+            escala_por_dia=_escala_por_dia(p["id"]),
+            ausencias=ausencias_listar(cliente_id, p["id"]),
+            ocupados=_ocupados(p["id"]),
+            duracao_min=duracao,
+            dias_futuros=int(dias),
+        )
+        for s in livres:
+            slots.append({**s, "profissional_id": p["id"], "profissional_nome": p["nome"]})
+    slots.sort(key=lambda s: s["inicio_iso"])
+    return slots
+
+
+# ---------------------------- Agendamentos ----------------------------
+def agendamentos_listar(cliente_id: str, de: str | None = None, ate: str | None = None,
+                        prof_id: str | None = None) -> list[dict]:
+    q = get_db().table("agendamentos").select(_AGEND_COLS).eq("cliente_id", cliente_id)
+    if prof_id:
+        q = q.eq("profissional_id", prof_id)
+    if de:
+        q = q.gte("inicio", de)
+    if ate:
+        q = q.lte("inicio", ate)
+    rows = q.execute().data or []
+    rows.sort(key=lambda r: r.get("inicio") or "")
+    return rows
+
+
+def _tem_conflito(prof_id: str, inicio: datetime, fim: datetime, ignorar_id: str | None = None) -> bool:
+    rows = (
+        get_db().table("agendamentos").select("id, inicio, fim, status")
+        .eq("profissional_id", prof_id).neq("status", "cancelado").execute().data or []
+    )
+    for r in rows:
+        if ignorar_id and r["id"] == ignorar_id:
+            continue
+        o_i, o_f = agenda._parse_dt(r.get("inicio")), agenda._parse_dt(r.get("fim"))
+        if o_i and o_f and agenda._overlaps(inicio, fim, o_i, o_f):
+            return True
+    return False
+
+
+def _duracao_servico(cliente_id: str, servico_id: str | None) -> int:
+    if not servico_id:
+        return 30
+    rows = get_db().table("servicos").select("duracao_min").eq("id", servico_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    return int(rows[0]["duracao_min"]) if rows else 30
+
+
+def agendamento_criar(cliente_id: str, data: dict, *, origem: str = "manual",
+                      lead_id: str | None = None) -> dict:
+    inicio = agenda._parse_dt(data.get("inicio"))
+    if not inicio:
+        raise ValueError("Início inválido.")
+    fim = agenda._parse_dt(data.get("fim")) if data.get("fim") else None
+    if not fim:
+        fim = inicio + timedelta(minutes=_duracao_servico(cliente_id, data.get("servico_id")))
+    prof_id = data["profissional_id"]
+    if not _prof_do_cliente(cliente_id, prof_id):
+        raise ValueError("Profissional inválido.")
+    if _tem_conflito(prof_id, inicio, fim):
+        raise ConflitoAgendaError("Esse horário já está ocupado para o profissional.")
+    row = {
+        "cliente_id": cliente_id,
+        "profissional_id": prof_id,
+        "servico_id": data.get("servico_id"),
+        "lead_id": lead_id,
+        "inicio": inicio.isoformat(),
+        "fim": fim.isoformat(),
+        "status": "confirmado",
+        "origem": origem,
+        "cliente_nome": data.get("cliente_nome"),
+        "contato": data.get("contato"),
+        "observacao": data.get("observacao"),
+    }
+    return get_db().table("agendamentos").insert(row).execute().data[0]
+
+
+def agendamento_atualizar(cliente_id: str, agendamento_id: str, patch: dict) -> dict | None:
+    db = get_db()
+    rows = db.table("agendamentos").select(_AGEND_COLS).eq("id", agendamento_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    if not rows:
+        return None
+    atual = rows[0]
+    novo = {k: patch[k] for k in ("status", "inicio", "fim", "observacao") if k in patch and patch[k] is not None}
+    # Se remarcar, revalida conflito.
+    if "inicio" in novo or "fim" in novo:
+        ini = agenda._parse_dt(novo.get("inicio") or atual["inicio"])
+        fim = agenda._parse_dt(novo.get("fim") or atual["fim"])
+        if ini and fim and _tem_conflito(atual["profissional_id"], ini, fim, ignorar_id=agendamento_id):
+            raise ConflitoAgendaError("Esse horário já está ocupado para o profissional.")
+    if novo:
+        db.table("agendamentos").update(novo).eq("id", agendamento_id).eq("cliente_id", cliente_id).execute()
+    rows = db.table("agendamentos").select(_AGEND_COLS).eq("id", agendamento_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def agendamento_apagar(cliente_id: str, agendamento_id: str) -> None:
+    get_db().table("agendamentos").delete().eq("id", agendamento_id).eq("cliente_id", cliente_id).execute()
+
+
+# ---------------------------- Config de agendamento ----------------------------
+_AG_CFG_COLS = "cliente_id, fluxo_ordem, perguntar_profissional, permitir_qualquer, profissional_padrao_id, dias_futuros"
+
+
+def agendamento_config_get(cliente_id: str) -> dict:
+    db = get_db()
+    rows = db.table("agendamento_config").select(_AG_CFG_COLS).eq("cliente_id", cliente_id).limit(1).execute().data
+    if rows:
+        return rows[0]
+    novo = {"cliente_id": cliente_id}
+    try:
+        return db.table("agendamento_config").insert(novo).execute().data[0]
+    except Exception:
+        return {"cliente_id": cliente_id, "fluxo_ordem": ["profissional", "servico"],
+                "perguntar_profissional": True, "permitir_qualquer": True,
+                "profissional_padrao_id": None, "dias_futuros": 14}
+
+
+def agendamento_config_set(cliente_id: str, patch: dict) -> dict:
+    agendamento_config_get(cliente_id)  # garante a linha
+    if patch:
+        patch = {**patch, "updated_at": datetime.now(timezone.utc).isoformat()}
+        get_db().table("agendamento_config").update(patch).eq("cliente_id", cliente_id).execute()
+    return agendamento_config_get(cliente_id)
+
+
+def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[list[str], dict]:
+    """Monta as linhas de horários livres p/ injetar no SDR + o mapa inicio_iso→slot.
+
+    Usa os serviços vinculados à campanha (se houver); senão, avaliação genérica
+    em qualquer profissional. Dedupe por horário (cobre 'qualquer profissional').
+    Devolve ([] , {}) quando não há profissionais configurados → cai no Cal.com.
+    """
+    try:
+        servico_ids = _campanha_servico_ids(campanha["id"])
+        nomes = {s["id"]: s["nome"] for s in servicos_listar(cliente_id)} if servico_ids else {}
+        brutos: list[dict] = []
+        if servico_ids:
+            for sid in servico_ids:
+                for s in disponibilidade(cliente_id, servico_id=sid):
+                    brutos.append({**s, "servico_id": sid, "servico_nome": nomes.get(sid)})
+        else:
+            for s in disponibilidade(cliente_id):
+                brutos.append({**s, "servico_id": None, "servico_nome": None})
+        brutos.sort(key=lambda x: x["inicio_iso"])
+        linhas: list[str] = []
+        mapa: dict = {}
+        vistos: set[str] = set()
+        for s in brutos:
+            iso = s["inicio_iso"]
+            if iso in vistos:
+                continue
+            vistos.add(iso)
+            serv = f" ({s['servico_nome']})" if s.get("servico_nome") else ""
+            linhas.append(f"- {s['rotulo']} com {s['profissional_nome']}{serv}  (inicio_iso: {iso})")
+            mapa[iso] = {"prof_id": s["profissional_id"], "servico_id": s.get("servico_id")}
+            if len(linhas) >= 12:
+                break
+        return linhas, mapa
+    except Exception:
+        return [], {}  # nunca quebra o fluxo do SDR por causa da agenda

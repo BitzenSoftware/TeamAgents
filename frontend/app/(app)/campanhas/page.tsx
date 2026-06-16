@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { QRCodeCanvas } from "qrcode.react";
 import { useCliente } from "@/components/cliente-context";
-import { api, type Campanha, type Cliente, type Habilidade, type SocialConfig } from "@/lib/api";
+import { api, type AgendamentoConfig, type Campanha, type Cliente, type Habilidade, type Profissional, type Servico, type SocialConfig } from "@/lib/api";
 
 export default function CampanhasPage() {
   const { cliente } = useCliente();
@@ -15,6 +15,8 @@ export default function CampanhasPage() {
   const [habilidades, setHabilidades] = useState<Habilidade[]>([]);
   const [social, setSocial] = useState<SocialConfig | null>(null);
   const [numeroEmpresa, setNumeroEmpresa] = useState<string | null>(null);
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [customizar, setCustomizar] = useState(false);
 
   const carregar = useCallback(() => {
     api.campanhas().then(setLista).catch(() => {});
@@ -25,6 +27,7 @@ export default function CampanhasPage() {
     api.habilidades().then((hs) => setHabilidades(hs.filter((h) => h.ativo))).catch(() => {});
     api.getSocialConfig().then(setSocial).catch(() => {});
     api.getConfig().then((c) => setNumeroEmpresa(c.whatsapp_numero)).catch(() => {});
+    api.servicos().then((s) => setServicos(s.filter((x) => x.ativo))).catch(() => {});
   }, [carregar]);
 
   // Mantém uma seleção válida (auto-seleciona a primeira).
@@ -38,15 +41,24 @@ export default function CampanhasPage() {
   return (
     <div className="p-6">
       <header className="mb-5">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
-          <button
-            type="button"
-            onClick={() => setModalAberto(true)}
-            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            + Nova campanha
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCustomizar(true)}
+              className="shrink-0 rounded-lg border border-black/15 px-4 py-2 text-sm font-medium transition hover:bg-black/5"
+            >
+              Customizar Agendamento
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalAberto(true)}
+              className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              + Nova campanha
+            </button>
+          </div>
         </div>
         <p className="mt-1 text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
       </header>
@@ -86,7 +98,7 @@ export default function CampanhasPage() {
           {/* Detalhe (detail) */}
           <section className="md:col-span-8 lg:col-span-9">
             {selecionada ? (
-              <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} numeroEmpresa={numeroEmpresa} />
+              <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} numeroEmpresa={numeroEmpresa} servicos={servicos} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
                 Selecione uma campanha à esquerda.
@@ -100,6 +112,7 @@ export default function CampanhasPage() {
         <ModalNovaCampanha
           cliente={cliente}
           habilidades={habilidades}
+          servicos={servicos}
           onClose={() => setModalAberto(false)}
           onCreated={(c) => {
             setModalAberto(false);
@@ -109,13 +122,15 @@ export default function CampanhasPage() {
         />
       )}
 
+      {customizar && <ModalCustomizarAgendamento onClose={() => setCustomizar(false)} />}
+
       <style>{`.campo{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;padding:.5rem .65rem;font-size:.875rem;background:#fff}`}</style>
     </div>
   );
 }
 
 /* ---------------- Painel de detalhe da campanha ---------------- */
-function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; onChange: () => void; social: SocialConfig | null; numeroEmpresa: string | null }) {
+function CampanhaDetalhe({ c, onChange, social, numeroEmpresa, servicos }: { c: Campanha; onChange: () => void; social: SocialConfig | null; numeroEmpresa: string | null; servicos: Servico[] }) {
   const [editando, setEditando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apagando, setApagando] = useState(false);
@@ -124,12 +139,14 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; 
   const [anuncioDor, setAnuncioDor] = useState(c.anuncio_dor);
   const [anuncioBeneficio, setAnuncioBeneficio] = useState(c.anuncio_beneficio);
   const [palavraChave, setPalavraChave] = useState(c.palavra_chave_gatilho);
+  const [servIds, setServIds] = useState<string[]>(c.servico_ids ?? []);
 
   function cancelar() {
     setNome(c.nome_campanha);
     setAnuncioDor(c.anuncio_dor);
     setAnuncioBeneficio(c.anuncio_beneficio);
     setPalavraChave(c.palavra_chave_gatilho);
+    setServIds(c.servico_ids ?? []);
     setErro(null);
     setEditando(false);
   }
@@ -143,6 +160,7 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; 
         anuncio_dor: anuncioDor,
         anuncio_beneficio: anuncioBeneficio,
         palavra_chave_gatilho: palavraChave,
+        servico_ids: servIds,
       });
       setEditando(false);
       onChange();
@@ -181,6 +199,9 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; 
           </Field>
           <Field label="Palavra-chave de gatilho">
             <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder="PALAVRA_CHAVE" />
+          </Field>
+          <Field label="Serviços desta campanha (o agente agenda esses)">
+            <ServicoPicker servicos={servicos} selecionados={servIds} onChange={setServIds} />
           </Field>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex gap-2">
@@ -240,11 +261,13 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa }: { c: Campanha; 
 function ModalNovaCampanha({
   cliente,
   habilidades,
+  servicos,
   onClose,
   onCreated,
 }: {
   cliente: Cliente | null;
   habilidades: Habilidade[];
+  servicos: Servico[];
   onClose: () => void;
   onCreated: (c: Campanha) => void;
 }) {
@@ -253,6 +276,7 @@ function ModalNovaCampanha({
   const [dor, setDor] = useState("");
   const [link, setLink] = useState("");
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [servIds, setServIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -273,6 +297,7 @@ function ModalNovaCampanha({
         nome_campanha: nomeCampanha,
         link_calendario: link || undefined,
         habilidade_ids: selecionadas,
+        servico_ids: servIds,
       });
       onCreated(c);
     } catch (err) {
@@ -347,6 +372,9 @@ function ModalNovaCampanha({
                 : `${selecionadas.length} habilidade${selecionadas.length > 1 ? "s" : ""} no prompt.`}
             </p>
           </div>
+          <Field label="Serviços desta campanha (opcional — o agente agenda esses)">
+            <ServicoPicker servicos={servicos} selecionados={servIds} onChange={setServIds} />
+          </Field>
           <Field label="Link de calendário (opcional)">
             <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder="https://cal.com/voce/15min" />
           </Field>
@@ -560,6 +588,122 @@ function LinkCaptacao({ numero, palavraChave }: { numero: string | null; palavra
               Baixar QR Code
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Seletor de serviços (chips) ---------------- */
+function ServicoPicker({ servicos, selecionados, onChange }: { servicos: Servico[]; selecionados: string[]; onChange: (ids: string[]) => void }) {
+  if (servicos.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-black/15 p-3 text-xs text-black/40">
+        Sem serviços ativos. Cadastre no menu{" "}
+        <Link href="/servicos" className="font-medium text-brand hover:underline">Serviços</Link>.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {servicos.map((s) => {
+        const on = selecionados.includes(s.id);
+        return (
+          <button key={s.id} type="button"
+            onClick={() => onChange(on ? selecionados.filter((x) => x !== s.id) : [...selecionados, s.id])}
+            className={`rounded-full border px-3 py-1 text-xs transition ${on ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/5"}`}>
+            {s.nome}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------- Modal: Customizar Agendamento (config global) ---------------- */
+function ModalCustomizarAgendamento({ onClose }: { onClose: () => void }) {
+  const [cfg, setCfg] = useState<AgendamentoConfig | null>(null);
+  const [profs, setProfs] = useState<Profissional[]>([]);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.agendamentoConfig().then(setCfg).catch((e) => setErro(e instanceof Error ? e.message : String(e)));
+    api.profissionais().then(setProfs).catch(() => {});
+  }, []);
+
+  function set<K extends keyof AgendamentoConfig>(k: K, v: AgendamentoConfig[K]) {
+    setCfg((c) => (c ? { ...c, [k]: v } : c));
+  }
+
+  async function salvar() {
+    if (!cfg || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await api.setAgendamentoConfig({
+        fluxo_ordem: cfg.fluxo_ordem,
+        perguntar_profissional: cfg.perguntar_profissional,
+        permitir_qualquer: cfg.permitir_qualquer,
+        profissional_padrao_id: cfg.profissional_padrao_id,
+        dias_futuros: cfg.dias_futuros,
+      });
+      onClose();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setSalvando(false);
+    }
+  }
+
+  const primeiroPasso = cfg?.fluxo_ordem?.[0] === "servico" ? "servico" : "profissional";
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-black/10 px-5 py-4">
+          <h2 className="text-lg font-semibold">Customizar Agendamento</h2>
+          <p className="text-xs text-black/50">Define como o agente conduz o agendamento (vale para todas as campanhas).</p>
+        </div>
+        {!cfg ? (
+          <p className="p-6 text-sm text-black/40">Carregando…</p>
+        ) : (
+          <div className="space-y-4 p-5">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-black/60">O agente pergunta primeiro:</label>
+              <select aria-label="Ordem do fluxo de agendamento" value={primeiroPasso} onChange={(e) => set("fluxo_ordem", e.target.value === "servico" ? ["servico", "profissional"] : ["profissional", "servico"])}
+                className="campo">
+                <option value="profissional">Profissional → Serviço</option>
+                <option value="servico">Serviço → Profissional</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cfg.perguntar_profissional} onChange={(e) => set("perguntar_profissional", e.target.checked)} />
+              Perguntar qual profissional
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cfg.permitir_qualquer} onChange={(e) => set("permitir_qualquer", e.target.checked)} />
+              Permitir &quot;qualquer profissional disponível&quot; (encaixe automático)
+            </label>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-black/60">Profissional padrão (quando não perguntar)</label>
+              <select aria-label="Profissional padrão" value={cfg.profissional_padrao_id ?? ""} onChange={(e) => set("profissional_padrao_id", e.target.value || null)} className="campo">
+                <option value="">— nenhum —</option>
+                {profs.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-black/60">Oferecer horários até quantos dias à frente</label>
+              <input aria-label="Dias à frente" type="number" min={1} max={90} value={cfg.dias_futuros} onChange={(e) => set("dias_futuros", Number(e.target.value))} className="campo" />
+            </div>
+            {erro && <p className="rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
+          </div>
+        )}
+        <div className="flex justify-end gap-2 border-t border-black/10 px-5 py-3">
+          <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancelar</button>
+          <button type="button" onClick={salvar} disabled={salvando || !cfg}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+            {salvando ? "Salvando…" : "Salvar"}
+          </button>
         </div>
       </div>
     </div>

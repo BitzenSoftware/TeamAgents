@@ -11,9 +11,17 @@ from postgrest.exceptions import APIError
 from . import auth, billing, evolution, flow
 from .config import get_settings
 from .schemas import (
+    AgendamentoConfigUpdate,
+    AgendamentoCreate,
+    AgendamentoUpdate,
+    AusenciaCreate,
     CampanhaUpdate,
     CheckoutRequest,
     CompraPacoteRequest,
+    ProfissionalCreate,
+    ProfissionalUpdate,
+    ServicoCreate,
+    ServicoUpdate,
     BlogPostCreate,
     BlogPostUpdate,
     ConcederCreditosRequest,
@@ -681,6 +689,130 @@ def growth_salvar_briefing(req: GrowthBriefingSave, cliente_id: str = Depends(au
 @app.delete("/growth/briefings/{briefing_id}", status_code=204)
 def growth_apagar_briefing(briefing_id: str, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> None:
     flow.growth_apagar_briefing(cliente_id, briefing_id)
+
+
+# ===================== Profissionais, Serviços e Agenda =====================
+# --- Serviços ---
+@app.get("/me/servicos")
+def servicos_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.servicos_listar(cliente_id)
+
+
+@app.post("/me/servicos", status_code=201)
+def servico_criar(payload: ServicoCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.servico_criar(cliente_id, payload.model_dump(exclude_none=True))
+
+
+@app.patch("/me/servicos/{servico_id}")
+def servico_atualizar(servico_id: str, payload: ServicoUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.servico_atualizar(cliente_id, servico_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado.")
+    return res
+
+
+@app.delete("/me/servicos/{servico_id}", status_code=204)
+def servico_apagar(servico_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.servico_apagar(cliente_id, servico_id)
+
+
+# --- Profissionais ---
+@app.get("/me/profissionais")
+def profissionais_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.profissionais_listar(cliente_id)
+
+
+@app.post("/me/profissionais", status_code=201)
+def profissional_criar(payload: ProfissionalCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.profissional_criar(cliente_id, payload.model_dump())
+
+
+@app.patch("/me/profissionais/{prof_id}")
+def profissional_atualizar(prof_id: str, payload: ProfissionalUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.profissional_atualizar(cliente_id, prof_id, payload.model_dump(exclude_unset=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Profissional não encontrado.")
+    return res
+
+
+@app.delete("/me/profissionais/{prof_id}", status_code=204)
+def profissional_apagar(prof_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.profissional_apagar(cliente_id, prof_id)
+
+
+# --- Ausências (por profissional) ---
+@app.get("/me/profissionais/{prof_id}/ausencias")
+def ausencias_listar(prof_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.ausencias_listar(cliente_id, prof_id)
+
+
+@app.post("/me/profissionais/{prof_id}/ausencias", status_code=201)
+def ausencia_criar(prof_id: str, payload: AusenciaCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.ausencia_criar(cliente_id, prof_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Profissional não encontrado.")
+    return res
+
+
+@app.delete("/me/profissionais/{prof_id}/ausencias/{ausencia_id}", status_code=204)
+def ausencia_apagar(prof_id: str, ausencia_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.ausencia_apagar(cliente_id, prof_id, ausencia_id)
+
+
+# --- Disponibilidade (slots livres) ---
+@app.get("/me/disponibilidade")
+def disponibilidade(
+    servico_id: str | None = None,
+    profissional_id: str | None = None,
+    cliente_id: str = Depends(auth.current_cliente_id),
+) -> list[dict]:
+    return flow.disponibilidade(cliente_id, servico_id=servico_id, profissional_id=profissional_id)
+
+
+# --- Agendamentos ---
+@app.get("/me/agendamentos")
+def agendamentos_listar(
+    de: str | None = None, ate: str | None = None, profissional_id: str | None = None,
+    cliente_id: str = Depends(auth.current_cliente_id),
+) -> list[dict]:
+    return flow.agendamentos_listar(cliente_id, de=de, ate=ate, prof_id=profissional_id)
+
+
+@app.post("/me/agendamentos", status_code=201)
+def agendamento_criar(payload: AgendamentoCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        return flow.agendamento_criar(cliente_id, payload.model_dump(exclude_none=True))
+    except flow.ConflitoAgendaError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.patch("/me/agendamentos/{agendamento_id}")
+def agendamento_atualizar(agendamento_id: str, payload: AgendamentoUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        res = flow.agendamento_atualizar(cliente_id, agendamento_id, payload.model_dump(exclude_none=True))
+    except flow.ConflitoAgendaError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    if not res:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    return res
+
+
+@app.delete("/me/agendamentos/{agendamento_id}", status_code=204)
+def agendamento_apagar(agendamento_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.agendamento_apagar(cliente_id, agendamento_id)
+
+
+# --- Config de agendamento (Customizar Agendamento, global) ---
+@app.get("/me/agendamento-config")
+def agendamento_config_get(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.agendamento_config_get(cliente_id)
+
+
+@app.patch("/me/agendamento-config")
+def agendamento_config_set(payload: AgendamentoConfigUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.agendamento_config_set(cliente_id, payload.model_dump(exclude_unset=True))
 
 
 @app.post("/growth/briefings/{briefing_id}/refinar")
