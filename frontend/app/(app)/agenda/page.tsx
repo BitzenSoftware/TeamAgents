@@ -9,11 +9,28 @@ const HORA_FIM = 21;
 const PX_HORA = 52;
 const DIAS_LABEL = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
+// As escalas são no fuso da clínica (Brasil). Exibimos/posicionamos sempre nesse
+// fuso, independentemente do fuso do navegador de quem está olhando.
+const CLINIC_TZ = "America/Sao_Paulo";
+const _fmtHora = new Intl.DateTimeFormat("pt-BR", { timeZone: CLINIC_TZ, hour: "2-digit", minute: "2-digit" });
+const _fmtDia = new Intl.DateTimeFormat("pt-BR", { timeZone: CLINIC_TZ, weekday: "short", day: "2-digit", month: "2-digit" });
+const _fmtParts = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CLINIC_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+});
+
+/** Parte de data/hora de um ISO no fuso da clínica. */
+function partes(iso: string): { ymd: string; hh: number; mm: number } {
+  const o: Record<string, string> = {};
+  for (const p of _fmtParts.formatToParts(new Date(iso))) o[p.type] = p.value;
+  return { ymd: `${o.year}-${o.month}-${o.day}`, hh: Number(o.hour), mm: Number(o.minute) };
+}
+const horaClinic = (iso: string) => _fmtHora.format(new Date(iso));
+
 function inicioSemana(base: Date): Date {
   const d = new Date(base);
   const diff = (d.getDay() + 6) % 7; // segunda = 0
   d.setDate(d.getDate() - diff);
-  d.setHours(0, 0, 0, 0);
+  d.setHours(12, 0, 0, 0); // meio-dia evita troca de data por fuso
   return d;
 }
 
@@ -26,22 +43,29 @@ export default function AgendaPage() {
   const [novo, setNovo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const fimSemana = useMemo(() => { const d = new Date(semana); d.setDate(d.getDate() + 7); return d; }, [semana]);
-
   useEffect(() => {
     api.profissionais().then((p) => { setProfs(p); if (p[0] && !profId) setProfId(p[0].id); }).catch(() => {});
     api.servicos().then(setServicos).catch(() => {});
   }, [profId]);
 
+  // Dias da semana exibida (Date ao meio-dia) + a sua data no fuso da clínica.
+  const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(semana); d.setDate(d.getDate() + i);
+    return { date: d, ymd: partes(d.toISOString()).ymd, num: d.getDate() };
+  }), [semana]);
+  const hojeYmd = partes(new Date().toISOString()).ymd;
+
   const carregar = useCallback(() => {
     if (!profId) return;
-    api.agendamentos(semana.toISOString(), fimSemana.toISOString(), profId)
+    // janela folgada (±1 dia) p/ não perder agendamentos perto da borda por fuso.
+    const de = new Date(semana); de.setDate(de.getDate() - 1);
+    const ate = new Date(semana); ate.setDate(ate.getDate() + 8);
+    api.agendamentos(de.toISOString(), ate.toISOString(), profId)
       .then((a) => { setAgs(a.filter((x) => x.status !== "cancelado")); setErro(null); })
       .catch((e) => setErro(e instanceof Error ? e.message : String(e)));
-  }, [profId, semana, fimSemana]);
+  }, [profId, semana]);
   useEffect(() => { carregar(); }, [carregar]);
 
-  const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => { const d = new Date(semana); d.setDate(d.getDate() + i); return d; }), [semana]);
   const nomeServico = (id: string | null) => servicos.find((s) => s.id === id)?.nome ?? "";
 
   return (
@@ -49,7 +73,7 @@ export default function AgendaPage() {
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Agenda</h1>
-          <p className="text-sm text-black/50">Os agendamentos do profissional. Marcações manuais bloqueiam a disponibilidade.</p>
+          <p className="text-sm text-black/50">Horários no fuso da clínica (Brasil). Marcações manuais bloqueiam a disponibilidade.</p>
         </div>
         <button onClick={() => setNovo(true)} disabled={!profId}
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
@@ -71,29 +95,24 @@ export default function AgendaPage() {
             className="grid h-9 w-9 place-items-center rounded-lg border border-black/15 hover:bg-black/5"><ChevronRight size={16} /></button>
         </div>
         <span className="text-sm text-black/50">
-          {dias[0].toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {dias[6].toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+          {dias[0].date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {dias[6].date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
         </span>
       </div>
 
       {erro && <p className="mb-3 rounded-lg bg-rose-50 p-2.5 text-sm text-rose-700">{erro}</p>}
 
-      {/* Grade semanal */}
       <div className="overflow-x-auto rounded-xl border border-black/10 bg-white">
         <div className="min-w-[720px]">
           <div className="grid" style={{ gridTemplateColumns: "48px repeat(7, 1fr)" }}>
             <div className="border-b border-black/10" />
-            {dias.map((d, i) => {
-              const hoje = d.toDateString() === new Date().toDateString();
-              return (
-                <div key={i} className={`border-b border-l border-black/10 py-2 text-center ${hoje ? "bg-brand/5" : ""}`}>
-                  <div className="text-[11px] font-medium text-black/45">{DIAS_LABEL[i]}</div>
-                  <div className={`text-sm font-semibold ${hoje ? "text-brand" : ""}`}>{d.getDate()}</div>
-                </div>
-              );
-            })}
+            {dias.map((d, i) => (
+              <div key={i} className={`border-b border-l border-black/10 py-2 text-center ${d.ymd === hojeYmd ? "bg-brand/5" : ""}`}>
+                <div className="text-[11px] font-medium text-black/45">{DIAS_LABEL[i]}</div>
+                <div className={`text-sm font-semibold ${d.ymd === hojeYmd ? "text-brand" : ""}`}>{d.num}</div>
+              </div>
+            ))}
           </div>
           <div className="grid" style={{ gridTemplateColumns: "48px repeat(7, 1fr)" }}>
-            {/* coluna de horas */}
             <div>
               {Array.from({ length: HORA_FIM - HORA_INI }, (_, i) => (
                 <div key={i} className="relative border-b border-black/5 text-right" style={{ height: PX_HORA }}>
@@ -101,9 +120,8 @@ export default function AgendaPage() {
                 </div>
               ))}
             </div>
-            {/* colunas de dias */}
             {dias.map((d, i) => (
-              <DiaColuna key={i} dia={d} ags={ags} nomeServico={nomeServico} onChange={carregar} />
+              <DiaColuna key={i} ymd={d.ymd} ags={ags} nomeServico={nomeServico} onChange={carregar} />
             ))}
           </div>
         </div>
@@ -119,25 +137,26 @@ export default function AgendaPage() {
   );
 }
 
-function DiaColuna({ dia, ags, nomeServico, onChange }: {
-  dia: Date; ags: Agendamento[]; nomeServico: (id: string | null) => string; onChange: () => void;
+function DiaColuna({ ymd, ags, nomeServico, onChange }: {
+  ymd: string; ags: Agendamento[]; nomeServico: (id: string | null) => string; onChange: () => void;
 }) {
-  const doDia = ags.filter((a) => new Date(a.inicio).toDateString() === dia.toDateString());
+  const doDia = ags.filter((a) => partes(a.inicio).ymd === ymd);
   return (
     <div className="relative border-l border-black/10" style={{ height: (HORA_FIM - HORA_INI) * PX_HORA }}>
       {Array.from({ length: HORA_FIM - HORA_INI }, (_, i) => (
         <div key={i} className="border-b border-black/5" style={{ height: PX_HORA }} />
       ))}
       {doDia.map((a) => {
-        const ini = new Date(a.inicio); const fim = new Date(a.fim);
-        const top = ((ini.getHours() + ini.getMinutes() / 60) - HORA_INI) * PX_HORA;
-        const alt = Math.max(((fim.getTime() - ini.getTime()) / 3600000) * PX_HORA, 22);
-        if (top < 0) return null;
+        const p = partes(a.inicio);
+        const durMin = Math.max((new Date(a.fim).getTime() - new Date(a.inicio).getTime()) / 60000, 20);
+        const top = ((p.hh + p.mm / 60) - HORA_INI) * PX_HORA;
+        const alt = (durMin / 60) * PX_HORA;
+        if (top < 0 || p.hh >= HORA_FIM) return null;
         return (
           <button key={a.id} onClick={() => { if (confirm("Cancelar este agendamento?")) api.atualizarAgendamento(a.id, { status: "cancelado" }).then(onChange); }}
             className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-brand/30 bg-brand/10 px-1.5 py-1 text-left text-[10px] leading-tight text-brand-dark hover:bg-brand/20"
             style={{ top, height: alt }}>
-            <div className="font-semibold">{ini.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="font-semibold">{horaClinic(a.inicio)}</div>
             <div className="truncate">{a.cliente_nome || "Cliente"}</div>
             {nomeServico(a.servico_id) && <div className="truncate text-brand/70">{nomeServico(a.servico_id)}</div>}
           </button>
@@ -160,7 +179,6 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Serviços que o profissional faz (filtra a lista).
   const prof = profs.find((p) => p.id === profId);
   const servicosDoProf = servicos.filter((s) => prof?.servico_ids.includes(s.id));
 
@@ -174,8 +192,9 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
   const slotsPorDia = useMemo(() => {
     const m = new Map<string, Slot[]>();
     for (const s of slots) {
-      const dia = new Date(s.inicio_iso).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-      (m.get(dia) ?? m.set(dia, []).get(dia)!).push(s);
+      const dia = _fmtDia.format(new Date(s.inicio_iso));
+      const arr = m.get(dia) ?? [];
+      arr.push(s); m.set(dia, arr);
     }
     return Array.from(m.entries());
   }, [slots]);
@@ -205,13 +224,13 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-black/55">Profissional</label>
-              <select value={profId} onChange={(e) => setProfId(e.target.value)} className={inputCls}>
+              <select value={profId} onChange={(e) => setProfId(e.target.value)} aria-label="Profissional" className={inputCls}>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-black/55">Serviço</label>
-              <select value={servicoId} onChange={(e) => setServicoId(e.target.value)} className={inputCls}>
+              <select value={servicoId} onChange={(e) => setServicoId(e.target.value)} aria-label="Serviço" className={inputCls}>
                 <option value="">Avaliação (30 min)</option>
                 {servicosDoProf.map((s) => <option key={s.id} value={s.id}>{s.nome} ({s.duracao_min}min)</option>)}
               </select>
@@ -235,7 +254,7 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
                         return (
                           <button key={s.inicio_iso} onClick={() => setSlot(s.inicio_iso)}
                             className={`rounded-md px-2 py-1 text-xs font-medium transition ${on ? "bg-brand text-white" : "border border-black/15 text-black/60 hover:bg-black/[0.03]"}`}>
-                            {new Date(s.inicio_iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            {horaClinic(s.inicio_iso)}
                           </button>
                         );
                       })}
