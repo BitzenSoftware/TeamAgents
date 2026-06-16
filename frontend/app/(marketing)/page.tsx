@@ -16,14 +16,17 @@ import {
   Globe,
   Layers,
   Mail,
+  Menu,
   MessageCircle,
   Megaphone,
   Shield,
   Sparkles,
   TrendingUp,
   Wallet,
+  X,
   Zap,
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 /* ============================== Dados ============================== */
 
@@ -142,9 +145,18 @@ const FAQ = [
 
 /* ============================== Página ============================== */
 
+const NAV_LINKS = [
+  { href: "#agentes", label: "Agentes" },
+  { href: "#tecnologia", label: "Tecnologia" },
+  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#precos", label: "Preços" },
+  { href: "#faq", label: "FAQ" },
+];
+
 export default function LandingPage() {
   // Preços vêm da BD (endpoint público); fallback hardcoded enquanto carrega/se falhar.
   const [planos, setPlanos] = useState<PlanoLanding[]>(PLANOS_FALLBACK);
+  const [menuMobile, setMenuMobile] = useState(false);
   useEffect(() => {
     fetch(`${API_BASE}/planos/publicos`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
@@ -175,27 +187,60 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0a1f]/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-2 text-white">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark">
-              <Bot size={17} />
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white">
+              <Logo size={18} />
             </span>
             <span className="font-semibold tracking-tight">TeamAgents</span>
           </div>
           <div className="hidden items-center gap-6 text-sm text-white/60 md:flex">
-            <a href="#agentes" className="transition hover:text-white">Agentes</a>
-            <a href="#tecnologia" className="transition hover:text-white">Tecnologia</a>
-            <a href="#como-funciona" className="transition hover:text-white">Como funciona</a>
-            <a href="#precos" className="transition hover:text-white">Preços</a>
-            <a href="#faq" className="transition hover:text-white">FAQ</a>
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href} className="transition hover:text-white">{l.label}</a>
+            ))}
             <Link href="/blog" className="transition hover:text-white">Blog</Link>
           </div>
-          <Link
-            href="/login"
-            className="flex items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#0a0a1f] transition hover:bg-white/90"
-          >
-            Entrar
-            <ArrowRight size={14} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#0a0a1f] transition hover:bg-white/90"
+            >
+              Entrar
+              <ArrowRight size={14} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMenuMobile((v) => !v)}
+              aria-label={menuMobile ? "Fechar menu" : "Abrir menu"}
+              className="grid h-9 w-9 place-items-center rounded-lg text-white/80 hover:bg-white/10 md:hidden"
+            >
+              {menuMobile ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
+
+        {/* Menu mobile (links de seção) */}
+        {menuMobile && (
+          <div className="border-t border-white/10 bg-[#0a0a1f] px-6 py-3 md:hidden">
+            <div className="flex flex-col">
+              {NAV_LINKS.map((l) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setMenuMobile(false)}
+                  className="rounded-lg px-2 py-2.5 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <Link
+                href="/blog"
+                onClick={() => setMenuMobile(false)}
+                className="rounded-lg px-2 py-2.5 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+              >
+                Blog
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ====================== HERO (dark) ====================== */}
@@ -215,7 +260,7 @@ export default function LandingPage() {
               Chatbot de IA para clínicas de estética
             </div>
 
-            <h1 className="lp-anim lp-up mb-6 text-4xl font-bold leading-[1.08] tracking-tight [animation-delay:.08s] md:text-6xl">
+            <h1 className="lp-anim lp-up mb-6 text-3xl font-bold leading-[1.1] tracking-tight [animation-delay:.08s] sm:text-4xl md:text-6xl md:leading-[1.08]">
               A cliente te chamou às 22h.
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
@@ -696,7 +741,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 sm:flex-row">
           <div className="flex items-center gap-2 text-sm text-white/60">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white">
-              <Bot size={14} />
+              <Logo size={15} />
             </span>
             TeamAgents
           </div>
