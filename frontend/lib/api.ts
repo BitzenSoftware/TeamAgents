@@ -265,6 +265,7 @@ export type GrowthBriefingSalvo = {
   leitura_estrategica: string;
   entregaveis: GrowthEntregavel[];
   briefing: string;
+  conversa: GrowthMensagem[];
   created_at: string;
 };
 
@@ -553,10 +554,12 @@ export const api = {
     req<{ briefing: string }>("/growth/sintese", { method: "POST", body: JSON.stringify({ objetivo, entregaveis }) }),
   // Planejamentos salvos (histórico)
   growthBriefings: () => req<GrowthBriefingSalvo[]>("/growth/briefings"),
-  growthSalvarBriefing: (body: Omit<GrowthBriefingSalvo, "id" | "created_at">) =>
+  growthSalvarBriefing: (body: Omit<GrowthBriefingSalvo, "id" | "created_at" | "conversa">) =>
     req<GrowthBriefingSalvo>("/growth/briefings", { method: "POST", body: JSON.stringify(body) }),
   growthApagarBriefing: (id: string) =>
     req<void>(`/growth/briefings/${id}`, { method: "DELETE" }),
+  growthRefinarBriefing: (id: string, mensagem: string) =>
+    req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
   growthChat: (agente: string, mensagens: GrowthMensagem[]) =>
     req<{ resposta: string }>("/growth/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
   growthPosts: () => req<GrowthPost[]>("/growth/posts"),

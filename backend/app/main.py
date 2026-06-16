@@ -29,6 +29,7 @@ from .schemas import (
     GrowthDiretorRequest,
     GrowthPostsRequest,
     GrowthPostUpdate,
+    GrowthRefinarRequest,
     GrowthSinteseRequest,
     HabilidadeCreate,
     HabilidadeUpdate,
@@ -680,6 +681,15 @@ def growth_salvar_briefing(req: GrowthBriefingSave, cliente_id: str = Depends(au
 @app.delete("/growth/briefings/{briefing_id}", status_code=204)
 def growth_apagar_briefing(briefing_id: str, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> None:
     flow.growth_apagar_briefing(cliente_id, briefing_id)
+
+
+@app.post("/growth/briefings/{briefing_id}/refinar")
+def growth_refinar_briefing(briefing_id: str, req: GrowthRefinarRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Continua o chat do planejamento para aperfeiçoá-lo (CEO com o plano em contexto)."""
+    res = flow.growth_refinar_briefing(cliente_id, briefing_id, req.mensagem)
+    if not res:
+        raise HTTPException(status_code=404, detail="Planejamento não encontrado.")
+    return res
 
 
 @app.post("/growth/chat")

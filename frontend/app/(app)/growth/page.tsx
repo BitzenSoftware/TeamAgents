@@ -98,7 +98,7 @@ function SalaDeComando() {
   const [tituloFluxo, setTituloFluxo] = useState("Fluxo de trabalho da diretoria");
   const [erro, setErro] = useState<string | null>(null);
   const [salvos, setSalvos] = useState<GrowthBriefingSalvo[]>([]);
-  const [selId, setSelId] = useState<string | null>(null);
+  const [sel, setSel] = useState<GrowthBriefingSalvo | null>(null);
 
   const carregarSalvos = useCallback(() => { api.growthBriefings().then(setSalvos).catch(() => {}); }, []);
   useEffect(() => { carregarSalvos(); }, [carregarSalvos]);
@@ -111,7 +111,7 @@ function SalaDeComando() {
     if (!o || rodando) return;
     setRodando(true);
     setErro(null);
-    setSelId(null);
+    setSel(null);
     setTituloFluxo("Fluxo de trabalho da diretoria");
     setEtapas([{ chave: "ceo-plano", titulo: "CEO — leitura estratégica", status: "rodando" }]);
 
@@ -151,7 +151,7 @@ function SalaDeComando() {
         const salvo = await api.growthSalvarBriefing({
           objetivo: o, leitura_estrategica: plano.leitura_estrategica, entregaveis, briefing,
         });
-        setSelId(salvo.id);
+        setSel(salvo);
         carregarSalvos();
       } catch { /* não bloqueia o resultado já exibido */ }
     } catch (e) {
@@ -163,7 +163,7 @@ function SalaDeComando() {
   }
 
   function abrirSalvo(b: GrowthBriefingSalvo) {
-    setSelId(b.id);
+    setSel(b);
     setErro(null);
     setTituloFluxo(b.objetivo);
     setEtapas(etapasDeBriefing(b));
@@ -172,7 +172,7 @@ function SalaDeComando() {
   async function apagarSalvo(id: string) {
     if (!confirm("Apagar este planejamento?")) return;
     await api.growthApagarBriefing(id);
-    if (selId === id) { setEtapas([]); setSelId(null); }
+    if (sel?.id === id) { setEtapas([]); setSel(null); }
     carregarSalvos();
   }
 
@@ -216,6 +216,10 @@ function SalaDeComando() {
             </ol>
           </div>
         )}
+
+        {sel && !rodando && (
+          <RefinarChat briefing={sel} onUpdate={(b) => { setSel(b); carregarSalvos(); }} />
+        )}
       </div>
 
       {/* Coluna lateral: planejamentos salvos */}
@@ -229,7 +233,7 @@ function SalaDeComando() {
           ) : (
             <div className="space-y-1.5">
               {salvos.map((b) => {
-                const ativo = b.id === selId;
+                const ativo = b.id === sel?.id;
                 return (
                   <div
                     key={b.id}
@@ -258,6 +262,78 @@ function SalaDeComando() {
           )}
         </div>
       </aside>
+    </div>
+  );
+}
+
+function RefinarChat({ briefing, onUpdate }: { briefing: GrowthBriefingSalvo; onUpdate: (b: GrowthBriefingSalvo) => void }) {
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const conversa = briefing.conversa ?? [];
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    const t = texto.trim();
+    if (!t || enviando) return;
+    setEnviando(true);
+    setTexto("");
+    try {
+      const atualizado = await api.growthRefinarBriefing(briefing.id, t);
+      onUpdate(atualizado);
+    } catch (err) {
+      onUpdate({
+        ...briefing,
+        conversa: [
+          ...conversa,
+          { role: "user", content: t },
+          { role: "assistant", content: `⚠️ ${err instanceof Error ? err.message : String(err)}` },
+        ],
+      });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-4">
+      <div className="mb-1 text-sm font-semibold">Aperfeiçoar este plano</div>
+      <p className="mb-3 text-xs text-black/45">
+        Continue a conversa com o CEO — ele já tem todo o plano em contexto. Ex.: <em>&quot;inclua um cronograma de 4 semanas&quot;</em>,
+        <em> &quot;detalhe o orçamento&quot;</em>, <em>&quot;foque mais em parcerias com agências&quot;</em>.
+      </p>
+
+      {conversa.length > 0 && (
+        <div className="mb-3 space-y-3">
+          {conversa.map((m, i) => {
+            const meu = m.role === "user";
+            return (
+              <div key={i} className={`flex ${meu ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                  meu ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm border border-black/10 bg-paper text-black/80"
+                }`}>
+                  {m.content}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <form onSubmit={enviar} className="flex items-end gap-2">
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(e as unknown as React.FormEvent); } }}
+          placeholder="O que quer aperfeiçoar?"
+          rows={1}
+          disabled={enviando}
+          className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-black/15 px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-black/[0.02]"
+        />
+        <button type="submit" disabled={enviando || !texto.trim()} aria-label="Enviar"
+          className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-brand text-white transition hover:opacity-90 disabled:opacity-40">
+          {enviando ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
+        </button>
+      </form>
     </div>
   );
 }

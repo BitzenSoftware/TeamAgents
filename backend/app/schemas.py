@@ -393,6 +393,11 @@ class GrowthBriefingSave(BaseModel):
     briefing: str = ""
 
 
+class GrowthRefinarRequest(BaseModel):
+    """Continua o chat de um planejamento salvo para aperfeiçoá-lo."""
+    mensagem: str = Field(min_length=1, max_length=4000)
+
+
 class DiretivaGrowth(BaseModel):
     """O CEO atribui uma diretiva a um diretor (saída do planejamento)."""
     diretor: str = Field(description="Um de: growth-marketing | growth-comercial | growth-projetos")

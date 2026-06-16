@@ -2194,7 +2194,7 @@ def growth_sintese(cliente_id: str, objetivo: str, entregaveis: list[dict]) -> d
 
 
 # --- Planejamentos salvos (histórico da Sala de Comando) ---
-_BRIEFING_COLS = "id, objetivo, leitura_estrategica, entregaveis, briefing, created_at"
+_BRIEFING_COLS = "id, objetivo, leitura_estrategica, entregaveis, briefing, conversa, created_at"
 
 
 def growth_salvar_briefing(cliente_id: str, data: dict) -> dict:
@@ -2204,6 +2204,7 @@ def growth_salvar_briefing(cliente_id: str, data: dict) -> dict:
         "leitura_estrategica": data.get("leitura_estrategica", ""),
         "entregaveis": data.get("entregaveis", []),
         "briefing": data.get("briefing", ""),
+        "conversa": [],
     }
     return get_db().table("growth_briefings").insert(row).execute().data[0]
 
@@ -2217,6 +2218,46 @@ def growth_listar_briefings(cliente_id: str) -> list[dict]:
 
 def growth_apagar_briefing(cliente_id: str, briefing_id: str) -> None:
     get_db().table("growth_briefings").delete().eq("id", briefing_id).eq("cliente_id", cliente_id).execute()
+
+
+def growth_refinar_briefing(cliente_id: str, briefing_id: str, mensagem: str) -> dict | None:
+    """Continua o chat de um planejamento: o CEO responde com o plano em contexto."""
+    db = get_db()
+    rows = (
+        db.table("growth_briefings").select(_BRIEFING_COLS)
+        .eq("id", briefing_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    )
+    if not rows:
+        return None
+    b = rows[0]
+
+    # Contexto: o plano original vira system extra (estável); a conversa de refino
+    # vira o histórico de mensagens.
+    entregaveis = b.get("entregaveis") or []
+    partes = [f"### {e.get('diretor_nome', '')}\n{e.get('conteudo', '')}" for e in entregaveis]
+    contexto = (
+        "## Plano já produzido por esta diretoria (use como base; o fundador quer aperfeiçoá-lo)\n"
+        f"Objetivo: {b.get('objetivo', '')}\n\n"
+        f"Leitura estratégica do CEO:\n{b.get('leitura_estrategica', '')}\n\n"
+        + ("Entregáveis dos diretores:\n\n" + "\n\n".join(partes) + "\n\n" if partes else "")
+        + f"Briefing executivo:\n{b.get('briefing', '')}\n\n"
+        "## Tarefa: responda ao pedido de refino mantendo coerência com o plano acima. "
+        "Seja concreto e acionável; se fizer sentido, atualize/expanda partes do plano."
+    )
+    conversa = b.get("conversa") or []
+    mensagens = [{"role": m["role"], "content": m["content"]} for m in conversa]
+    mensagens.append({"role": "user", "content": mensagem})
+
+    resposta, uso = growth.conversar("growth-ceo", mensagens, extra=contexto, max_tokens=2000)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+
+    nova_conversa = conversa + [
+        {"role": "user", "content": mensagem},
+        {"role": "assistant", "content": resposta},
+    ]
+    db.table("growth_briefings").update({"conversa": nova_conversa}).eq("id", briefing_id).eq("cliente_id", cliente_id).execute()
+    b["conversa"] = nova_conversa
+    return b
 
 
 def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
