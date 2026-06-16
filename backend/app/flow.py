@@ -719,23 +719,16 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
 
     # Disponibilidade: prioriza a AGENDA NATIVA (profissionais/serviços da campanha).
     # Se não houver profissionais configurados, cai no Cal.com (legado).
-    horarios_txt = ""
-    slot_map: dict = {}
-    _confirma = (
-        "Ao confirmar um horário com a pessoa, devolva action=SCHEDULE_MEETING e copie "
-        "o `inicio_iso` EXATO do horário escolhido no campo `agendar_em`. Não invente horários.\n"
-    )
-    nat_linhas, slot_map = _slots_campanha(cliente_id, campanha)
-    if nat_linhas:
-        horarios_txt = (
-            "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n"
-            + "\n".join(nat_linhas) + "\n" + _confirma
-        )
-    elif calcom.configurado(config):
+    horarios_txt, slot_map = _slots_campanha(cliente_id, campanha)
+    if not horarios_txt and calcom.configurado(config):
         livres = calcom.proximos_horarios(config["calcom_api_key"], config["calcom_event_type_id"])
         if livres:
             linhas = "\n".join(f"- {h['rotulo']}  (inicio_iso: {h['inicio_iso']})" for h in livres)
-            horarios_txt = "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n" + linhas + "\n" + _confirma
+            horarios_txt = (
+                "## Horários REAIS livres na agenda (proponha SOMENTE estes)\n" + linhas + "\n"
+                "Ao confirmar um horário, devolva action=SCHEDULE_MEETING e copie o `inicio_iso` "
+                "EXATO do horário escolhido no campo `agendar_em`. Não invente horários.\n"
+            )
 
     out, uso = llm.responder_sdr(
         lead_message=text,
@@ -2677,25 +2670,31 @@ def agendamento_config_set(cliente_id: str, patch: dict) -> dict:
     return agendamento_config_get(cliente_id)
 
 
-def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[list[str], dict]:
-    """Monta as linhas de horários livres p/ injetar no SDR + o mapa inicio_iso→slot.
+def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[str, dict]:
+    """Monta o bloco "MODO AGENDAMENTO" para injetar no SDR + o mapa inicio_iso→slot.
 
-    Usa os serviços vinculados à campanha (se houver); senão, avaliação genérica
-    em qualquer profissional. Dedupe por horário (cobre 'qualquer profissional').
-    Devolve ([] , {}) quando não há profissionais configurados → cai no Cal.com.
+    Inclui o FLUXO configurado (Customizar Agendamento), os SERVIÇOS da campanha
+    como opções e os HORÁRIOS reais — para o agente ser direto e objetivo.
+    Devolve ("", {}) quando não há profissionais/horários → o caller cai no Cal.com.
     """
     try:
+        cfg = agendamento_config_get(cliente_id)
         servico_ids = _campanha_servico_ids(campanha["id"])
-        nomes = {s["id"]: s["nome"] for s in servicos_listar(cliente_id)} if servico_ids else {}
+        catalogo = {s["id"]: s for s in servicos_listar(cliente_id)}
+        servs = [catalogo[sid] for sid in servico_ids if sid in catalogo] if servico_ids else []
+
         brutos: list[dict] = []
-        if servico_ids:
-            for sid in servico_ids:
-                for s in disponibilidade(cliente_id, servico_id=sid):
-                    brutos.append({**s, "servico_id": sid, "servico_nome": nomes.get(sid)})
+        if servs:
+            for s in servs:
+                for sl in disponibilidade(cliente_id, servico_id=s["id"]):
+                    brutos.append({**sl, "servico_id": s["id"], "servico_nome": s["nome"]})
         else:
-            for s in disponibilidade(cliente_id):
-                brutos.append({**s, "servico_id": None, "servico_nome": None})
+            for sl in disponibilidade(cliente_id):
+                brutos.append({**sl, "servico_id": None, "servico_nome": None})
+        if not brutos:
+            return "", {}
         brutos.sort(key=lambda x: x["inicio_iso"])
+
         linhas: list[str] = []
         mapa: dict = {}
         vistos: set[str] = set()
@@ -2707,8 +2706,37 @@ def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[list[str], dict]:
             serv = f" ({s['servico_nome']})" if s.get("servico_nome") else ""
             linhas.append(f"- {s['rotulo']} com {s['profissional_nome']}{serv}  (inicio_iso: {iso})")
             mapa[iso] = {"prof_id": s["profissional_id"], "servico_id": s.get("servico_id")}
-            if len(linhas) >= 12:
+            if len(linhas) >= 8:  # poucos horários por vez = objetividade + menos tokens
                 break
-        return linhas, mapa
+
+        # Fluxo configurado (Customizar Agendamento, global).
+        ordem = cfg.get("fluxo_ordem") or ["profissional", "servico"]
+        perguntar_prof = cfg.get("perguntar_profissional", True)
+        qualquer = cfg.get("permitir_qualquer", True)
+        passos: list[str] = []
+        for p in ordem:
+            if p == "profissional" and perguntar_prof:
+                passos.append("pergunte o profissional" + (" (ou ‘qualquer um’ p/ encaixe automático)" if qualquer else ""))
+            elif p == "servico" and servs:
+                passos.append("ofereça o serviço entre as opções")
+        passos.append("proponha 2–3 horários reais e confirme")
+
+        servicos_txt = ""
+        if servs:
+            opts = "\n".join(f"- {s['nome']} ({s['duracao_min']} min)" for s in servs)
+            servicos_txt = "Serviços oferecidos (apresente como opções):\n" + opts + "\n\n"
+
+        bloco = (
+            "## MODO AGENDAMENTO — vá direto às opções (objetivo, sem perguntas vagas)\n"
+            "A pessoa veio AGENDAR. Não pergunte se ela quer ‘ajuda’; assuma que quer marcar e "
+            "apresente opções concretas.\n"
+            f"Fluxo: {' → '.join(passos)}.\n\n"
+            f"{servicos_txt}"
+            "## Horários REAIS livres (proponha 2–3; NUNCA invente)\n"
+            + "\n".join(linhas) + "\n"
+            "Ao confirmar um horário, devolva action=SCHEDULE_MEETING e copie o `inicio_iso` "
+            "EXATO do horário escolhido no campo `agendar_em`.\n"
+        )
+        return bloco, mapa
     except Exception:
-        return [], {}  # nunca quebra o fluxo do SDR por causa da agenda
+        return "", {}  # nunca quebra o fluxo do SDR por causa da agenda
