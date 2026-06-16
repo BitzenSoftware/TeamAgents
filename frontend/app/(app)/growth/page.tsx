@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   api, SUPERADMIN_EMAIL,
-  type GrowthBriefing, type GrowthConfig, type GrowthMensagem, type GrowthPost,
+  type GrowthConfig, type GrowthMensagem, type GrowthPost,
 } from "@/lib/api";
 import { useAuth } from "@/components/auth-context";
 
@@ -71,23 +71,71 @@ export default function GrowthPage() {
 }
 
 /* ============================ Sala de Comando ============================ */
+type EtapaStatus = "pendente" | "rodando" | "ok" | "erro";
+type Etapa = {
+  chave: string;
+  titulo: string;
+  subtitulo?: string;
+  status: EtapaStatus;
+  conteudo?: string;
+};
+
 function SalaDeComando() {
   const [objetivo, setObjetivo] = useState("");
-  const [carregando, setCarregando] = useState(false);
-  const [res, setRes] = useState<GrowthBriefing | null>(null);
+  const [rodando, setRodando] = useState(false);
+  const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+
+  // helpers para atualizar uma etapa pela chave
+  const patchEtapa = (chave: string, patch: Partial<Etapa>) =>
+    setEtapas((es) => es.map((e) => (e.chave === chave ? { ...e, ...patch } : e)));
 
   async function acionar() {
     const o = objetivo.trim();
-    if (!o || carregando) return;
-    setCarregando(true);
+    if (!o || rodando) return;
+    setRodando(true);
     setErro(null);
+
+    // Etapa 1 já visível como "rodando".
+    setEtapas([{ chave: "ceo-plano", titulo: "CEO — leitura estratégica", status: "rodando" }]);
+
     try {
-      setRes(await api.growthComando(o));
+      // 1) CEO planeja e escolhe os diretores.
+      const plano = await api.growthPlano(o);
+      patchEtapa("ceo-plano", { status: "ok", conteudo: plano.leitura_estrategica });
+
+      // Revela as etapas dos diretores escolhidos (ainda pendentes).
+      const dirEtapas: Etapa[] = plano.diretivas.map((d) => ({
+        chave: `dir-${d.diretor}`,
+        titulo: d.diretor_nome,
+        subtitulo: d.foco,
+        status: "pendente",
+      }));
+      const sinteseEtapa: Etapa = { chave: "ceo-sintese", titulo: "CEO — briefing executivo", status: "pendente" };
+      setEtapas((es) => [...es, ...dirEtapas, sinteseEtapa]);
+
+      // 2) Cada diretor entrega, um a um (o fluxo avança visivelmente).
+      const entregaveis: { diretor_nome: string; conteudo: string }[] = [];
+      for (const d of plano.diretivas) {
+        patchEtapa(`dir-${d.diretor}`, { status: "rodando" });
+        const { conteudo } = await api.growthDiretor(d.diretor, d.foco, o);
+        patchEtapa(`dir-${d.diretor}`, { status: "ok", conteudo });
+        entregaveis.push({ diretor_nome: d.diretor_nome, conteudo });
+      }
+
+      // 3) CEO consolida.
+      if (entregaveis.length > 0) {
+        patchEtapa("ceo-sintese", { status: "rodando" });
+        const { briefing } = await api.growthSintese(o, entregaveis);
+        patchEtapa("ceo-sintese", { status: "ok", conteudo: briefing });
+      } else {
+        setEtapas((es) => es.filter((e) => e.chave !== "ceo-sintese"));
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
+      setEtapas((es) => es.map((x) => (x.status === "rodando" ? { ...x, status: "erro" } : x)));
     } finally {
-      setCarregando(false);
+      setRodando(false);
     }
   }
 
@@ -104,43 +152,89 @@ function SalaDeComando() {
           onChange={(e) => setObjetivo(e.target.value)}
           rows={3}
           placeholder="Descreva o objetivo…"
-          className="w-full resize-none rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          disabled={rodando}
+          className="w-full resize-none rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-black/[0.02]"
         />
         <button
           type="button"
           onClick={acionar}
-          disabled={carregando || !objetivo.trim()}
+          disabled={rodando || !objetivo.trim()}
           className="mt-2 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
         >
-          {carregando ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
-          {carregando ? "A diretoria está trabalhando…" : "Acionar a diretoria"}
+          {rodando ? <Loader2 size={16} className="animate-spin" /> : <Building2 size={16} />}
+          {rodando ? "A diretoria está trabalhando…" : "Acionar a diretoria"}
         </button>
         {erro && <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
       </div>
 
-      {res && (
-        <div className="space-y-4">
-          <Bloco titulo="📌 Leitura estratégica (CEO)" texto={res.leitura_estrategica} />
-          {res.entregaveis.map((e, i) => (
-            <Bloco key={i} titulo={`👤 ${e.diretor_nome}`} subtitulo={e.foco} texto={e.conteudo} />
-          ))}
-          <div className="rounded-xl border-2 border-brand/30 bg-brand/[0.04] p-4">
-            <div className="mb-2 text-sm font-bold text-brand">🎯 Briefing executivo</div>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">{res.briefing}</p>
+      {etapas.length > 0 && (
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-black/35">
+            Fluxo de trabalho da diretoria
           </div>
+          <ol className="space-y-1">
+            {etapas.map((e, i) => (
+              <EtapaItem key={e.chave} etapa={e} ultimo={i === etapas.length - 1} />
+            ))}
+          </ol>
         </div>
       )}
     </div>
   );
 }
 
-function Bloco({ titulo, subtitulo, texto }: { titulo: string; subtitulo?: string; texto: string }) {
+function EtapaItem({ etapa, ultimo }: { etapa: Etapa; ultimo: boolean }) {
+  const [aberto, setAberto] = useState(false);
+  const destaque = etapa.chave === "ceo-sintese";
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-4">
-      <div className="text-sm font-semibold">{titulo}</div>
-      {subtitulo && <div className="mt-0.5 text-xs italic text-black/45">{subtitulo}</div>}
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-black/80">{texto}</p>
-    </div>
+    <li className="relative pl-8">
+      {/* linha conectora */}
+      {!ultimo && <span className="absolute left-[11px] top-6 h-[calc(100%-12px)] w-px bg-black/10" />}
+      {/* marcador de status */}
+      <span className="absolute left-0 top-0.5 grid h-6 w-6 place-items-center rounded-full border bg-white">
+        {etapa.status === "ok" ? (
+          <Check size={13} className="text-emerald-600" />
+        ) : etapa.status === "rodando" ? (
+          <Loader2 size={13} className="animate-spin text-brand" />
+        ) : etapa.status === "erro" ? (
+          <span className="text-xs font-bold text-rose-600">!</span>
+        ) : (
+          <span className="h-1.5 w-1.5 rounded-full bg-black/25" />
+        )}
+      </span>
+
+      <div className="pb-3">
+        <button
+          type="button"
+          onClick={() => etapa.conteudo && setAberto((v) => !v)}
+          className={`flex w-full items-center gap-2 text-left ${etapa.conteudo ? "cursor-pointer" : "cursor-default"}`}
+        >
+          <span className={`text-sm font-semibold ${etapa.status === "pendente" ? "text-black/40" : "text-ink"}`}>
+            {etapa.titulo}
+          </span>
+          {etapa.status === "rodando" && <span className="text-[11px] text-brand">trabalhando…</span>}
+          {etapa.conteudo && (
+            <span className="ml-auto text-[11px] text-black/40">{aberto ? "ocultar" : "ver"}</span>
+          )}
+        </button>
+        {etapa.subtitulo && <div className="mt-0.5 text-xs italic text-black/45">{etapa.subtitulo}</div>}
+        {etapa.conteudo && aberto && (
+          <div
+            className={`mt-2 rounded-lg p-3 text-sm leading-relaxed ${
+              destaque ? "border-2 border-brand/30 bg-brand/[0.04] text-ink" : "bg-paper text-black/80"
+            }`}
+          >
+            {destaque && <div className="mb-1.5 text-xs font-bold text-brand">🎯 Briefing executivo</div>}
+            <p className="whitespace-pre-wrap">{etapa.conteudo}</p>
+          </div>
+        )}
+        {destaque && etapa.status === "ok" && !aberto && (
+          <button type="button" onClick={() => setAberto(true)} className="mt-1 text-xs font-medium text-brand">
+            Abrir briefing executivo →
+          </button>
+        )}
+      </div>
+    </li>
   );
 }
 

@@ -254,6 +254,10 @@ export type GrowthBriefing = {
   briefing: string;
 };
 
+// Etapas separadas (fluxo de trabalho ao vivo na Sala de Comando).
+export type GrowthDiretiva = { diretor: string; diretor_nome: string; foco: string };
+export type GrowthPlano = { leitura_estrategica: string; diretivas: GrowthDiretiva[] };
+
 export type GrowthPostStatus = "rascunho" | "aprovado" | "agendado" | "publicado";
 
 export type GrowthPost = {
@@ -530,6 +534,13 @@ export const api = {
     req<GrowthConfig>("/growth/config", { method: "PATCH", body: JSON.stringify(body) }),
   growthComando: (objetivo: string) =>
     req<GrowthBriefing>("/growth/comando", { method: "POST", body: JSON.stringify({ objetivo }) }),
+  // Etapas separadas — encadeadas pela UI para mostrar o fluxo ao vivo.
+  growthPlano: (objetivo: string) =>
+    req<GrowthPlano>("/growth/plano", { method: "POST", body: JSON.stringify({ objetivo }) }),
+  growthDiretor: (diretor: string, foco: string, objetivo: string) =>
+    req<{ conteudo: string }>("/growth/diretor", { method: "POST", body: JSON.stringify({ diretor, foco, objetivo }) }),
+  growthSintese: (objetivo: string, entregaveis: { diretor_nome: string; conteudo: string }[]) =>
+    req<{ briefing: string }>("/growth/sintese", { method: "POST", body: JSON.stringify({ objetivo, entregaveis }) }),
   growthChat: (agente: string, mensagens: GrowthMensagem[]) =>
     req<{ resposta: string }>("/growth/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
   growthPosts: () => req<GrowthPost[]>("/growth/posts"),

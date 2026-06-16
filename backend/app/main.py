@@ -25,8 +25,10 @@ from .schemas import (
     GrowthChatRequest,
     GrowthComandoRequest,
     GrowthConfigUpdate,
+    GrowthDiretorRequest,
     GrowthPostsRequest,
     GrowthPostUpdate,
+    GrowthSinteseRequest,
     HabilidadeCreate,
     HabilidadeUpdate,
     OAuthGoogleExchange,
@@ -636,8 +638,31 @@ def growth_set_config(payload: GrowthConfigUpdate, cliente_id: str = Depends(aut
 
 @app.post("/growth/comando")
 def growth_comando(req: GrowthComandoRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
-    """Sala de Comando: o CEO planeja, aciona os diretores e devolve o briefing."""
+    """Sala de Comando (tudo de uma vez): o CEO planeja, aciona os diretores e devolve o briefing."""
     return flow.growth_comando(cliente_id, req.objetivo)
+
+
+# Etapas separadas — a UI as encadeia para mostrar o fluxo de trabalho ao vivo.
+@app.post("/growth/plano")
+def growth_plano(req: GrowthComandoRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Etapa 1: leitura estratégica do CEO + diretores escolhidos."""
+    return flow.growth_plano(cliente_id, req.objetivo)
+
+
+@app.post("/growth/diretor")
+def growth_diretor(req: GrowthDiretorRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Etapa 2: um diretor entrega sua parte."""
+    try:
+        return flow.growth_diretor(cliente_id, req.diretor, req.foco, req.objetivo)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/growth/sintese")
+def growth_sintese(req: GrowthSinteseRequest, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> dict:
+    """Etapa 3: o CEO consolida os entregáveis num briefing executivo."""
+    entregaveis = [e.model_dump() for e in req.entregaveis]
+    return flow.growth_sintese(cliente_id, req.objetivo, entregaveis)
 
 
 @app.post("/growth/chat")

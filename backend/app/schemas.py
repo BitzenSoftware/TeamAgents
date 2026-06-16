@@ -361,6 +361,23 @@ class GrowthComandoRequest(BaseModel):
     objetivo: str = Field(min_length=3, max_length=4000)
 
 
+# Etapas separadas (a UI as encadeia para mostrar o fluxo de trabalho ao vivo).
+class GrowthDiretorRequest(BaseModel):
+    diretor: str
+    foco: str = Field(min_length=1)
+    objetivo: str = Field(min_length=1, max_length=4000)
+
+
+class GrowthEntregavelIn(BaseModel):
+    diretor_nome: str
+    conteudo: str
+
+
+class GrowthSinteseRequest(BaseModel):
+    objetivo: str = Field(min_length=1, max_length=4000)
+    entregaveis: list[GrowthEntregavelIn] = Field(min_length=1)
+
+
 class DiretivaGrowth(BaseModel):
     """O CEO atribui uma diretiva a um diretor (saída do planejamento)."""
     diretor: str = Field(description="Um de: growth-marketing | growth-comercial | growth-projetos")

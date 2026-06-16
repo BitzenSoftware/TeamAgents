@@ -2158,10 +2158,39 @@ def growth_set_config(cliente_id: str, patch: dict) -> dict:
 
 
 def growth_comando(cliente_id: str, objetivo: str) -> dict:
-    """CEO planeja → diretores executam → CEO consolida. Loga o consumo."""
+    """CEO planeja → diretores executam → CEO consolida (tudo de uma vez). Loga o consumo."""
     resultado, uso = growth.orquestrar(objetivo)
     consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
     return resultado
+
+
+# --- Etapas separadas: a UI as encadeia p/ mostrar o fluxo de trabalho ao vivo ---
+def growth_plano(cliente_id: str, objetivo: str) -> dict:
+    """Etapa 1: o CEO faz a leitura estratégica e escolhe os diretores."""
+    plano, uso = growth.planear(objetivo)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    diretivas = [
+        {"diretor": d.diretor, "diretor_nome": growth.NOMES.get(d.diretor, d.diretor), "foco": d.foco}
+        for d in plano.diretivas
+        if d.diretor in growth.GROWTH_DIRETORES
+    ]
+    return {"leitura_estrategica": plano.leitura_estrategica, "diretivas": diretivas}
+
+
+def growth_diretor(cliente_id: str, diretor: str, foco: str, objetivo: str) -> dict:
+    """Etapa 2: um diretor entrega o que o CEO pediu."""
+    if diretor not in growth.GROWTH_DIRETORES:
+        raise ValueError("Diretor inválido.")
+    conteudo, uso = growth.executar_diretor(diretor, foco, objetivo)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    return {"conteudo": conteudo}
+
+
+def growth_sintese(cliente_id: str, objetivo: str, entregaveis: list[dict]) -> dict:
+    """Etapa 3: o CEO consolida tudo num briefing executivo."""
+    briefing, uso = growth.sintetizar(objetivo, entregaveis)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "growth", uso=uso)
+    return {"briefing": briefing}
 
 
 def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:

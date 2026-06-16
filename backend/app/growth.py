@@ -26,7 +26,7 @@ from .schemas import (
     PostsGerados,
 )
 
-_NOMES = {
+NOMES = {
     "growth-ceo": "CEO / Estrategista-Chefe",
     "growth-marketing": "Diretor de Marketing",
     "growth-comercial": "Diretor Comercial",
@@ -62,7 +62,8 @@ def conversar(agente: str, mensagens: list[dict], extra: str = "", max_tokens: i
     return texto, pricing.from_usage(model, resp.usage)
 
 
-def _planear(objetivo: str) -> tuple[PlanoGrowth, UsoLLM]:
+def planear(objetivo: str) -> tuple[PlanoGrowth, UsoLLM]:
+    """ETAPA 1 — o CEO lê o objetivo e distribui diretivas aos diretores."""
     s = get_settings()
     instr = (
         "## Tarefa atual: ORQUESTRADOR — planejar\n"
@@ -80,7 +81,18 @@ def _planear(objetivo: str) -> tuple[PlanoGrowth, UsoLLM]:
     return resp.parsed_output, pricing.from_usage(s.model_growth_ceo, resp.usage)
 
 
-def _sintetizar(objetivo: str, entregaveis: list[dict]) -> tuple[str, UsoLLM]:
+def executar_diretor(diretor: str, foco: str, objetivo: str) -> tuple[str, UsoLLM]:
+    """ETAPA 2 — um diretor entrega o que o CEO pediu na diretiva."""
+    instr = (
+        "## Diretiva do CEO para você\n"
+        f"{foco}\n\nContexto — objetivo geral do fundador:\n{objetivo}\n\n"
+        "Entregue algo pronto para usar, no seu formato (plano, scripts, lista de tarefas)."
+    )
+    return conversar(diretor, [{"role": "user", "content": instr}], max_tokens=1800)
+
+
+def sintetizar(objetivo: str, entregaveis: list[dict]) -> tuple[str, UsoLLM]:
+    """ETAPA 3 — o CEO consolida os entregáveis num briefing executivo."""
     partes = [f"### {e['diretor_nome']}\n{e['conteudo']}" for e in entregaveis]
     instr = (
         "## Tarefa atual: SINTETIZADOR — consolidar\n"
@@ -93,31 +105,30 @@ def _sintetizar(objetivo: str, entregaveis: list[dict]) -> tuple[str, UsoLLM]:
 
 
 def orquestrar(objetivo: str) -> tuple[dict, UsoLLM]:
-    """CEO planeja → diretores executam → CEO consolida. Devolve o resultado + custo total."""
+    """CEO planeja → diretores executam → CEO consolida (tudo de uma vez).
+
+    Mantido para chamadas não-interativas; a UI usa as etapas separadas
+    (``planear`` / ``executar_diretor`` / ``sintetizar``) para mostrar o fluxo ao vivo.
+    """
     usos: list[UsoLLM] = []
-    plano, uso_plano = _planear(objetivo)
+    plano, uso_plano = planear(objetivo)
     usos.append(uso_plano)
 
     entregaveis: list[dict] = []
     for d in plano.diretivas:
         if d.diretor not in GROWTH_DIRETORES:
             continue
-        instr = (
-            "## Diretiva do CEO para você\n"
-            f"{d.foco}\n\nContexto — objetivo geral do fundador:\n{objetivo}\n\n"
-            "Entregue algo pronto para usar, no seu formato (plano, scripts, lista de tarefas)."
-        )
-        conteudo, uso = conversar(d.diretor, [{"role": "user", "content": instr}], max_tokens=1800)
+        conteudo, uso = executar_diretor(d.diretor, d.foco, objetivo)
         usos.append(uso)
         entregaveis.append({
             "diretor": d.diretor,
-            "diretor_nome": _NOMES.get(d.diretor, d.diretor),
+            "diretor_nome": NOMES.get(d.diretor, d.diretor),
             "foco": d.foco,
             "conteudo": conteudo,
         })
 
     if entregaveis:
-        briefing, uso_s = _sintetizar(objetivo, entregaveis)
+        briefing, uso_s = sintetizar(objetivo, entregaveis)
         usos.append(uso_s)
     else:
         briefing = plano.leitura_estrategica
