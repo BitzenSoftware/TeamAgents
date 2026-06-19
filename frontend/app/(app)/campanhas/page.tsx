@@ -645,6 +645,7 @@ function ModalCustomizarAgendamento({ onClose }: { onClose: () => void }) {
         fluxo_ordem: cfg.fluxo_ordem,
         perguntar_profissional: cfg.perguntar_profissional,
         permitir_qualquer: cfg.permitir_qualquer,
+        perguntar_nome: cfg.perguntar_nome,
         profissional_padrao_id: cfg.profissional_padrao_id,
         dias_futuros: cfg.dias_futuros,
       });
@@ -683,6 +684,10 @@ function ModalCustomizarAgendamento({ onClose }: { onClose: () => void }) {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.permitir_qualquer} onChange={(e) => set("permitir_qualquer", e.target.checked)} />
               Permitir &quot;qualquer profissional disponível&quot; (encaixe automático)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cfg.perguntar_nome} onChange={(e) => set("perguntar_nome", e.target.checked)} />
+              Pedir o nome do cliente ao agendar
             </label>
             <div>
               <label className="mb-1 block text-xs font-medium text-black/60">Profissional padrão (quando não perguntar)</label>

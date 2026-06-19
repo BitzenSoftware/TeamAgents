@@ -362,6 +362,7 @@ export type AgendamentoConfig = {
   fluxo_ordem: string[];
   perguntar_profissional: boolean;
   permitir_qualquer: boolean;
+  perguntar_nome: boolean;
   profissional_padrao_id: string | null;
   dias_futuros: number;
 };

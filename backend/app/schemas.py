@@ -55,6 +55,10 @@ class SdrOutput(BaseModel):
         default=None,
         description="SÓ quando action=SCHEDULE_MEETING e a pessoa confirmou um horário: copie aqui o inicio_iso EXATO do horário escolhido (da lista de horários reais). Caso contrário, deixe nulo.",
     )
+    cliente_nome: str | None = Field(
+        default=None,
+        description="O nome da pessoa, se ela disser durante a conversa. Caso contrário, deixe nulo.",
+    )
 
 
 # ===================== Agente 3: Diretor de BI =====================
@@ -512,6 +516,7 @@ class AgendamentoConfigUpdate(BaseModel):
     fluxo_ordem: list[str] | None = None
     perguntar_profissional: bool | None = None
     permitir_qualquer: bool | None = None
+    perguntar_nome: bool | None = None
     profissional_padrao_id: str | None = None
     dias_futuros: int | None = Field(default=None, ge=1, le=90)
 

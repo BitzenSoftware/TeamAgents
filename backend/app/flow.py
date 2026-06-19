@@ -744,13 +744,20 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
     _save_msg(lead["id"], "AGENTE", out.response, agente="sdr")
     consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=CREDITOS_SDR), "sdr", uso=uso)
 
+    # Nome informado pela pessoa na conversa (se o agente capturou).
+    nome_capturado = (getattr(out, "cliente_nome", None) or "").strip() or None
+    nome_final = lead.get("nome") or nome_capturado or nome
+    if nome_capturado and not lead.get("nome"):
+        updates_nome = {"nome": nome_capturado}  # guarda no lead p/ próximas vezes
+    else:
+        updates_nome = {}
+
     # Atualiza estado do lead (mapeando o enum do SDR -> enum da BD)
-    updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status]}
+    updates: dict = {"status_qualificacao": _STATUS_DB[out.qualification_status], **updates_nome}
     if out.action == SdrAction.SCHEDULE_MEETING:
         updates["reuniao_agendada"] = True
         updates["status_qualificacao"] = "QUALIFICADO"
-        # Agendamento autônomo: se o Cal.com está ligado e o agente escolheu um
-        # horário, cria a reserva real na agenda (best-effort — não quebra o fluxo).
+        # Agendamento autônomo: cria a reserva real na agenda nativa (best-effort).
         agendar_em = getattr(out, "agendar_em", None)
         if agendar_em and agendar_em in slot_map:
             sel = slot_map[agendar_em]
@@ -758,7 +765,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
                 agendamento_criar(
                     cliente_id,
                     {"profissional_id": sel["prof_id"], "servico_id": sel.get("servico_id"),
-                     "inicio": agendar_em, "cliente_nome": lead.get("nome") or nome,
+                     "inicio": agendar_em, "cliente_nome": nome_final,
                      "contato": whatsapp_num},
                     origem="agente", lead_id=lead["id"],
                 )
@@ -769,7 +776,7 @@ async def processar_mensagem_lead(instance: str, whatsapp_num: str, text: str, n
                 api_key=config["calcom_api_key"],
                 event_type_id=config["calcom_event_type_id"],
                 inicio_iso=agendar_em,
-                nome=lead.get("nome") or nome or "",
+                nome=nome_final or "",
                 whatsapp=whatsapp_num,
             )
     elif out.action == SdrAction.TRANSFER_TO_HUMAN:
@@ -2645,12 +2652,10 @@ def agendamento_apagar(cliente_id: str, agendamento_id: str) -> None:
 
 
 # ---------------------------- Config de agendamento ----------------------------
-_AG_CFG_COLS = "cliente_id, fluxo_ordem, perguntar_profissional, permitir_qualquer, profissional_padrao_id, dias_futuros"
-
-
 def agendamento_config_get(cliente_id: str) -> dict:
     db = get_db()
-    rows = db.table("agendamento_config").select(_AG_CFG_COLS).eq("cliente_id", cliente_id).limit(1).execute().data
+    # select("*") evita acoplar a lista de colunas (novas colunas não quebram).
+    rows = db.table("agendamento_config").select("*").eq("cliente_id", cliente_id).limit(1).execute().data
     if rows:
         return rows[0]
     novo = {"cliente_id": cliente_id}
@@ -2658,7 +2663,7 @@ def agendamento_config_get(cliente_id: str) -> dict:
         return db.table("agendamento_config").insert(novo).execute().data[0]
     except Exception:
         return {"cliente_id": cliente_id, "fluxo_ordem": ["profissional", "servico"],
-                "perguntar_profissional": True, "permitir_qualquer": True,
+                "perguntar_profissional": True, "permitir_qualquer": True, "perguntar_nome": True,
                 "profissional_padrao_id": None, "dias_futuros": 14}
 
 
@@ -2720,6 +2725,8 @@ def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[str, dict]:
             elif p == "servico" and servs:
                 passos.append("ofereça o serviço entre as opções")
         passos.append("proponha 2–3 horários reais e confirme")
+        if cfg.get("perguntar_nome", True):
+            passos.append("pergunte o nome da pessoa (se ainda não souber) e copie em `cliente_nome`")
 
         servicos_txt = ""
         if servs:
