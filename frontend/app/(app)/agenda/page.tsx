@@ -156,8 +156,7 @@ function DiaColuna({ ymd, ags, nomeServico, onChange }: {
           <button key={a.id} onClick={() => { if (confirm("Cancelar este agendamento?")) api.atualizarAgendamento(a.id, { status: "cancelado" }).then(onChange); }}
             className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-brand/30 bg-brand/10 px-1.5 py-1 text-left text-[10px] leading-tight text-brand-dark hover:bg-brand/20"
             style={{ top, height: alt }}>
-            <div className="font-semibold">{horaClinic(a.inicio)}</div>
-            <div className="truncate">{a.cliente_nome || "Cliente"}</div>
+            <div className="truncate font-semibold">{a.cliente_nome || "Cliente"}</div>
             {nomeServico(a.servico_id) && <div className="truncate text-brand/70">{nomeServico(a.servico_id)}</div>}
           </button>
         );
