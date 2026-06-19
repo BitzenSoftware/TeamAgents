@@ -47,7 +47,7 @@ export default function CampanhasPage() {
             <button
               type="button"
               onClick={() => setCustomizar(true)}
-              className="shrink-0 rounded-lg border border-black/15 px-4 py-2 text-sm font-medium transition hover:bg-black/5"
+              className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
               Customizar Agendamento
             </button>
