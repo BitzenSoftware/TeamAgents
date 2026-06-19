@@ -247,12 +247,12 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
                 {slotsPorDia.map(([dia, lista]) => (
                   <div key={dia}>
                     <div className="mb-1 text-[11px] font-semibold capitalize text-black/45">{dia}</div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {lista.map((s) => {
                         const on = slot === s.inicio_iso;
                         return (
                           <button key={s.inicio_iso} onClick={() => setSlot(s.inicio_iso)}
-                            className={`rounded-md px-2 py-1 text-xs font-medium transition ${on ? "bg-brand text-white" : "border border-black/15 text-black/60 hover:bg-black/[0.03]"}`}>
+                            className={`rounded-md border px-2 py-1 text-center text-xs font-medium transition ${on ? "border-brand bg-brand text-white" : "border-black/15 text-black/60 hover:bg-black/[0.03]"}`}>
                             {horaClinic(s.inicio_iso)}
                           </button>
                         );
