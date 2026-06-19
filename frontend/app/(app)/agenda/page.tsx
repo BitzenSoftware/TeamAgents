@@ -115,8 +115,8 @@ export default function AgendaPage() {
           <div className="grid" style={{ gridTemplateColumns: "48px repeat(7, 1fr)" }}>
             <div>
               {Array.from({ length: HORA_FIM - HORA_INI }, (_, i) => (
-                <div key={i} className="relative border-b border-black/5 text-right" style={{ height: PX_HORA }}>
-                  <span className="absolute -top-2 right-1 text-[10px] text-black/35">{HORA_INI + i}h</span>
+                <div key={i} className="relative border-t border-black/10" style={{ height: PX_HORA }}>
+                  <span className="absolute right-1.5 top-1 text-[10px] text-black/40">{HORA_INI + i}h</span>
                 </div>
               ))}
             </div>
@@ -144,7 +144,7 @@ function DiaColuna({ ymd, ags, nomeServico, onChange }: {
   return (
     <div className="relative border-l border-black/10" style={{ height: (HORA_FIM - HORA_INI) * PX_HORA }}>
       {Array.from({ length: HORA_FIM - HORA_INI }, (_, i) => (
-        <div key={i} className="border-b border-black/5" style={{ height: PX_HORA }} />
+        <div key={i} className="border-t border-black/10" style={{ height: PX_HORA }} />
       ))}
       {doDia.map((a) => {
         const p = partes(a.inicio);
