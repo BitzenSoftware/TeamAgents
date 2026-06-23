@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Send, Loader2, Paperclip, Trash2, FileDown, Bot, FileText,
+  ClipboardList, Save, Plus,
 } from "lucide-react";
 import { marked } from "marked";
 import {
   ReactFlow, Background, Controls, type Node, type Edge, MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { api, type GrowthMensagem, type Projeto, type ProjetoDocumento } from "@/lib/api";
+import { api, type GrowthMensagem, type Projeto, type ProjetoDocumento, type ProjetoRelatorio } from "@/lib/api";
 import { agenteInfo } from "@/lib/agentes";
 
 const renderMd = (c: string) => marked.parse(c, { async: false }) as string;
@@ -24,7 +25,7 @@ function exportarPdf(html: string, titulo: string) {
   w.document.close();
 }
 
-type Aba = "agentes" | "contexto" | "fluxo";
+type Aba = "agentes" | "contexto" | "relatorios" | "fluxo";
 
 export default function ProjetoPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,7 +56,7 @@ export default function ProjetoPage() {
       </header>
 
       <div className="mb-4 flex gap-1 border-b border-black/10">
-        {([["agentes", "Agentes"], ["contexto", "Contexto"], ["fluxo", "Fluxo"]] as const).map(([k, label]) => (
+        {([["agentes", "Agentes"], ["contexto", "Contexto"], ["relatorios", "Relatórios"], ["fluxo", "Fluxo"]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setAba(k)}
             className={`-mb-px border-b-2 px-3.5 py-2 text-sm font-medium transition ${aba === k ? "border-brand text-brand" : "border-transparent text-black/50 hover:text-ink"}`}>
             {label}
@@ -66,6 +67,7 @@ export default function ProjetoPage() {
       <div className="min-h-0 flex-1">
         {aba === "agentes" && <AbaAgentes proj={proj} />}
         {aba === "contexto" && <AbaContexto proj={proj} onChange={carregar} />}
+        {aba === "relatorios" && <AbaRelatorios proj={proj} />}
         {aba === "fluxo" && <AbaFluxo proj={proj} />}
       </div>
     </div>
@@ -78,7 +80,18 @@ function AbaAgentes({ proj }: { proj: Projeto }) {
   const [msgs, setMsgs] = useState<GrowthMensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [salvoIdx, setSalvoIdx] = useState<number | null>(null);
   const fimRef = useRef<HTMLDivElement>(null);
+
+  async function salvarRelatorio(i: number, conteudo: string) {
+    const titulo = (conteudo.split("\n").map((s) => s.trim()).find(Boolean) || "Relatório")
+      .replace(/[#>*_`]/g, "").trim().slice(0, 80);
+    try {
+      await api.projetoRelatorioAdd(proj.id, { titulo, conteudo, agente_id: sel });
+      setSalvoIdx(i);
+      setTimeout(() => setSalvoIdx((v) => (v === i ? null : v)), 2500);
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     if (!sel) return;
@@ -134,8 +147,14 @@ function AbaAgentes({ proj }: { proj: Projeto }) {
               return (
                 <div key={i} className="flex flex-col items-start gap-1">
                   <div className="md max-w-[85%] rounded-2xl rounded-bl-sm border border-black/10 bg-paper px-3.5 py-2 text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
-                  <button type="button" onClick={() => exportarPdf(renderMd(m.content), `${proj.nome} — ${agenteInfo(sel)?.nome ?? sel}`)}
-                    className="ml-1 inline-flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-brand"><FileDown size={12} /> Baixar PDF</button>
+                  <div className="ml-1 flex items-center gap-3">
+                    <button type="button" onClick={() => salvarRelatorio(i, m.content)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-brand">
+                      <Save size={12} /> {salvoIdx === i ? "Salvo em Relatórios ✓" : "Salvar como relatório"}
+                    </button>
+                    <button type="button" onClick={() => exportarPdf(renderMd(m.content), `${proj.nome} — ${agenteInfo(sel)?.nome ?? sel}`)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-brand"><FileDown size={12} /> Baixar PDF</button>
+                  </div>
                 </div>
               );
             })}
@@ -266,6 +285,83 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
+    </div>
+  );
+}
+
+/* ============================ Aba Relatórios ============================ */
+function AbaRelatorios({ proj }: { proj: Projeto }) {
+  const [lista, setLista] = useState<ProjetoRelatorio[]>([]);
+  const [novo, setNovo] = useState(false);
+  const [titulo, setTitulo] = useState("");
+  const [conteudo, setConteudo] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(() => { api.projetoRelatorios(proj.id).then(setLista).catch(() => {}); }, [proj.id]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function criar() {
+    if (!conteudo.trim() || salvando) return;
+    setSalvando(true);
+    try {
+      await api.projetoRelatorioAdd(proj.id, { titulo: titulo.trim() || "Relatório", conteudo });
+      setNovo(false); setTitulo(""); setConteudo(""); carregar();
+    } finally { setSalvando(false); }
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-3 overflow-auto">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-black/50">Resultados e planos de ação salvos ({lista.length})</div>
+        <button type="button" onClick={() => setNovo((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/[0.03]">
+          <Plus size={13} /> Novo relatório
+        </button>
+      </div>
+
+      {novo && (
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título do relatório / plano de ação"
+            className="mb-2 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+          <textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)} rows={6} placeholder="Conteúdo (markdown)…"
+            className="w-full resize-y rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+          <div className="mt-2 flex justify-end gap-2">
+            <button type="button" onClick={() => setNovo(false)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">Cancelar</button>
+            <button type="button" onClick={criar} disabled={salvando || !conteudo.trim()}
+              className="rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">{salvando ? "Salvando…" : "Salvar"}</button>
+          </div>
+        </div>
+      )}
+
+      {lista.length === 0 && !novo ? (
+        <p className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/40">
+          Nenhum relatório ainda. Salve uma resposta na aba <strong>Agentes</strong> ("Salvar como relatório") ou crie um aqui.
+        </p>
+      ) : lista.map((r) => <RelatorioCard key={r.id} proj={proj} rel={r} onChange={carregar} />)}
+    </div>
+  );
+}
+
+function RelatorioCard({ proj, rel, onChange }: { proj: Projeto; rel: ProjetoRelatorio; onChange: () => void }) {
+  const origem = rel.agente_id ? agenteInfo(rel.agente_id)?.nome ?? rel.agente_id : null;
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-4">
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <ClipboardList size={15} className="shrink-0 text-brand" />
+          <span className="truncate font-semibold">{rel.titulo}</span>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button type="button" onClick={() => exportarPdf(renderMd(rel.conteudo), rel.titulo)} aria-label="Baixar PDF"
+            className="grid h-7 w-7 place-items-center rounded text-black/40 hover:bg-black/[0.04] hover:text-brand"><FileDown size={14} /></button>
+          <button type="button" onClick={() => { if (confirm("Apagar este relatório?")) api.projetoApagarRelatorio(proj.id, rel.id).then(onChange); }} aria-label="Apagar"
+            className="grid h-7 w-7 place-items-center rounded text-black/35 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
+        </div>
+      </div>
+      <div className="mb-2 text-[11px] text-black/40">
+        {new Date(rel.created_at).toLocaleString("pt-BR")}{origem && ` · via ${origem}`}
+      </div>
+      <div className="md text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(rel.conteudo) }} />
     </div>
   );
 }

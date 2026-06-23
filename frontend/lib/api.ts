@@ -307,6 +307,7 @@ export type Projeto = {
   updated_at: string;
 };
 export type ProjetoDocumento = { id: string; nome: string; conteudo: string; created_at: string };
+export type ProjetoRelatorio = { id: string; titulo: string; conteudo: string; agente_id: string | null; created_at: string; updated_at: string };
 
 // --- Profissionais, Serviços e Agenda ---
 export type Servico = {
@@ -721,6 +722,14 @@ export const api = {
     req<GrowthMensagem[]>(`/me/gestao/projetos/${projId}/mensagens?agente=${encodeURIComponent(agente)}`),
   projetoChat: (projId: string, agente: string, mensagem: string) =>
     req<{ resposta: string }>(`/me/gestao/projetos/${projId}/chat`, { method: "POST", body: JSON.stringify({ agente, mensagem }) }),
+  // Relatórios / planos de ação do projeto
+  projetoRelatorios: (projId: string) => req<ProjetoRelatorio[]>(`/me/gestao/projetos/${projId}/relatorios`),
+  projetoRelatorioAdd: (projId: string, body: { titulo: string; conteudo: string; agente_id?: string }) =>
+    req<ProjetoRelatorio>(`/me/gestao/projetos/${projId}/relatorios`, { method: "POST", body: JSON.stringify(body) }),
+  projetoRelatorioAtualizar: (projId: string, relId: string, body: { titulo?: string; conteudo?: string }) =>
+    req<ProjetoRelatorio>(`/me/gestao/projetos/${projId}/relatorios/${relId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  projetoApagarRelatorio: (projId: string, relId: string) =>
+    req<void>(`/me/gestao/projetos/${projId}/relatorios/${relId}`, { method: "DELETE" }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

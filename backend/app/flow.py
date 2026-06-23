@@ -3074,3 +3074,43 @@ def projeto_chat(cliente_id: str, proj_id: str, agente: str, mensagem: str) -> d
         {"projeto_id": proj_id, "agente_id": agente, "role": "assistant", "content": texto},
     ]).execute()
     return {"resposta": texto}
+
+
+# ---- Relatórios / planos de ação do projeto ----
+_PREL_COLS = "id, titulo, conteudo, agente_id, created_at, updated_at"
+
+
+def projeto_relatorios_listar(cliente_id: str, proj_id: str) -> list[dict]:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return []
+    rows = get_db().table("projeto_relatorios").select(_PREL_COLS).eq("projeto_id", proj_id).execute().data or []
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return rows
+
+
+def projeto_relatorio_add(cliente_id: str, proj_id: str, data: dict) -> dict | None:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return None
+    row = {
+        "projeto_id": proj_id,
+        "titulo": (data.get("titulo") or "Relatório")[:200],
+        "conteudo": data.get("conteudo") or "",
+        "agente_id": data.get("agente_id"),
+    }
+    return get_db().table("projeto_relatorios").insert(row).execute().data[0]
+
+
+def projeto_relatorio_atualizar(cliente_id: str, proj_id: str, rel_id: str, patch: dict) -> dict | None:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return None
+    patch = {**{k: patch[k] for k in ("titulo", "conteudo") if k in patch},
+             "updated_at": datetime.now(timezone.utc).isoformat()}
+    get_db().table("projeto_relatorios").update(patch).eq("id", rel_id).eq("projeto_id", proj_id).execute()
+    rows = get_db().table("projeto_relatorios").select(_PREL_COLS).eq("id", rel_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def projeto_relatorio_apagar(cliente_id: str, proj_id: str, rel_id: str) -> None:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return
+    get_db().table("projeto_relatorios").delete().eq("id", rel_id).eq("projeto_id", proj_id).execute()

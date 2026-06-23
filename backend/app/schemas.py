@@ -509,6 +509,17 @@ class ProjetoChatRequest(BaseModel):
     mensagem: str = Field(min_length=1)
 
 
+class ProjetoRelatorioCreate(BaseModel):
+    titulo: str = ""
+    conteudo: str = Field(min_length=1)
+    agente_id: str | None = None
+
+
+class ProjetoRelatorioUpdate(BaseModel):
+    titulo: str | None = None
+    conteudo: str | None = None
+
+
 # ===================== Profissionais, Serviços e Agenda =====================
 class ServicoCreate(BaseModel):
     nome: str = Field(min_length=1)

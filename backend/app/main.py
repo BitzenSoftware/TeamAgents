@@ -25,6 +25,8 @@ from .schemas import (
     EmpresaAgentesUpdate,
     ProjetoChatRequest,
     ProjetoCreate,
+    ProjetoRelatorioCreate,
+    ProjetoRelatorioUpdate,
     ProjetoUpdate,
     CheckoutRequest,
     CompraPacoteRequest,
@@ -862,6 +864,33 @@ def projeto_chat(proj_id: str, req: ProjetoChatRequest, cliente_id: str = Depend
     if not res:
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
     return res
+
+
+# --- Relatórios / planos de ação do projeto ---
+@app.get("/me/gestao/projetos/{proj_id}/relatorios")
+def projeto_relatorios_listar(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.projeto_relatorios_listar(cliente_id, proj_id)
+
+
+@app.post("/me/gestao/projetos/{proj_id}/relatorios", status_code=201)
+def projeto_relatorio_add(proj_id: str, payload: ProjetoRelatorioCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.projeto_relatorio_add(cliente_id, proj_id, payload.model_dump())
+    if not res:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return res
+
+
+@app.patch("/me/gestao/projetos/{proj_id}/relatorios/{rel_id}")
+def projeto_relatorio_atualizar(proj_id: str, rel_id: str, payload: ProjetoRelatorioUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.projeto_relatorio_atualizar(cliente_id, proj_id, rel_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Relatório não encontrado.")
+    return res
+
+
+@app.delete("/me/gestao/projetos/{proj_id}/relatorios/{rel_id}", status_code=204)
+def projeto_relatorio_apagar(proj_id: str, rel_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.projeto_relatorio_apagar(cliente_id, proj_id, rel_id)
 
 
 # ===================== Profissionais, Serviços e Agenda =====================
