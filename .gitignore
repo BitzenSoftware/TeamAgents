@@ -29,3 +29,9 @@ npm-debug.log*
 # Misc
 .cache/
 coverage/
+
+# Documentos/trabalho fora do código (não versionar)
+*.docx
+~$*
+~WRL*.tmp
+micro-guias/
