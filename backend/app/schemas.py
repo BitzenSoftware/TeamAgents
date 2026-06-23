@@ -388,6 +388,8 @@ class AssistenteChatRequest(BaseModel):
     """Conversa do cliente com um assistente (Financeiro/Jurídico/Suporte/Produto)."""
     agente: str
     mensagens: list[GrowthMensagem] = Field(min_length=1)
+    # Habilidades a injetar. None = todas do agente + globais (padrão). [] = nenhuma.
+    habilidade_ids: list[str] | None = None
 
 
 class GrowthComandoRequest(BaseModel):

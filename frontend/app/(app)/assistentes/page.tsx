@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  Wallet, Scale, LifeBuoy, Package, Send, Loader2,
+  Wallet, Scale, LifeBuoy, Package, Send, Loader2, Sparkles, ChevronDown,
   Users, ShieldCheck, FolderKanban, Target, TrendingUp, Workflow, type LucideIcon,
 } from "lucide-react";
 import { marked } from "marked";
-import { api, type GrowthMensagem } from "@/lib/api";
+import { api, type GrowthMensagem, type Habilidade } from "@/lib/api";
 
 function renderMd(conteudo: string): string {
   return marked.parse(conteudo, { async: false }) as string;
@@ -74,8 +75,27 @@ export default function AssistentesPage() {
   const [enviando, setEnviando] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setMsgs([]); setTexto(""); }, [sel.id]);
+  // Habilidades: todas as ativas; as deste agente (+ globais) ficam selecionáveis.
+  const [todasHabs, setTodasHabs] = useState<Habilidade[]>([]);
+  const [selHabs, setSelHabs] = useState<Set<string>>(new Set());
+  const [habsAberto, setHabsAberto] = useState(false);
+
+  useEffect(() => { api.habilidades().then((hs) => setTodasHabs(hs.filter((h) => h.ativo))).catch(() => {}); }, []);
+
+  const disponiveis = useMemo(
+    () => todasHabs.filter((h) => h.agente === sel.id || h.agente === "global"),
+    [todasHabs, sel.id],
+  );
+
+  // Ao trocar de agente (ou quando as habilidades carregam): seleciona todas por padrão.
+  useEffect(() => { setSelHabs(new Set(disponiveis.map((h) => h.id))); }, [disponiveis]);
+
+  useEffect(() => { setMsgs([]); setTexto(""); setHabsAberto(false); }, [sel.id]);
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length, enviando]);
+
+  function toggleHab(id: string) {
+    setSelHabs((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
 
   async function enviar(e: React.FormEvent, textoForcado?: string) {
     e.preventDefault();
@@ -84,7 +104,7 @@ export default function AssistentesPage() {
     const hist: GrowthMensagem[] = [...msgs, { role: "user", content: t }];
     setMsgs(hist); setTexto(""); setEnviando(true);
     try {
-      const { resposta } = await api.assistenteChat(sel.id, hist);
+      const { resposta } = await api.assistenteChat(sel.id, hist, Array.from(selHabs));
       setMsgs((l) => [...l, { role: "assistant", content: resposta }]);
     } catch (err) {
       setMsgs((l) => [...l, { role: "assistant", content: `⚠️ ${err instanceof Error ? err.message : String(err)}` }]);
@@ -126,8 +146,51 @@ export default function AssistentesPage() {
         <section className="lg:col-span-9">
           <div className="flex h-[calc(100vh-210px)] flex-col overflow-hidden rounded-xl border border-black/10 bg-white">
             <div className="border-b border-black/10 px-4 py-3">
-              <div className="text-sm font-semibold">{sel.nome}</div>
-              <div className="text-xs text-black/45">{sel.intro}</div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">{sel.nome}</div>
+                  <div className="text-xs text-black/45">{sel.intro}</div>
+                </div>
+                {/* Seletor de Habilidades deste agente */}
+                <div className="relative shrink-0">
+                  <button type="button" onClick={() => setHabsAberto((v) => !v)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-black/15 px-2.5 py-1.5 text-xs font-medium text-black/60 transition hover:bg-black/[0.03]">
+                    <Sparkles size={13} className="text-brand" />
+                    Habilidades ({selHabs.size}/{disponiveis.length})
+                    <ChevronDown size={13} className={habsAberto ? "rotate-180 transition" : "transition"} />
+                  </button>
+                  {habsAberto && (
+                    <div className="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-black/10 bg-white p-2 shadow-lg">
+                      {disponiveis.length === 0 ? (
+                        <p className="p-2 text-xs text-black/45">
+                          Nenhuma Habilidade para este agente. Cadastre no menu{" "}
+                          <Link href="/habilidades" className="font-medium text-brand hover:underline">Habilidades</Link>.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between px-1 pb-1.5">
+                            <button type="button" onClick={() => setSelHabs(new Set(disponiveis.map((h) => h.id)))}
+                              className="text-[11px] font-medium text-brand hover:underline">Todas</button>
+                            <button type="button" onClick={() => setSelHabs(new Set())}
+                              className="text-[11px] text-black/40 hover:underline">Nenhuma</button>
+                          </div>
+                          <div className="max-h-60 space-y-0.5 overflow-auto">
+                            {disponiveis.map((h) => (
+                              <label key={h.id} className="flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-black/[0.03]">
+                                <input type="checkbox" checked={selHabs.has(h.id)} onChange={() => toggleHab(h.id)} className="mt-0.5 shrink-0" />
+                                <span className="min-w-0">
+                                  <span className="font-medium">{h.titulo}</span>
+                                  {h.agente === "global" && <span className="ml-1 rounded bg-black/5 px-1 py-0.5 text-[9px] text-black/40">global</span>}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex-1 space-y-3 overflow-auto p-4">
               {msgs.length === 0 && (

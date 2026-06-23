@@ -700,7 +700,7 @@ def assistente_chat(req: AssistenteChatRequest, cliente_id: str = Depends(auth.c
         raise HTTPException(status_code=400, detail="Assistente inválido.")
     mensagens = [m.model_dump() for m in req.mensagens]
     try:
-        return flow.assistente_chat(cliente_id, req.agente, mensagens)
+        return flow.assistente_chat(cliente_id, req.agente, mensagens, habilidade_ids=req.habilidade_ids)
     except flow.LimiteCreditosError as e:
         raise HTTPException(status_code=402, detail=str(e))
 

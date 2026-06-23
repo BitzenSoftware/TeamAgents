@@ -2309,13 +2309,20 @@ def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
 
 
 # ===================== Assistentes do cliente (chat) =====================
-def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
-    """Conversa do cliente com um assistente especialista (Financeiro/Jurídico/
-    Suporte/Produto). Injeta a persona (prompt.md) + as Habilidades da empresa
-    desse agente; consome créditos pelo custo real."""
+def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
+                    habilidade_ids: list[str] | None = None) -> dict:
+    """Conversa do cliente com um assistente especialista. Injeta a persona
+    (prompt.md) + as Habilidades escolhidas; consome créditos pelo custo real.
+
+    habilidade_ids=None -> todas as ativas do agente + globais (padrão).
+    habilidade_ids=[...] -> apenas essas. [] -> nenhuma.
+    """
     verificar_limite(cliente_id, CREDITOS_SDR)  # bloqueia ANTES de gastar API
     s = get_settings()
-    extra = _habilidades_texto(cliente_id, agente=agente)
+    if habilidade_ids is None:
+        extra = _habilidades_texto(cliente_id, agente=agente)
+    else:
+        extra = _habilidades_texto(cliente_id, ids=habilidade_ids)
     resp = llm._client().messages.create(
         model=s.model_assistente,
         max_tokens=1800,

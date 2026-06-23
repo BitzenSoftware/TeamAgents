@@ -642,8 +642,11 @@ export const api = {
     req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
 
   // --- Assistentes do cliente (chat) ---
-  assistenteChat: (agente: string, mensagens: GrowthMensagem[]) =>
-    req<{ resposta: string }>("/me/assistentes/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
+  assistenteChat: (agente: string, mensagens: GrowthMensagem[], habilidadeIds?: string[]) =>
+    req<{ resposta: string }>("/me/assistentes/chat", {
+      method: "POST",
+      body: JSON.stringify({ agente, mensagens, habilidade_ids: habilidadeIds }),
+    }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),
