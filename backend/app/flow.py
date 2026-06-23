@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from . import agenda, calcom, email_ingest, evolution, executivo, growth, llm, pricing, whatsapp
 from .config import get_settings
 from .db import get_db
-from .schemas import CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
+from .schemas import ASSISTENTES, CopyRequest, CopyOutput, ExecutivoRequest, ItemBruto, OnboardingPayload, SdrAction, SdrStatus, TipoItem
 
 # O SDR responde em enum legível (inglês); a BD usa o enum status_qualificacao
 # em português. Mapeamos na fronteira BD.
@@ -2804,3 +2804,170 @@ def _slots_campanha(cliente_id: str, campanha: dict) -> tuple[str, dict]:
         return bloco, mapa
     except Exception:
         return "", {}  # nunca quebra o fluxo do SDR por causa da agenda
+
+
+# ===================== Gestão (Empresa › Departamentos › Projetos) =====================
+def _agentes_validos(ids) -> list[str]:
+    """Filtra para os 10 assistentes válidos, sem duplicar, preservando ordem."""
+    out: list[str] = []
+    for i in ids or []:
+        if i in ASSISTENTES and i not in out:
+            out.append(i)
+    return out
+
+
+def _link_agentes(table: str, key_col: str, key_val: str) -> list[str]:
+    rows = get_db().table(table).select("agente_id").eq(key_col, key_val).execute().data or []
+    return [r["agente_id"] for r in rows if r["agente_id"] in ASSISTENTES]
+
+
+def _set_link_agentes(table: str, key_col: str, key_val: str, ids: list[str]) -> None:
+    db = get_db()
+    db.table(table).delete().eq(key_col, key_val).execute()
+    if ids:
+        db.table(table).insert([{key_col: key_val, "agente_id": i} for i in ids]).execute()
+
+
+def _dep_do_cliente(cliente_id: str, dep_id: str) -> bool:
+    return bool(get_db().table("departamentos").select("id").eq("id", dep_id).eq("cliente_id", cliente_id).limit(1).execute().data)
+
+
+def _proj_do_cliente(cliente_id: str, proj_id: str) -> dict | None:
+    rows = get_db().table("projetos").select("*").eq("id", proj_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+# ---- Nível Empresa ----
+def gestao_agentes_get(cliente_id: str) -> list[str]:
+    rows = get_db().table("gestao_empresa_agentes").select("agente_id").eq("cliente_id", cliente_id).execute().data or []
+    return [r["agente_id"] for r in rows if r["agente_id"] in ASSISTENTES]
+
+
+def gestao_agentes_set(cliente_id: str, ids: list[str]) -> list[str]:
+    ids = _agentes_validos(ids)
+    db = get_db()
+    db.table("gestao_empresa_agentes").delete().eq("cliente_id", cliente_id).execute()
+    if ids:
+        db.table("gestao_empresa_agentes").insert([{"cliente_id": cliente_id, "agente_id": i} for i in ids]).execute()
+    _podar_cascata(cliente_id, set(ids))  # remove dos deptos/projetos os que saíram
+    return ids
+
+
+def _podar_cascata(cliente_id: str, ativos: set[str]) -> None:
+    """Remove de departamentos/projetos os agentes que não estão mais ativos."""
+    db = get_db()
+    deps = db.table("departamentos").select("id").eq("cliente_id", cliente_id).execute().data or []
+    for d in deps:
+        for a in _link_agentes("departamento_agentes", "departamento_id", d["id"]):
+            if a not in ativos:
+                db.table("departamento_agentes").delete().eq("departamento_id", d["id"]).eq("agente_id", a).execute()
+    projs = db.table("projetos").select("id").eq("cliente_id", cliente_id).execute().data or []
+    for p in projs:
+        for a in _link_agentes("projeto_agentes", "projeto_id", p["id"]):
+            if a not in ativos:
+                db.table("projeto_agentes").delete().eq("projeto_id", p["id"]).eq("agente_id", a).execute()
+
+
+# ---- Nível Departamento ----
+def departamentos_listar(cliente_id: str) -> list[dict]:
+    db = get_db()
+    deps = db.table("departamentos").select("id, nome, created_at").eq("cliente_id", cliente_id).execute().data or []
+    deps.sort(key=lambda d: d.get("nome") or "")
+    for d in deps:
+        d["agente_ids"] = _link_agentes("departamento_agentes", "departamento_id", d["id"])
+    return deps
+
+
+def departamento_criar(cliente_id: str, nome: str, agente_ids: list[str]) -> dict:
+    ativos = set(gestao_agentes_get(cliente_id))
+    ids = [i for i in _agentes_validos(agente_ids) if i in ativos]  # ⊆ empresa
+    dep = get_db().table("departamentos").insert({"cliente_id": cliente_id, "nome": nome}).execute().data[0]
+    _set_link_agentes("departamento_agentes", "departamento_id", dep["id"], ids)
+    dep["agente_ids"] = ids
+    return dep
+
+
+def departamento_atualizar(cliente_id: str, dep_id: str, patch: dict) -> dict | None:
+    if not _dep_do_cliente(cliente_id, dep_id):
+        return None
+    db = get_db()
+    if patch.get("nome"):
+        db.table("departamentos").update({"nome": patch["nome"]}).eq("id", dep_id).execute()
+    if patch.get("agente_ids") is not None:
+        ativos = set(gestao_agentes_get(cliente_id))
+        ids = [i for i in _agentes_validos(patch["agente_ids"]) if i in ativos]
+        _set_link_agentes("departamento_agentes", "departamento_id", dep_id, ids)
+        # poda projetos deste depto para ⊆ novos agentes do depto
+        depset = set(ids)
+        projs = db.table("projetos").select("id").eq("departamento_id", dep_id).execute().data or []
+        for p in projs:
+            for a in _link_agentes("projeto_agentes", "projeto_id", p["id"]):
+                if a not in depset:
+                    db.table("projeto_agentes").delete().eq("projeto_id", p["id"]).eq("agente_id", a).execute()
+    rows = db.table("departamentos").select("id, nome, created_at").eq("id", dep_id).limit(1).execute().data
+    if not rows:
+        return None
+    rows[0]["agente_ids"] = _link_agentes("departamento_agentes", "departamento_id", dep_id)
+    return rows[0]
+
+
+def departamento_apagar(cliente_id: str, dep_id: str) -> None:
+    get_db().table("departamentos").delete().eq("id", dep_id).eq("cliente_id", cliente_id).execute()
+
+
+# ---- Nível Projeto ----
+_PROJ_COLS = "id, departamento_id, nome, descricao, briefing, status, created_at, updated_at"
+
+
+def projetos_listar(cliente_id: str, departamento_id: str) -> list[dict]:
+    if not _dep_do_cliente(cliente_id, departamento_id):
+        return []
+    db = get_db()
+    projs = (db.table("projetos").select(_PROJ_COLS)
+             .eq("cliente_id", cliente_id).eq("departamento_id", departamento_id).execute().data or [])
+    projs.sort(key=lambda p: p.get("created_at") or "", reverse=True)
+    for p in projs:
+        p["agente_ids"] = _link_agentes("projeto_agentes", "projeto_id", p["id"])
+    return projs
+
+
+def projeto_obter(cliente_id: str, proj_id: str) -> dict | None:
+    p = _proj_do_cliente(cliente_id, proj_id)
+    if not p:
+        return None
+    p["agente_ids"] = _link_agentes("projeto_agentes", "projeto_id", proj_id)
+    return p
+
+
+def projeto_criar(cliente_id: str, departamento_id: str, nome: str,
+                  descricao: str = "", briefing: str = "", agente_ids: list[str] | None = None) -> dict | None:
+    if not _dep_do_cliente(cliente_id, departamento_id):
+        return None
+    depset = set(_link_agentes("departamento_agentes", "departamento_id", departamento_id))
+    ids = [i for i in _agentes_validos(agente_ids or []) if i in depset]  # ⊆ departamento
+    row = {"cliente_id": cliente_id, "departamento_id": departamento_id, "nome": nome,
+           "descricao": descricao or "", "briefing": briefing or ""}
+    proj = get_db().table("projetos").insert(row).execute().data[0]
+    _set_link_agentes("projeto_agentes", "projeto_id", proj["id"], ids)
+    proj["agente_ids"] = ids
+    return proj
+
+
+def projeto_atualizar(cliente_id: str, proj_id: str, patch: dict) -> dict | None:
+    p = _proj_do_cliente(cliente_id, proj_id)
+    if not p:
+        return None
+    db = get_db()
+    base = {k: patch[k] for k in ("nome", "descricao", "briefing", "status") if k in patch and patch[k] is not None}
+    if base:
+        base["updated_at"] = datetime.now(timezone.utc).isoformat()
+        db.table("projetos").update(base).eq("id", proj_id).execute()
+    if patch.get("agente_ids") is not None:
+        depset = set(_link_agentes("departamento_agentes", "departamento_id", p["departamento_id"]))
+        ids = [i for i in _agentes_validos(patch["agente_ids"]) if i in depset]
+        _set_link_agentes("projeto_agentes", "projeto_id", proj_id, ids)
+    return projeto_obter(cliente_id, proj_id)
+
+
+def projeto_apagar(cliente_id: str, proj_id: str) -> None:
+    get_db().table("projetos").delete().eq("id", proj_id).eq("cliente_id", cliente_id).execute()

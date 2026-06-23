@@ -20,6 +20,11 @@ from .schemas import (
     AssistenteChatRequest,
     AusenciaCreate,
     CampanhaUpdate,
+    DepartamentoCreate,
+    DepartamentoUpdate,
+    EmpresaAgentesUpdate,
+    ProjetoCreate,
+    ProjetoUpdate,
     CheckoutRequest,
     CompraPacoteRequest,
     ProfissionalCreate,
@@ -733,6 +738,78 @@ async def assistente_chat(
         )
     except flow.LimiteCreditosError as e:
         raise HTTPException(status_code=402, detail=str(e))
+
+
+# ===================== Gestão (Empresa › Departamentos › Projetos) =====================
+@app.get("/me/gestao/agentes")
+def gestao_agentes_get(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Agentes ativos da empresa + catálogo disponível (os 10)."""
+    return {"ativos": flow.gestao_agentes_get(cliente_id), "disponiveis": list(ASSISTENTES)}
+
+
+@app.put("/me/gestao/agentes")
+def gestao_agentes_set(payload: EmpresaAgentesUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return {"ativos": flow.gestao_agentes_set(cliente_id, payload.agente_ids)}
+
+
+# --- Departamentos ---
+@app.get("/me/gestao/departamentos")
+def departamentos_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.departamentos_listar(cliente_id)
+
+
+@app.post("/me/gestao/departamentos", status_code=201)
+def departamento_criar(payload: DepartamentoCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    return flow.departamento_criar(cliente_id, payload.nome, payload.agente_ids)
+
+
+@app.patch("/me/gestao/departamentos/{dep_id}")
+def departamento_atualizar(dep_id: str, payload: DepartamentoUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.departamento_atualizar(cliente_id, dep_id, payload.model_dump(exclude_unset=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Departamento não encontrado.")
+    return res
+
+
+@app.delete("/me/gestao/departamentos/{dep_id}", status_code=204)
+def departamento_apagar(dep_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.departamento_apagar(cliente_id, dep_id)
+
+
+# --- Projetos ---
+@app.get("/me/gestao/departamentos/{dep_id}/projetos")
+def projetos_listar(dep_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.projetos_listar(cliente_id, dep_id)
+
+
+@app.get("/me/gestao/projetos/{proj_id}")
+def projeto_obter(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.projeto_obter(cliente_id, proj_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return res
+
+
+@app.post("/me/gestao/projetos", status_code=201)
+def projeto_criar(payload: ProjetoCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.projeto_criar(cliente_id, payload.departamento_id, payload.nome,
+                             payload.descricao or "", payload.briefing or "", payload.agente_ids)
+    if not res:
+        raise HTTPException(status_code=404, detail="Departamento não encontrado.")
+    return res
+
+
+@app.patch("/me/gestao/projetos/{proj_id}")
+def projeto_atualizar(proj_id: str, payload: ProjetoUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = flow.projeto_atualizar(cliente_id, proj_id, payload.model_dump(exclude_unset=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return res
+
+
+@app.delete("/me/gestao/projetos/{proj_id}", status_code=204)
+def projeto_apagar(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.projeto_apagar(cliente_id, proj_id)
 
 
 # ===================== Profissionais, Serviços e Agenda =====================

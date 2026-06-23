@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3, BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Inbox,
-  Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Newspaper,
+  Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Network, Newspaper,
   Package, Scissors, Settings, Sparkles, Users, X, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { href: "/executivo", label: "Agente Executivo", icon: Mail, grupo: "Agentes" },
   { href: "/consultoria", label: "Agente Diretor de BI", icon: BarChart3, grupo: "Agentes" },
   { href: "/assistentes", label: "Assistentes", icon: Bot, grupo: "Agentes" },
+  { href: "/gestao", label: "Gestão", icon: Network, grupo: "Workspace" },
   { href: "/profissionais", label: "Profissionais", icon: Users, grupo: "Workspace" },
   { href: "/servicos", label: "Serviços", icon: Scissors, grupo: "Workspace" },
   { href: "/agenda", label: "Agenda", icon: CalendarClock, grupo: "Workspace" },

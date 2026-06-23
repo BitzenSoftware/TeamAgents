@@ -292,6 +292,21 @@ export type GrowthConfig = {
   linkedin_perfil: string | null;
 };
 
+// --- Gestão (Empresa › Departamentos › Projetos) ---
+export type GestaoAgentes = { ativos: string[]; disponiveis: string[] };
+export type Departamento = { id: string; nome: string; created_at: string; agente_ids: string[] };
+export type Projeto = {
+  id: string;
+  departamento_id: string;
+  nome: string;
+  descricao: string;
+  briefing: string;
+  status: "ativo" | "arquivado";
+  agente_ids: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 // --- Profissionais, Serviços e Agenda ---
 export type Servico = {
   id: string;
@@ -663,6 +678,24 @@ export const api = {
     }
     return res.json() as Promise<{ resposta: string }>;
   },
+
+  // --- Gestão ---
+  gestaoAgentes: () => req<GestaoAgentes>("/me/gestao/agentes"),
+  gestaoSetAgentes: (agente_ids: string[]) =>
+    req<{ ativos: string[] }>("/me/gestao/agentes", { method: "PUT", body: JSON.stringify({ agente_ids }) }),
+  departamentos: () => req<Departamento[]>("/me/gestao/departamentos"),
+  criarDepartamento: (nome: string, agente_ids: string[]) =>
+    req<Departamento>("/me/gestao/departamentos", { method: "POST", body: JSON.stringify({ nome, agente_ids }) }),
+  atualizarDepartamento: (id: string, body: { nome?: string; agente_ids?: string[] }) =>
+    req<Departamento>(`/me/gestao/departamentos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarDepartamento: (id: string) => req<void>(`/me/gestao/departamentos/${id}`, { method: "DELETE" }),
+  projetos: (depId: string) => req<Projeto[]>(`/me/gestao/departamentos/${depId}/projetos`),
+  projeto: (id: string) => req<Projeto>(`/me/gestao/projetos/${id}`),
+  criarProjeto: (body: { departamento_id: string; nome: string; descricao?: string; briefing?: string; agente_ids?: string[] }) =>
+    req<Projeto>("/me/gestao/projetos", { method: "POST", body: JSON.stringify(body) }),
+  atualizarProjeto: (id: string, body: { nome?: string; descricao?: string; briefing?: string; status?: string; agente_ids?: string[] }) =>
+    req<Projeto>(`/me/gestao/projetos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarProjeto: (id: string) => req<void>(`/me/gestao/projetos/${id}`, { method: "DELETE" }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

@@ -473,6 +473,37 @@ class GrowthConfigUpdate(BaseModel):
     modo_aprovacao: str | None = Field(default=None, pattern="^(manual|auto)$")
 
 
+# ===================== Gestão (Empresa › Departamentos › Projetos) =====================
+class EmpresaAgentesUpdate(BaseModel):
+    agente_ids: list[str] = Field(default_factory=list)
+
+
+class DepartamentoCreate(BaseModel):
+    nome: str = Field(min_length=1)
+    agente_ids: list[str] = Field(default_factory=list)
+
+
+class DepartamentoUpdate(BaseModel):
+    nome: str | None = None
+    agente_ids: list[str] | None = None
+
+
+class ProjetoCreate(BaseModel):
+    departamento_id: str
+    nome: str = Field(min_length=1)
+    descricao: str | None = None
+    briefing: str | None = None
+    agente_ids: list[str] = Field(default_factory=list)
+
+
+class ProjetoUpdate(BaseModel):
+    nome: str | None = None
+    descricao: str | None = None
+    briefing: str | None = None
+    status: str | None = Field(default=None, pattern="^(ativo|arquivado)$")
+    agente_ids: list[str] | None = None
+
+
 # ===================== Profissionais, Serviços e Agenda =====================
 class ServicoCreate(BaseModel):
     nome: str = Field(min_length=1)
