@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API_BASE } from "@/lib/api";
 import {
-  ArrowRight, BarChart3, Bot, Calendar, Check, CheckCircle, ChevronRight, Clock, Cpu,
+  ArrowRight, Bot, Calendar, Check, CheckCircle, ChevronRight, Clock, Cpu,
   FileText, FolderKanban, Globe, Layers, Mail, Megaphone, Menu, MessageCircle, Scale,
   Shield, Sparkles, Target, TrendingUp, Users, Wallet, Workflow, X, Zap,
 } from "lucide-react";
@@ -13,7 +13,7 @@ import { Logo } from "@/components/Logo";
 /* ============================== Dados ============================== */
 
 const STATS = [
-  { valor: "14", rotulo: "agentes especialistas" },
+  { valor: "13", rotulo: "agentes especialistas" },
   { valor: "24/7", rotulo: "trabalhando pela empresa" },
   { valor: "< 1 min", rotulo: "para responder no WhatsApp" },
   { valor: "1", rotulo: "fração do custo de contratar" },
@@ -284,7 +284,7 @@ export default function LandingPage() {
               <h3 className="mb-2 text-xl font-bold tracking-tight">Captar &amp; Atender</h3>
               <p className="mb-4 text-sm leading-relaxed text-black/55">Quem chega no WhatsApp é atendido em segundos, qualificado e agendado. Anúncios e posts prontos, e relatórios do que rendeu.</p>
               <ul className="space-y-2 text-sm">
-                {["SDR atende e agenda 24/7", "Copywriting gera anúncios e posts", "Diretor de BI entrega o relatório no WhatsApp"].map((t) => (
+                {["SDR atende e agenda 24/7", "Copywriting gera anúncios e posts", "Link e QR de captação levam o cliente pro WhatsApp"].map((t) => (
                   <li key={t} className="flex items-center gap-2 text-black/70"><Check size={15} className="shrink-0 text-emerald-600" /> {t}</li>
                 ))}
               </ul>
@@ -311,7 +311,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <span className="mb-3 inline-block rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">A frente de relacionamento</span>
-            <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">Atendimento, marketing e dados — no automático</h2>
+            <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">Atendimento, marketing e bastidores — no automático</h2>
             <p className="mx-auto max-w-2xl text-black/50">Os agentes que captam e convertem a demanda que você já gera. Cada um domina a sua função.</p>
           </div>
 
@@ -359,20 +359,6 @@ export default function LandingPage() {
               </div>
             </AgentCard>
 
-            <AgentCard icon={<BarChart3 size={20} className="text-amber-600" />} tag="Relatórios · Estratégia" tagCor="bg-amber-100 text-amber-700"
-              nome="Agente Diretor de BI" desc="Toda semana mostra quantos leads entraram, quantos foram convertidos, o custo por resultado — e quantos clientes você teria perdido sem a IA. Direto no WhatsApp."
-              checks={["Leads capturados fora do horário", "Custo por conversão", "Entregue no WhatsApp toda segunda"]}>
-              <div className="rounded-lg border border-amber-200 bg-white p-3.5">
-                <div className="mb-3 flex items-end justify-between">
-                  <div><div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Conversão</div>
-                    <div className="flex items-center gap-1.5 text-xl font-bold">18%<span className="flex items-center text-[11px] font-semibold text-emerald-600"><TrendingUp size={12} />+4 pts</span></div></div>
-                  <div className="text-right"><div className="text-[10px] font-medium uppercase tracking-wide text-black/40">Custo / conversão</div><div className="text-xl font-bold">R$ 42</div></div>
-                </div>
-                <div className="flex h-14 items-end gap-1.5">
-                  {[35, 50, 42, 65, 58, 80, 92].map((h, i) => (<div key={i} className="lp-anim lp-bar flex-1 rounded-t bg-gradient-to-t from-amber-400 to-amber-300" style={{ height: `${h}%`, animationDelay: `${i * 0.08}s` }} />))}
-                </div>
-              </div>
-            </AgentCard>
           </div>
 
           {/* 10 especialistas de gestão */}
@@ -526,7 +512,7 @@ export default function LandingPage() {
                 <div className="mb-5 text-xs text-black/45">{p.para}</div>
                 <div className={`mb-5 rounded-xl px-4 py-3 text-center ${p.destaque ? "bg-brand/10" : "bg-paper"}`}><span className="text-lg font-bold">{p.creditos}</span><span className="text-sm text-black/55"> créditos/mês</span></div>
                 <ul className="mb-7 space-y-2.5 text-sm">
-                  {["Todos os 14 agentes", "Gestão por projetos", "Habilidades ilimitadas", "Análise de documentos", ...p.extras].map((f) => (
+                  {["Todos os 13 agentes", "Gestão por projetos", "Habilidades ilimitadas", "Análise de documentos", ...p.extras].map((f) => (
                     <li key={f} className="flex items-start gap-2"><Check size={15} className={`mt-0.5 shrink-0 ${p.destaque ? "text-brand" : "text-black/30"}`} /><span className="text-black/65">{f}</span></li>
                   ))}
                 </ul>
