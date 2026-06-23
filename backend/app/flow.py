@@ -2308,6 +2308,26 @@ def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
     return {"resposta": resposta}
 
 
+# ===================== Assistentes do cliente (chat) =====================
+def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
+    """Conversa do cliente com um assistente especialista (Financeiro/Jurídico/
+    Suporte/Produto). Injeta a persona (prompt.md) + as Habilidades da empresa
+    desse agente; consome créditos pelo custo real."""
+    verificar_limite(cliente_id, CREDITOS_SDR)  # bloqueia ANTES de gastar API
+    s = get_settings()
+    extra = _habilidades_texto(cliente_id, agente=agente)
+    resp = llm._client().messages.create(
+        model=s.model_assistente,
+        max_tokens=1800,
+        system=llm._system_blocks(agente, extra=extra),
+        messages=[{"role": m["role"], "content": m["content"]} for m in mensagens],
+    )
+    texto = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+    uso = pricing.from_usage(s.model_assistente, resp.usage)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "assistente", uso=uso)
+    return {"resposta": texto}
+
+
 def growth_gerar_posts(cliente_id: str, tema: str, quantidade: int = 3, tom: str = "") -> list[dict]:
     """Ghostwriter gera posts e salva como rascunhos na fila de aprovação."""
     posts, uso = growth.gerar_posts(tema, quantidade, tom)

@@ -14,6 +14,8 @@ from .schemas import (
     AgendamentoConfigUpdate,
     AgendamentoCreate,
     AgendamentoUpdate,
+    ASSISTENTES,
+    AssistenteChatRequest,
     AusenciaCreate,
     CampanhaUpdate,
     CheckoutRequest,
@@ -689,6 +691,18 @@ def growth_salvar_briefing(req: GrowthBriefingSave, cliente_id: str = Depends(au
 @app.delete("/growth/briefings/{briefing_id}", status_code=204)
 def growth_apagar_briefing(briefing_id: str, cliente_id: str = Depends(auth.superadmin_cliente_id)) -> None:
     flow.growth_apagar_briefing(cliente_id, briefing_id)
+
+
+# ===================== Assistentes do cliente (chat) =====================
+@app.post("/me/assistentes/chat")
+def assistente_chat(req: AssistenteChatRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    if req.agente not in ASSISTENTES:
+        raise HTTPException(status_code=400, detail="Assistente inválido.")
+    mensagens = [m.model_dump() for m in req.mensagens]
+    try:
+        return flow.assistente_chat(cliente_id, req.agente, mensagens)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
 
 
 # ===================== Profissionais, Serviços e Agenda =====================

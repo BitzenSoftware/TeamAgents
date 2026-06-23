@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     model_growth_comercial: str = "claude-opus-4-8"
     model_growth_diretor: str = "claude-sonnet-4-6"
 
+    # Assistentes do cliente (Financeiro, Jurídico, Suporte, Produto) — chat.
+    model_assistente: str = "claude-sonnet-4-6"
+
 
 @lru_cache
 def get_settings() -> Settings:

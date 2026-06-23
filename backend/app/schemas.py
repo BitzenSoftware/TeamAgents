@@ -108,6 +108,14 @@ class AgenteSkill(str, Enum):
     SDR = "sdr"
     BI = "bi"
     ASSISTENTE = "assistente"
+    FINANCEIRO = "financeiro"
+    JURIDICO = "juridico"
+    SUPORTE = "suporte"
+    PRODUTO = "produto"
+
+
+# Assistentes do cliente que funcionam por chat (id do agente == prompt.md dir).
+ASSISTENTES = ("financeiro", "juridico", "suporte", "produto")
 
 
 class HabilidadeCreate(BaseModel):
@@ -364,6 +372,12 @@ class GrowthMensagem(BaseModel):
 class GrowthChatRequest(BaseModel):
     """Conversa direta com um agente da diretoria (ex.: Coach de Vendas)."""
     agente: str = "growth-ceo"
+    mensagens: list[GrowthMensagem] = Field(min_length=1)
+
+
+class AssistenteChatRequest(BaseModel):
+    """Conversa do cliente com um assistente (Financeiro/Jurídico/Suporte/Produto)."""
+    agente: str
     mensagens: list[GrowthMensagem] = Field(min_length=1)
 
 

@@ -378,7 +378,9 @@ export type Plano = {
   ordem: number;
 };
 
-export type AgenteSkill = "global" | "copywriting" | "sdr" | "bi" | "assistente";
+export type AgenteSkill =
+  | "global" | "copywriting" | "sdr" | "bi" | "assistente"
+  | "financeiro" | "juridico" | "suporte" | "produto";
 
 export type Habilidade = {
   id: string;
@@ -637,6 +639,10 @@ export const api = {
     req<void>(`/growth/briefings/${id}`, { method: "DELETE" }),
   growthRefinarBriefing: (id: string, mensagem: string) =>
     req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
+
+  // --- Assistentes do cliente (chat) ---
+  assistenteChat: (agente: string, mensagens: GrowthMensagem[]) =>
+    req<{ resposta: string }>("/me/assistentes/chat", { method: "POST", body: JSON.stringify({ agente, mensagens }) }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),
