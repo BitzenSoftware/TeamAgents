@@ -2326,7 +2326,7 @@ def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
     else:
         extra = _habilidades_texto(cliente_id, ids=habilidade_ids)
     sys_blocks = llm._system_blocks(agente, extra=extra)
-    max_out = 2200
+    max_out = 4096  # relatórios/planos longos precisam de espaço para não truncar
 
     msgs = [{"role": m["role"], "content": m["content"]} for m in mensagens]
     tem_anexos = bool(doc_blocks or anexos_texto)
@@ -3049,7 +3049,7 @@ def projeto_chat(cliente_id: str, proj_id: str, agente: str, mensagem: str) -> d
     contexto = _projeto_contexto(proj)
     extra = (extra + "\n\n" + contexto) if (extra and contexto) else (contexto or extra)
     sys_blocks = llm._system_blocks(agente, extra=extra)
-    max_out = 2200
+    max_out = 4096  # relatórios/planos longos precisam de espaço para não truncar
 
     hist = projeto_mensagens_listar(cliente_id, proj_id, agente)
     msgs = [{"role": m["role"], "content": m["content"]} for m in hist]
