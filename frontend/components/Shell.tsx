@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Inbox,
+  BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Inbox,
   Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Network, Newspaper,
   Package, Scissors, Settings, Sparkles, Users, X, type LucideIcon,
 } from "lucide-react";
@@ -19,7 +19,6 @@ const NAV: NavItem[] = [
   { href: "/pipeline", label: "Agente SDR", icon: MessageCircle, grupo: "Agentes" },
   { href: "/campanhas", label: "Agente de Copywriting", icon: Megaphone, grupo: "Agentes" },
   { href: "/executivo", label: "Agente Executivo", icon: Mail, grupo: "Agentes" },
-  { href: "/consultoria", label: "Agente Diretor de BI", icon: BarChart3, grupo: "Agentes" },
   { href: "/assistentes", label: "Assistentes", icon: Bot, grupo: "Agentes" },
   { href: "/gestao", label: "Gestão", icon: Network, grupo: "Workspace" },
   { href: "/profissionais", label: "Profissionais", icon: Users, grupo: "Workspace" },

@@ -51,29 +51,7 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-  # Cron do Agente 3 (Diretor de BI) — relatório semanal por tenant.
-  # Render corre em UTC: "59 2 * * 1" = domingo 23:59 em São Paulo (UTC-3),
-  # para o dono acordar segunda com a consultoria no WhatsApp.
-  - type: cron
-    name: teamagents-bi-cron
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
-    schedule: "59 2 * * 1"
-    dockerCommand: python cron_bi_reports.py
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: WHATSAPP_API_URL
-        sync: false
-      - key: WHATSAPP_API_KEY
-        sync: false
-      - key: WHATSAPP_INSTANCE
-        sync: false
+  # (Cron do Agente Diretor de BI desativado — agente ocultado do produto.)
 
   # Cron do Agente Executivo — corre DE HORA A HORA e dispara cada tarefa
   # automática à sua hora local (campo hora+fuso). "5 * * * *" = ao minuto 5 de
