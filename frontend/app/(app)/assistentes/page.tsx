@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Wallet, Scale, LifeBuoy, Package, Send, Loader2, type LucideIcon } from "lucide-react";
+import { marked } from "marked";
 import { api, type GrowthMensagem } from "@/lib/api";
+
+function renderMd(conteudo: string): string {
+  return marked.parse(conteudo, { async: false }) as string;
+}
 
 type Assistente = { id: string; nome: string; chip: string; cor: string; icon: LucideIcon; intro: string; exemplos: string[] };
 
@@ -112,11 +117,14 @@ export default function AssistentesPage() {
                 const meu = m.role === "user";
                 return (
                   <div key={i} className={`flex ${meu ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
-                      meu ? "rounded-br-sm bg-brand text-white" : "rounded-bl-sm border border-black/10 bg-paper text-black/80"
-                    }`}>
-                      {m.content}
-                    </div>
+                    {meu ? (
+                      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand px-3.5 py-2 text-sm leading-relaxed text-white">
+                        {m.content}
+                      </div>
+                    ) : (
+                      <div className="md max-w-[85%] rounded-2xl rounded-bl-sm border border-black/10 bg-paper px-3.5 py-2 text-sm leading-relaxed text-black/80"
+                        dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+                    )}
                   </div>
                 );
               })}
@@ -142,6 +150,20 @@ export default function AssistentesPage() {
           </div>
         </section>
       </div>
+
+      <style>{`
+        .md p{margin:.35rem 0}
+        .md p:first-child{margin-top:0}
+        .md p:last-child{margin-bottom:0}
+        .md ul,.md ol{margin:.35rem 0;padding-left:1.15rem;list-style:revert}
+        .md li{margin:.15rem 0}
+        .md strong{font-weight:600}
+        .md h1,.md h2,.md h3{font-weight:700;margin:.5rem 0 .25rem}
+        .md code{background:rgba(0,0,0,.06);padding:.05rem .25rem;border-radius:.25rem;font-size:.85em}
+        .md table{border-collapse:collapse;margin:.4rem 0;font-size:.9em}
+        .md th,.md td{border:1px solid rgba(0,0,0,.15);padding:.2rem .45rem;text-align:left}
+        .md a{color:#4f46e5;text-decoration:underline}
+      `}</style>
     </div>
   );
 }
