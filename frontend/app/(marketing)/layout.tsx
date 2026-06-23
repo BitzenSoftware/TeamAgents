@@ -4,25 +4,26 @@ const SITE = "https://teamagents.bitzen.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
-  title: "Chatbot e Agendamento Automático no WhatsApp para Clínicas de Estética | TeamAgents",
+  title: "TeamAgents — A equipe de IA da sua empresa (WhatsApp, finanças, jurídico e mais)",
   description:
-    "Automatize a recepção da sua clínica de estética no WhatsApp com IA: chatbot que atende, qualifica pacientes e faz agendamento automático 24/7, sem recepcionista. A partir de R$ 179/mês.",
+    "Uma equipe de agentes de IA para a sua empresa: atende e capta clientes no WhatsApp, e dá especialistas em finanças, jurídico, projetos e estratégia que conhecem o seu negócio. 24/7, a partir de R$ 179/mês.",
   keywords: [
-    "chatbot para clínica de estética",
-    "chatbot WhatsApp clínica de estética",
-    "agendamento automático WhatsApp",
-    "automação WhatsApp clínica de estética",
-    "recepcionista virtual clínica de estética",
-    "IA para atendimento de clínica de estética",
-    "software para clínica de estética",
-    "chatbot para clínica de harmonização",
+    "agentes de IA para empresas",
+    "equipe de IA",
+    "assistente de IA para empresas",
+    "chatbot de atendimento no WhatsApp",
+    "IA para pequenas e médias empresas",
+    "automação de atendimento com IA",
+    "agente financeiro de IA",
+    "agente jurídico de IA",
+    "gestão com inteligência artificial",
   ],
   alternates: { canonical: SITE },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Chatbot e agendamento automático no WhatsApp para clínicas de estética",
+    title: "TeamAgents — a equipe de IA da sua empresa",
     description:
-      "IA que atende cada mensagem em segundos, qualifica pacientes e agenda a avaliação sozinha — 24/7. A partir de R$ 179/mês.",
+      "Atende clientes no WhatsApp e cuida da gestão (financeiro, jurídico, projetos, estratégia) com agentes de IA que conhecem o seu negócio. 24/7, a partir de R$ 179/mês.",
     url: SITE,
     siteName: "TeamAgents",
     type: "website",
@@ -30,8 +31,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Dados estruturados (Schema.org) — ajuda o Google a entender o produto.
-// Sem aggregateRating: não inventamos avaliações (violaria as diretrizes do Google).
+// Dados estruturados (Schema.org). Sem aggregateRating: não inventamos avaliações.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -40,14 +40,15 @@ const JSON_LD = {
   operatingSystem: "Web",
   url: SITE,
   description:
-    "Chatbot de IA e agendamento automático no WhatsApp para clínicas de estética. Atende, qualifica pacientes, responde preço e agenda a avaliação 24/7.",
+    "Plataforma de agentes de IA para empresas: atendimento e captação no WhatsApp + especialistas em finanças, jurídico, RH, projetos e estratégia, com gestão por projetos e análise de documentos.",
   offers: { "@type": "Offer", price: "179.00", priceCurrency: "BRL" },
   featureList: [
-    "Chatbot de atendimento no WhatsApp 24/7",
-    "Agendamento automático na agenda (Cal.com)",
-    "Qualificação de pacientes",
+    "Atendimento e captação no WhatsApp 24/7",
     "Criação e publicação de anúncios no Instagram e Facebook",
     "Relatórios semanais de resultado",
+    "10 agentes especialistas (financeiro, jurídico, RH, projetos, estratégia e mais)",
+    "Gestão por departamentos e projetos com análise de documentos",
+    "Relatórios e planos de ação em PDF",
   ],
 };
 
