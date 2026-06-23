@@ -76,6 +76,16 @@ def soma(usos: list[UsoLLM]) -> UsoLLM:
     )
 
 
+def estimar_custo(modelo: str, input_tokens: int, output_tokens: int) -> float:
+    """Estimativa de custo USD a partir de contagem de tokens (input/output).
+
+    Usada para PRÉ-COBRAR mensagens com anexo: garante que o cliente tem saldo
+    antes de gastar a API. Conservador (preço cheio de input, sem desconto de cache).
+    """
+    p_in, p_out = PRECO_USD_POR_1M.get(modelo, _PRECO_FALLBACK)
+    return (input_tokens * p_in + output_tokens * p_out) / 1_000_000.0
+
+
 def creditos_de_custo(custo_usd: float, minimo: int = 1) -> int:
     """Converte custo USD em créditos (arredonda p/ cima), nunca abaixo do piso."""
     upc = get_settings().usd_por_credito or 0.004

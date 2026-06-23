@@ -2320,16 +2320,18 @@ def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
     doc_blocks/anexos_texto -> arquivos enviados nesta mensagem (PDF nativo +
     texto extraído de CSV/Word/Excel), anexados à última mensagem do usuário.
     """
-    verificar_limite(cliente_id, CREDITOS_SDR)  # bloqueia ANTES de gastar API
     s = get_settings()
     if habilidade_ids is None:
         extra = _habilidades_texto(cliente_id, agente=agente)
     else:
         extra = _habilidades_texto(cliente_id, ids=habilidade_ids)
+    sys_blocks = llm._system_blocks(agente, extra=extra)
+    max_out = 2200
 
     msgs = [{"role": m["role"], "content": m["content"]} for m in mensagens]
+    tem_anexos = bool(doc_blocks or anexos_texto)
     # Anexa os arquivos à última mensagem do usuário (texto extraído + PDFs nativos).
-    if (doc_blocks or anexos_texto) and msgs and msgs[-1]["role"] == "user":
+    if tem_anexos and msgs and msgs[-1]["role"] == "user":
         texto_user = msgs[-1]["content"]
         if anexos_texto:
             texto_user += "\n\n## Conteúdo dos arquivos anexados\n" + anexos_texto
@@ -2337,10 +2339,24 @@ def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
         conteudo.extend(doc_blocks or [])
         msgs[-1] = {"role": "user", "content": conteudo}
 
+    # Trava de saldo ANTES de gastar a API. Sem anexo: piso barato (1). Com anexo:
+    # estima o custo real (conta os tokens da requisição, inclui PDFs) e exige esse
+    # saldo — arquivo grande consome o saldo do cliente, sem prejuízo nosso.
+    if tem_anexos:
+        try:
+            ct = llm._client().messages.count_tokens(model=s.model_assistente, system=sys_blocks, messages=msgs)
+            est_in = int(getattr(ct, "input_tokens", 0) or 0)
+        except Exception:
+            est_in = 0
+        est_usd = pricing.estimar_custo(s.model_assistente, est_in, max_out)
+        verificar_limite(cliente_id, pricing.creditos_de_custo(est_usd, minimo=CREDITOS_SDR))
+    else:
+        verificar_limite(cliente_id, CREDITOS_SDR)
+
     resp = llm._client().messages.create(
         model=s.model_assistente,
-        max_tokens=2200,
-        system=llm._system_blocks(agente, extra=extra),
+        max_tokens=max_out,
+        system=sys_blocks,
         messages=msgs,
     )
     texto = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
