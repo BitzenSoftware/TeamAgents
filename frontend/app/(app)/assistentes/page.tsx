@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Wallet, Scale, LifeBuoy, Package, Send, Loader2,
-  Users, ShieldCheck, FolderKanban, Target, TrendingUp, type LucideIcon,
+  Users, ShieldCheck, FolderKanban, Target, TrendingUp, Workflow, type LucideIcon,
 } from "lucide-react";
 import { marked } from "marked";
 import { api, type GrowthMensagem } from "@/lib/api";
@@ -59,6 +59,11 @@ const ASSISTENTES: Assistente[] = [
     id: "crescimento", nome: "Agente de Growth", chip: "Growth", cor: "text-emerald-600", icon: TrendingUp,
     intro: "Aquisição, retenção, monetização e experimentos.",
     exemplos: ["Sugira 3 experimentos pra trazer mais clientes", "Como reduzir o churn?", "Ideias de upsell pra aumentar a receita"],
+  },
+  {
+    id: "operacoes", nome: "Agente de Operações", chip: "Operações", cor: "text-slate-600", icon: Workflow,
+    intro: "Processos, SOPs, rotinas e eficiência — um negócio previsível.",
+    exemplos: ["Mapeie meu processo de atendimento e ache gargalos", "Crie um SOP para o agendamento", "Monte um checklist de onboarding de funcionário"],
   },
 ];
 

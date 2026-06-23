@@ -18,6 +18,7 @@ const AGENTES: { valor: AgenteSkill; label: string }[] = [
   { valor: "projetos", label: "Agente de Projetos" },
   { valor: "estrategia", label: "Agente de Estratégia" },
   { valor: "crescimento", label: "Agente de Growth" },
+  { valor: "operacoes", label: "Agente de Operações" },
 ];
 
 const AGENTE_LABEL: Record<AgenteSkill, string> = Object.fromEntries(
@@ -113,7 +114,7 @@ export default function HabilidadesPage() {
         </p>
         {/* Filtro por agente */}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {(["todos", "global", "copywriting", "sdr", "bi", "assistente", "financeiro", "juridico", "suporte", "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento"] as (AgenteSkill | "todos")[]).map(
+          {(["todos", "global", "copywriting", "sdr", "bi", "assistente", "financeiro", "juridico", "suporte", "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes"] as (AgenteSkill | "todos")[]).map(
             (v) => {
               const ativo = filtro === v;
               const label = v === "todos" ? "Todos" : AGENTE_LABEL[v];

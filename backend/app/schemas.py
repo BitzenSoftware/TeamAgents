@@ -117,12 +117,13 @@ class AgenteSkill(str, Enum):
     PROJETOS = "projetos"
     ESTRATEGIA = "estrategia"
     CRESCIMENTO = "crescimento"
+    OPERACOES = "operacoes"
 
 
 # Assistentes do cliente que funcionam por chat (id do agente == prompt.md dir).
 ASSISTENTES = (
     "financeiro", "juridico", "suporte", "produto",
-    "rh", "auditoria", "projetos", "estrategia", "crescimento",
+    "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes",
 )
 
 
