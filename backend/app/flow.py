@@ -2878,9 +2878,22 @@ def departamentos_listar(cliente_id: str) -> list[dict]:
     return deps
 
 
+def _ensure_empresa_ativos(cliente_id: str, ids: list[str]) -> None:
+    """Autosserviço: garante que os agentes usados num depto estão ativos na empresa
+    (nunca descarta seleção em silêncio)."""
+    if not ids:
+        return
+    atuais = set(gestao_agentes_get(cliente_id))
+    novos = [i for i in ids if i not in atuais]
+    if novos:
+        get_db().table("gestao_empresa_agentes").insert(
+            [{"cliente_id": cliente_id, "agente_id": i} for i in novos]
+        ).execute()
+
+
 def departamento_criar(cliente_id: str, nome: str, agente_ids: list[str]) -> dict:
-    ativos = set(gestao_agentes_get(cliente_id))
-    ids = [i for i in _agentes_validos(agente_ids) if i in ativos]  # ⊆ empresa
+    ids = _agentes_validos(agente_ids)  # ⊆ os 10
+    _ensure_empresa_ativos(cliente_id, ids)  # auto-ativa na empresa (autosserviço)
     dep = get_db().table("departamentos").insert({"cliente_id": cliente_id, "nome": nome}).execute().data[0]
     _set_link_agentes("departamento_agentes", "departamento_id", dep["id"], ids)
     dep["agente_ids"] = ids
@@ -2894,8 +2907,8 @@ def departamento_atualizar(cliente_id: str, dep_id: str, patch: dict) -> dict | 
     if patch.get("nome"):
         db.table("departamentos").update({"nome": patch["nome"]}).eq("id", dep_id).execute()
     if patch.get("agente_ids") is not None:
-        ativos = set(gestao_agentes_get(cliente_id))
-        ids = [i for i in _agentes_validos(patch["agente_ids"]) if i in ativos]
+        ids = _agentes_validos(patch["agente_ids"])  # ⊆ os 10
+        _ensure_empresa_ativos(cliente_id, ids)      # auto-ativa na empresa (autosserviço)
         _set_link_agentes("departamento_agentes", "departamento_id", dep_id, ids)
         # poda projetos deste depto para ⊆ novos agentes do depto
         depset = set(ids)

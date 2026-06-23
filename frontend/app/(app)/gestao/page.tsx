@@ -33,6 +33,19 @@ export default function GestaoPage() {
 
   const depAtual = deps.find((d) => d.id === depSel) ?? null;
 
+  // Liga/desliga um agente da empresa e SALVA na hora (sem botão extra).
+  async function toggleEmpresa(id: string) {
+    const novo = ativos.includes(id) ? ativos.filter((x) => x !== id) : [...ativos, id];
+    setAtivos(novo);
+    try {
+      const r = await api.gestaoSetAgentes(novo);
+      setAtivos(r.ativos);
+      carregarDeps();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <div className="p-6">
       <header className="mb-5">
@@ -61,7 +74,7 @@ export default function GestaoPage() {
             if (!editandoEmpresa && !on) return null;
             return (
               <button key={a.id} type="button" disabled={!editandoEmpresa}
-                onClick={() => setAtivos((l) => l.includes(a.id) ? l.filter((x) => x !== a.id) : [...l, a.id])}
+                onClick={() => toggleEmpresa(a.id)}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                   on ? "border-brand bg-brand/10 text-brand" : "border-black/15 text-black/50"
                 } ${editandoEmpresa ? "cursor-pointer hover:bg-black/[0.03]" : ""}`}>
@@ -75,10 +88,7 @@ export default function GestaoPage() {
           )}
         </div>
         {editandoEmpresa && (
-          <button onClick={async () => { const r = await api.gestaoSetAgentes(ativos); setAtivos(r.ativos); setEditandoEmpresa(false); carregarDeps(); }}
-            className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-            Salvar agentes da empresa
-          </button>
+          <p className="mt-2 text-[11px] text-black/40">As mudanças são salvas automaticamente ao clicar em cada agente.</p>
         )}
       </section>
 
