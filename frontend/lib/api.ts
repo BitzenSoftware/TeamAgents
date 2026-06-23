@@ -380,7 +380,8 @@ export type Plano = {
 
 export type AgenteSkill =
   | "global" | "copywriting" | "sdr" | "bi" | "assistente"
-  | "financeiro" | "juridico" | "suporte" | "produto";
+  | "financeiro" | "juridico" | "suporte" | "produto"
+  | "rh" | "auditoria" | "projetos" | "estrategia" | "crescimento";
 
 export type Habilidade = {
   id: string;

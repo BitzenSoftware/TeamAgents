@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Wallet, Scale, LifeBuoy, Package, Send, Loader2, type LucideIcon } from "lucide-react";
+import {
+  Wallet, Scale, LifeBuoy, Package, Send, Loader2,
+  Users, ShieldCheck, FolderKanban, Target, TrendingUp, type LucideIcon,
+} from "lucide-react";
 import { marked } from "marked";
 import { api, type GrowthMensagem } from "@/lib/api";
 
@@ -31,6 +34,31 @@ const ASSISTENTES: Assistente[] = [
     id: "produto", nome: "Agente de Produto", chip: "Produto", cor: "text-amber-600", icon: Package,
     intro: "Estratégia de oferta: pacotes, posicionamento e novas frentes.",
     exemplos: ["Sugira combos de serviços pra aumentar o ticket", "Como posicionar meu serviço premium?", "Vale a pena lançar um novo serviço X?"],
+  },
+  {
+    id: "rh", nome: "Agente de RH / Pessoas", chip: "RH", cor: "text-rose-600", icon: Users,
+    intro: "Contratar melhor, desenvolver pessoas e reduzir risco trabalhista.",
+    exemplos: ["Crie uma descrição de vaga para recepcionista", "Monte um roteiro de entrevista", "Como dar um feedback difícil?"],
+  },
+  {
+    id: "auditoria", nome: "Agente de Auditoria Interna", chip: "Auditoria", cor: "text-teal-600", icon: ShieldCheck,
+    intro: "Identifica riscos, inconsistências e oportunidades de melhoria.",
+    exemplos: ["Revise meu processo de agendamento e aponte riscos", "Estou em dia com a LGPD?", "Onde posso estar perdendo dinheiro?"],
+  },
+  {
+    id: "projetos", nome: "Agente de Projetos", chip: "Projetos", cor: "text-cyan-600", icon: FolderKanban,
+    intro: "Organiza entregas, prazos, riscos e comunicação.",
+    exemplos: ["Monte um plano para inaugurar uma nova sala", "Quais riscos desse projeto?", "Crie um cronograma de 4 semanas"],
+  },
+  {
+    id: "estrategia", nome: "Agente de Estratégia", chip: "Estratégia", cor: "text-violet-600", icon: Target,
+    intro: "Visão macro, decisões difíceis, OKRs e priorização.",
+    exemplos: ["Defina meus OKRs do trimestre", "Vale mais investir em anúncio ou contratar?", "Me ajude a priorizar o que fazer primeiro"],
+  },
+  {
+    id: "crescimento", nome: "Agente de Growth", chip: "Growth", cor: "text-emerald-600", icon: TrendingUp,
+    intro: "Aquisição, retenção, monetização e experimentos.",
+    exemplos: ["Sugira 3 experimentos pra trazer mais clientes", "Como reduzir o churn?", "Ideias de upsell pra aumentar a receita"],
   },
 ];
 

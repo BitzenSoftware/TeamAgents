@@ -112,10 +112,18 @@ class AgenteSkill(str, Enum):
     JURIDICO = "juridico"
     SUPORTE = "suporte"
     PRODUTO = "produto"
+    RH = "rh"
+    AUDITORIA = "auditoria"
+    PROJETOS = "projetos"
+    ESTRATEGIA = "estrategia"
+    CRESCIMENTO = "crescimento"
 
 
 # Assistentes do cliente que funcionam por chat (id do agente == prompt.md dir).
-ASSISTENTES = ("financeiro", "juridico", "suporte", "produto")
+ASSISTENTES = (
+    "financeiro", "juridico", "suporte", "produto",
+    "rh", "auditoria", "projetos", "estrategia", "crescimento",
+)
 
 
 class HabilidadeCreate(BaseModel):
