@@ -306,6 +306,7 @@ export type Projeto = {
   created_at: string;
   updated_at: string;
 };
+export type ProjetoDocumento = { id: string; nome: string; conteudo: string; created_at: string };
 
 // --- Profissionais, Serviços e Agenda ---
 export type Servico = {
@@ -696,6 +697,30 @@ export const api = {
   atualizarProjeto: (id: string, body: { nome?: string; descricao?: string; briefing?: string; status?: string; agente_ids?: string[] }) =>
     req<Projeto>(`/me/gestao/projetos/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarProjeto: (id: string) => req<void>(`/me/gestao/projetos/${id}`, { method: "DELETE" }),
+  // Documentos do projeto (contexto compartilhado)
+  projetoDocumentos: (projId: string) => req<ProjetoDocumento[]>(`/me/gestao/projetos/${projId}/documentos`),
+  projetoApagarDocumento: (projId: string, docId: string) =>
+    req<void>(`/me/gestao/projetos/${projId}/documentos/${docId}`, { method: "DELETE" }),
+  projetoUploadDocumentos: async (projId: string, arquivos: File[]) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const fd = new FormData();
+    for (const f of arquivos) fd.append("arquivos", f);
+    const res = await fetch(`${BASE}/me/gestao/projetos/${projId}/documentos`, {
+      method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd, cache: "no-store",
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const b = await res.json(); detail = msgDoDetalhe(b.detail) ?? detail; } catch { /* ignore */ }
+      throw new ApiError(res.status, detail);
+    }
+    return res.json() as Promise<ProjetoDocumento[]>;
+  },
+  // Chat persistido por agente dentro do projeto
+  projetoMensagens: (projId: string, agente: string) =>
+    req<GrowthMensagem[]>(`/me/gestao/projetos/${projId}/mensagens?agente=${encodeURIComponent(agente)}`),
+  projetoChat: (projId: string, agente: string, mensagem: string) =>
+    req<{ resposta: string }>(`/me/gestao/projetos/${projId}/chat`, { method: "POST", body: JSON.stringify({ agente, mensagem }) }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

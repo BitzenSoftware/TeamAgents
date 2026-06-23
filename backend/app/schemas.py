@@ -504,6 +504,11 @@ class ProjetoUpdate(BaseModel):
     agente_ids: list[str] | None = None
 
 
+class ProjetoChatRequest(BaseModel):
+    agente: str
+    mensagem: str = Field(min_length=1)
+
+
 # ===================== Profissionais, Serviços e Agenda =====================
 class ServicoCreate(BaseModel):
     nome: str = Field(min_length=1)

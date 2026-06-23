@@ -2971,3 +2971,93 @@ def projeto_atualizar(cliente_id: str, proj_id: str, patch: dict) -> dict | None
 
 def projeto_apagar(cliente_id: str, proj_id: str) -> None:
     get_db().table("projetos").delete().eq("id", proj_id).eq("cliente_id", cliente_id).execute()
+
+
+# ---- Documentos do projeto (contexto compartilhado) ----
+_PDOC_COLS = "id, nome, conteudo, created_at"
+
+
+def projeto_documentos_listar(cliente_id: str, proj_id: str) -> list[dict]:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return []
+    rows = get_db().table("projeto_documentos").select(_PDOC_COLS).eq("projeto_id", proj_id).execute().data or []
+    rows.sort(key=lambda r: r.get("created_at") or "")
+    return rows
+
+
+def projeto_documento_add(cliente_id: str, proj_id: str, nome: str, conteudo: str) -> dict | None:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return None
+    row = {"projeto_id": proj_id, "nome": nome, "conteudo": (conteudo or "")[:80_000]}
+    return get_db().table("projeto_documentos").insert(row).execute().data[0]
+
+
+def projeto_documento_apagar(cliente_id: str, proj_id: str, doc_id: str) -> None:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return
+    get_db().table("projeto_documentos").delete().eq("id", doc_id).eq("projeto_id", proj_id).execute()
+
+
+def _projeto_contexto(proj: dict) -> str:
+    partes: list[str] = []
+    if proj.get("briefing"):
+        partes.append("### Briefing do projeto\n" + proj["briefing"])
+    docs = get_db().table("projeto_documentos").select("nome, conteudo").eq("projeto_id", proj["id"]).execute().data or []
+    for d in docs:
+        if d.get("conteudo"):
+            partes.append(f"### Documento: {d['nome']}\n{d['conteudo']}")
+    if not partes:
+        return ""
+    return (f"## Contexto do projeto '{proj.get('nome', '')}' (compartilhado por todos os agentes)\n"
+            + "\n\n".join(partes))
+
+
+# ---- Conversas do projeto (persistidas por agente) ----
+def projeto_mensagens_listar(cliente_id: str, proj_id: str, agente: str) -> list[dict]:
+    if not _proj_do_cliente(cliente_id, proj_id):
+        return []
+    rows = (get_db().table("projeto_mensagens").select("role, content, created_at")
+            .eq("projeto_id", proj_id).eq("agente_id", agente).execute().data or [])
+    rows.sort(key=lambda r: r.get("created_at") or "")
+    return rows
+
+
+def projeto_chat(cliente_id: str, proj_id: str, agente: str, mensagem: str) -> dict | None:
+    """Chat com um agente DENTRO de um projeto: injeta Habilidades + contexto do
+    projeto (briefing + documentos) + histórico persistido; cobra por uso real."""
+    proj = _proj_do_cliente(cliente_id, proj_id)
+    if not proj:
+        return None
+    if agente not in _link_agentes("projeto_agentes", "projeto_id", proj_id):
+        raise ValueError("Agente não faz parte deste projeto.")
+
+    s = get_settings()
+    extra = _habilidades_texto(cliente_id, agente=agente)
+    contexto = _projeto_contexto(proj)
+    extra = (extra + "\n\n" + contexto) if (extra and contexto) else (contexto or extra)
+    sys_blocks = llm._system_blocks(agente, extra=extra)
+    max_out = 2200
+
+    hist = projeto_mensagens_listar(cliente_id, proj_id, agente)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in hist]
+    msgs.append({"role": "user", "content": mensagem})
+
+    # Pré-cobrança pelo custo estimado (projeto costuma ter contexto grande).
+    try:
+        ct = llm._client().messages.count_tokens(model=s.model_assistente, system=sys_blocks, messages=msgs)
+        est_in = int(getattr(ct, "input_tokens", 0) or 0)
+    except Exception:
+        est_in = 0
+    est_usd = pricing.estimar_custo(s.model_assistente, est_in, max_out)
+    verificar_limite(cliente_id, pricing.creditos_de_custo(est_usd, minimo=CREDITOS_SDR))
+
+    resp = llm._client().messages.create(model=s.model_assistente, max_tokens=max_out, system=sys_blocks, messages=msgs)
+    texto = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+    uso = pricing.from_usage(s.model_assistente, resp.usage)
+    consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "assistente", uso=uso)
+
+    get_db().table("projeto_mensagens").insert([
+        {"projeto_id": proj_id, "agente_id": agente, "role": "user", "content": mensagem},
+        {"projeto_id": proj_id, "agente_id": agente, "role": "assistant", "content": texto},
+    ]).execute()
+    return {"resposta": texto}

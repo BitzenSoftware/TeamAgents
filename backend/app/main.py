@@ -23,6 +23,7 @@ from .schemas import (
     DepartamentoCreate,
     DepartamentoUpdate,
     EmpresaAgentesUpdate,
+    ProjetoChatRequest,
     ProjetoCreate,
     ProjetoUpdate,
     CheckoutRequest,
@@ -810,6 +811,57 @@ def projeto_atualizar(proj_id: str, payload: ProjetoUpdate, cliente_id: str = De
 @app.delete("/me/gestao/projetos/{proj_id}", status_code=204)
 def projeto_apagar(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.projeto_apagar(cliente_id, proj_id)
+
+
+# --- Documentos do projeto (contexto compartilhado) ---
+@app.get("/me/gestao/projetos/{proj_id}/documentos")
+def projeto_documentos_listar(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.projeto_documentos_listar(cliente_id, proj_id)
+
+
+@app.post("/me/gestao/projetos/{proj_id}/documentos", status_code=201)
+async def projeto_documentos_add(
+    proj_id: str,
+    arquivos: list[UploadFile] = File(default=[]),
+    cliente_id: str = Depends(auth.current_cliente_id),
+) -> list[dict]:
+    salvos: list[dict] = []
+    for f in (arquivos or [])[: anexos.MAX_FILES]:
+        data = await f.read()
+        if not data:
+            continue
+        if len(data) > anexos.MAX_BYTES:
+            raise HTTPException(status_code=413, detail=f"Arquivo '{f.filename}' excede 15 MB.")
+        texto = anexos.extrair_texto(f.filename or "arquivo", data)
+        doc = flow.projeto_documento_add(cliente_id, proj_id, f.filename or "arquivo", texto)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+        salvos.append(doc)
+    return salvos
+
+
+@app.delete("/me/gestao/projetos/{proj_id}/documentos/{doc_id}", status_code=204)
+def projeto_documento_apagar(proj_id: str, doc_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
+    flow.projeto_documento_apagar(cliente_id, proj_id, doc_id)
+
+
+# --- Chat persistido por agente dentro do projeto ---
+@app.get("/me/gestao/projetos/{proj_id}/mensagens")
+def projeto_mensagens_listar(proj_id: str, agente: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return flow.projeto_mensagens_listar(cliente_id, proj_id, agente)
+
+
+@app.post("/me/gestao/projetos/{proj_id}/chat")
+def projeto_chat(proj_id: str, req: ProjetoChatRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        res = flow.projeto_chat(cliente_id, proj_id, req.agente, req.mensagem)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not res:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return res
 
 
 # ===================== Profissionais, Serviços e Agenda =====================

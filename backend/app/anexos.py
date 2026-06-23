@@ -73,3 +73,22 @@ def processar_anexo(filename: str, data: bytes) -> tuple[list[dict], str]:
 
     # Tipo não suportado — ignora silenciosamente (a UI já filtra os aceitos).
     return [], ""
+
+
+def extrair_texto(filename: str, data: bytes) -> str:
+    """Extrai SÓ texto de um arquivo (inclui PDF via pypdf) — para o contexto
+    persistido de projetos (injetado a todos os agentes como texto)."""
+    ext = (filename.rsplit(".", 1)[-1] if "." in filename else "").lower()
+
+    if ext == "pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            txt = "\n".join((p.extract_text() or "") for p in reader.pages)
+            return txt[:MAX_CHARS] or "(PDF sem texto extraível — pode ser digitalizado/imagem)"
+        except Exception:
+            return "(não foi possível ler o PDF)"
+
+    # CSV/TXT/DOCX/XLSX reaproveitam o extrator de texto já existente.
+    _, txt = processar_anexo(filename, data)
+    return txt

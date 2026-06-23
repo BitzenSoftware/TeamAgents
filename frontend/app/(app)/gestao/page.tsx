@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Trash2, Pencil, FolderKanban, Check } from "lucide-react";
 import { api, type Departamento, type Projeto } from "@/lib/api";
 import { AGENTES_CATALOGO, agenteInfo } from "@/lib/agentes";
 
+// Abre a janela do projeto numa aba própria do navegador.
+const abrirProjeto = (pid: string) => window.open(`/gestao/projeto/${pid}`, "_blank", "noopener");
+
 export default function GestaoPage() {
-  const router = useRouter();
   const [ativos, setAtivos] = useState<string[]>([]);
   const [deps, setDeps] = useState<Departamento[]>([]);
   const [depSel, setDepSel] = useState<string | null>(null);
@@ -143,7 +144,7 @@ export default function GestaoPage() {
                   {projetos.map((p) => (
                     <div key={p.id} className="rounded-xl border border-black/10 bg-white p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <button onClick={() => router.push(`/gestao/projeto/${p.id}`)} className="min-w-0 flex-1 text-left">
+                        <button onClick={() => abrirProjeto(p.id)} className="min-w-0 flex-1 text-left">
                           <div className="flex items-center gap-2">
                             <FolderKanban size={15} className="shrink-0 text-brand" />
                             <span className="truncate font-semibold">{p.nome}</span>
@@ -162,9 +163,9 @@ export default function GestaoPage() {
                           return <span key={id} className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] text-black/55">{info?.chip ?? id}</span>;
                         })}
                       </div>
-                      <button onClick={() => router.push(`/gestao/projeto/${p.id}`)}
+                      <button onClick={() => abrirProjeto(p.id)}
                         className="mt-3 w-full rounded-lg border border-black/15 py-1.5 text-xs font-medium text-black/70 hover:bg-black/[0.03]">
-                        Abrir projeto →
+                        Abrir projeto ↗
                       </button>
                     </div>
                   ))}
