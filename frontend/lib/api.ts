@@ -641,12 +641,28 @@ export const api = {
   growthRefinarBriefing: (id: string, mensagem: string) =>
     req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
 
-  // --- Assistentes do cliente (chat) ---
-  assistenteChat: (agente: string, mensagens: GrowthMensagem[], habilidadeIds?: string[]) =>
-    req<{ resposta: string }>("/me/assistentes/chat", {
+  // --- Assistentes do cliente (chat, multipart com anexos opcionais) ---
+  assistenteChat: async (agente: string, mensagens: GrowthMensagem[], habilidadeIds?: string[], arquivos?: File[]) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    const fd = new FormData();
+    fd.append("agente", agente);
+    fd.append("mensagens", JSON.stringify(mensagens));
+    if (habilidadeIds) fd.append("habilidade_ids", JSON.stringify(habilidadeIds));
+    for (const f of arquivos ?? []) fd.append("arquivos", f);
+    const res = await fetch(`${BASE}/me/assistentes/chat`, {
       method: "POST",
-      body: JSON.stringify({ agente, mensagens, habilidade_ids: habilidadeIds }),
-    }),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const b = await res.json(); detail = msgDoDetalhe(b.detail) ?? detail; } catch { /* ignore */ }
+      throw new ApiError(res.status, detail);
+    }
+    return res.json() as Promise<{ resposta: string }>;
+  },
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

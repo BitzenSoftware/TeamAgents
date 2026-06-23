@@ -2310,12 +2310,15 @@ def growth_chat(cliente_id: str, agente: str, mensagens: list[dict]) -> dict:
 
 # ===================== Assistentes do cliente (chat) =====================
 def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
-                    habilidade_ids: list[str] | None = None) -> dict:
+                    habilidade_ids: list[str] | None = None,
+                    doc_blocks: list[dict] | None = None, anexos_texto: str = "") -> dict:
     """Conversa do cliente com um assistente especialista. Injeta a persona
-    (prompt.md) + as Habilidades escolhidas; consome créditos pelo custo real.
+    (prompt.md) + as Habilidades escolhidas + eventuais ANEXOS; consome créditos.
 
     habilidade_ids=None -> todas as ativas do agente + globais (padrão).
     habilidade_ids=[...] -> apenas essas. [] -> nenhuma.
+    doc_blocks/anexos_texto -> arquivos enviados nesta mensagem (PDF nativo +
+    texto extraído de CSV/Word/Excel), anexados à última mensagem do usuário.
     """
     verificar_limite(cliente_id, CREDITOS_SDR)  # bloqueia ANTES de gastar API
     s = get_settings()
@@ -2323,11 +2326,22 @@ def assistente_chat(cliente_id: str, agente: str, mensagens: list[dict],
         extra = _habilidades_texto(cliente_id, agente=agente)
     else:
         extra = _habilidades_texto(cliente_id, ids=habilidade_ids)
+
+    msgs = [{"role": m["role"], "content": m["content"]} for m in mensagens]
+    # Anexa os arquivos à última mensagem do usuário (texto extraído + PDFs nativos).
+    if (doc_blocks or anexos_texto) and msgs and msgs[-1]["role"] == "user":
+        texto_user = msgs[-1]["content"]
+        if anexos_texto:
+            texto_user += "\n\n## Conteúdo dos arquivos anexados\n" + anexos_texto
+        conteudo: list[dict] = [{"type": "text", "text": texto_user}]
+        conteudo.extend(doc_blocks or [])
+        msgs[-1] = {"role": "user", "content": conteudo}
+
     resp = llm._client().messages.create(
         model=s.model_assistente,
-        max_tokens=1800,
+        max_tokens=2200,
         system=llm._system_blocks(agente, extra=extra),
-        messages=[{"role": m["role"], "content": m["content"]} for m in mensagens],
+        messages=msgs,
     )
     texto = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
     uso = pricing.from_usage(s.model_assistente, resp.usage)

@@ -4,11 +4,13 @@ Fluxo crítico do WhatsApp (passo 3 do plano):
 o webhook salva o mínimo, agenda a tarefa em background e devolve 200 OK em
 < 2s. O agente (que pode demorar) corre DEPOIS, fora da request.
 """
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request
+import json
+
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
 
-from . import auth, billing, evolution, flow
+from . import anexos, auth, billing, evolution, flow
 from .config import get_settings
 from .schemas import (
     AgendamentoConfigUpdate,
@@ -695,12 +697,40 @@ def growth_apagar_briefing(briefing_id: str, cliente_id: str = Depends(auth.supe
 
 # ===================== Assistentes do cliente (chat) =====================
 @app.post("/me/assistentes/chat")
-def assistente_chat(req: AssistenteChatRequest, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
-    if req.agente not in ASSISTENTES:
+async def assistente_chat(
+    agente: str = Form(...),
+    mensagens: str = Form(...),               # JSON: [{role, content}, ...]
+    habilidade_ids: str | None = Form(None),  # JSON: ["id", ...] | null
+    arquivos: list[UploadFile] = File(default=[]),
+    cliente_id: str = Depends(auth.current_cliente_id),
+) -> dict:
+    """Chat do assistente (multipart): aceita 0+ anexos (PDF/CSV/Word/Excel)."""
+    if agente not in ASSISTENTES:
         raise HTTPException(status_code=400, detail="Assistente inválido.")
-    mensagens = [m.model_dump() for m in req.mensagens]
     try:
-        return flow.assistente_chat(cliente_id, req.agente, mensagens, habilidade_ids=req.habilidade_ids)
+        msgs = json.loads(mensagens)
+        habs = json.loads(habilidade_ids) if habilidade_ids else None
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Payload inválido.")
+
+    doc_blocks: list[dict] = []
+    textos: list[str] = []
+    for f in (arquivos or [])[: anexos.MAX_FILES]:
+        data = await f.read()
+        if not data:
+            continue
+        if len(data) > anexos.MAX_BYTES:
+            raise HTTPException(status_code=413, detail=f"Arquivo '{f.filename}' excede 15 MB.")
+        blocks, txt = anexos.processar_anexo(f.filename or "arquivo", data)
+        doc_blocks.extend(blocks)
+        if txt:
+            textos.append(txt)
+
+    try:
+        return flow.assistente_chat(
+            cliente_id, agente, msgs, habilidade_ids=habs,
+            doc_blocks=doc_blocks, anexos_texto="\n\n".join(textos),
+        )
     except flow.LimiteCreditosError as e:
         raise HTTPException(status_code=402, detail=str(e))
 
