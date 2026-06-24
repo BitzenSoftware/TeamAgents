@@ -3024,10 +3024,16 @@ def _projeto_contexto(proj: dict) -> str:
     for d in docs:
         if d.get("conteudo"):
             partes.append(f"### Documento: {d['nome']}\n{d['conteudo']}")
+    # Relatórios/planos já salvos neste projeto — viram contexto compartilhado, para
+    # que um agente possa analisar/auditar o que outro produziu.
+    rels = get_db().table("projeto_relatorios").select("titulo, conteudo").eq("projeto_id", proj["id"]).execute().data or []
+    for r in rels:
+        if r.get("conteudo"):
+            partes.append(f"### Relatório salvo no projeto: {r.get('titulo') or 'Relatório'}\n{r['conteudo'][:30000]}")
     if not partes:
         return ""
-    return (f"## Contexto do projeto '{proj.get('nome', '')}' (compartilhado por todos os agentes)\n"
-            + "\n\n".join(partes))
+    return (f"## Contexto do projeto '{proj.get('nome', '')}' (compartilhado por todos os agentes — "
+            f"inclui briefing, documentos e relatórios já salvos)\n" + "\n\n".join(partes))
 
 
 # ---- Conversas do projeto (persistidas por agente) ----
