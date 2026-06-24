@@ -292,76 +292,112 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
 /* ============================ Aba Relatórios ============================ */
 function AbaRelatorios({ proj }: { proj: Projeto }) {
   const [lista, setLista] = useState<ProjetoRelatorio[]>([]);
+  const [selId, setSelId] = useState<string | null>(null);
   const [novo, setNovo] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [salvando, setSalvando] = useState(false);
 
-  const carregar = useCallback(() => { api.projetoRelatorios(proj.id).then(setLista).catch(() => {}); }, [proj.id]);
+  const carregar = useCallback(() => {
+    api.projetoRelatorios(proj.id).then((rs) => {
+      setLista(rs);
+      setSelId((cur) => (cur && rs.some((r) => r.id === cur) ? cur : rs[0]?.id ?? null));
+    }).catch(() => {});
+  }, [proj.id]);
   useEffect(() => { carregar(); }, [carregar]);
+
+  const sel = lista.find((r) => r.id === selId) ?? null;
 
   async function criar() {
     if (!conteudo.trim() || salvando) return;
     setSalvando(true);
     try {
-      await api.projetoRelatorioAdd(proj.id, { titulo: titulo.trim() || "Relatório", conteudo });
-      setNovo(false); setTitulo(""); setConteudo(""); carregar();
+      const r = await api.projetoRelatorioAdd(proj.id, { titulo: titulo.trim() || "Relatório", conteudo });
+      setNovo(false); setTitulo(""); setConteudo("");
+      const rs = await api.projetoRelatorios(proj.id);
+      setLista(rs); setSelId(r.id);
     } finally { setSalvando(false); }
   }
 
+  async function apagar(id: string) {
+    if (!confirm("Apagar este relatório?")) return;
+    await api.projetoApagarRelatorio(proj.id, id);
+    carregar();
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-3 overflow-auto">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-black/50">Resultados e planos de ação salvos ({lista.length})</div>
-        <button type="button" onClick={() => setNovo((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/[0.03]">
-          <Plus size={13} /> Novo relatório
+    <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-12">
+      {/* Lista (cartões) */}
+      <aside className="flex min-h-0 flex-col lg:col-span-4">
+        <button type="button" onClick={() => { setNovo(true); setSelId(null); }}
+          className="mb-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+          <Plus size={15} /> Novo relatório
         </button>
-      </div>
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-auto">
+          {lista.length === 0 && (
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
+              Nenhum relatório. Salve uma resposta na aba <strong>Agentes</strong>.
+            </p>
+          )}
+          {lista.map((r) => {
+            const on = !novo && r.id === selId;
+            const origem = r.agente_id ? agenteInfo(r.agente_id)?.nome : null;
+            return (
+              <button key={r.id} type="button" onClick={() => { setSelId(r.id); setNovo(false); }}
+                className={`flex w-full items-start gap-2 rounded-lg border px-3 py-2.5 text-left transition ${on ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}>
+                <ClipboardList size={15} className={`mt-0.5 shrink-0 ${on ? "text-brand" : "text-black/30"}`} />
+                <span className="min-w-0">
+                  <span className={`block truncate text-sm ${on ? "font-semibold text-brand" : "font-medium"}`}>{r.titulo}</span>
+                  <span className="block truncate text-[11px] text-black/40">
+                    {new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{origem && ` · ${origem}`}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
 
-      {novo && (
-        <div className="rounded-xl border border-black/10 bg-white p-4">
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título do relatório / plano de ação"
-            className="mb-2 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
-          <textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)} rows={6} placeholder="Conteúdo (markdown)…"
-            className="w-full resize-y rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
-          <div className="mt-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setNovo(false)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">Cancelar</button>
-            <button type="button" onClick={criar} disabled={salvando || !conteudo.trim()}
-              className="rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">{salvando ? "Salvando…" : "Salvar"}</button>
+      {/* Detalhe */}
+      <section className="min-h-0 lg:col-span-8">
+        {novo ? (
+          <div className="flex h-full flex-col rounded-xl border border-black/10 bg-white p-4">
+            <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título do relatório / plano de ação"
+              className="mb-2 w-full rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+            <textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)} placeholder="Conteúdo (markdown)…"
+              className="min-h-0 flex-1 resize-none rounded-lg border border-black/15 p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+            <div className="mt-2 flex justify-end gap-2">
+              <button type="button" onClick={() => { setNovo(false); setSelId(lista[0]?.id ?? null); }} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">Cancelar</button>
+              <button type="button" onClick={criar} disabled={salvando || !conteudo.trim()}
+                className="rounded-lg bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">{salvando ? "Salvando…" : "Salvar"}</button>
+            </div>
           </div>
-        </div>
-      )}
+        ) : sel ? (
+          <div className="flex h-full flex-col overflow-hidden rounded-xl border border-black/10 bg-white">
+            <div className="flex items-start justify-between gap-2 border-b border-black/10 px-4 py-3">
+              <div className="min-w-0">
+                <div className="truncate font-semibold">{sel.titulo}</div>
+                <div className="text-[11px] text-black/40">
+                  {new Date(sel.created_at).toLocaleString("pt-BR")}{sel.agente_id && ` · via ${agenteInfo(sel.agente_id)?.nome ?? sel.agente_id}`}
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button type="button" onClick={() => exportarPdf(renderMd(sel.conteudo), sel.titulo)} aria-label="Baixar PDF"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-black/10 text-black/50 hover:bg-black/[0.03] hover:text-brand"><FileDown size={15} /></button>
+                <button type="button" onClick={() => apagar(sel.id)} aria-label="Apagar"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-black/10 text-black/40 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+              </div>
+            </div>
+            <div className="md flex-1 overflow-auto p-4 text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(sel.conteudo) }} />
+          </div>
+        ) : (
+          <div className="grid h-full place-items-center rounded-xl border border-black/10 bg-white text-sm text-black/40">
+            Selecione um relatório à esquerda.
+          </div>
+        )}
+      </section>
 
-      {lista.length === 0 && !novo ? (
-        <p className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/40">
-          Nenhum relatório ainda. Salve uma resposta na aba <strong>Agentes</strong> ("Salvar como relatório") ou crie um aqui.
-        </p>
-      ) : lista.map((r) => <RelatorioCard key={r.id} proj={proj} rel={r} onChange={carregar} />)}
-    </div>
-  );
-}
-
-function RelatorioCard({ proj, rel, onChange }: { proj: Projeto; rel: ProjetoRelatorio; onChange: () => void }) {
-  const origem = rel.agente_id ? agenteInfo(rel.agente_id)?.nome ?? rel.agente_id : null;
-  return (
-    <div className="rounded-xl border border-black/10 bg-white p-4">
-      <div className="mb-1 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <ClipboardList size={15} className="shrink-0 text-brand" />
-          <span className="truncate font-semibold">{rel.titulo}</span>
-        </div>
-        <div className="flex shrink-0 gap-1">
-          <button type="button" onClick={() => exportarPdf(renderMd(rel.conteudo), rel.titulo)} aria-label="Baixar PDF"
-            className="grid h-7 w-7 place-items-center rounded text-black/40 hover:bg-black/[0.04] hover:text-brand"><FileDown size={14} /></button>
-          <button type="button" onClick={() => { if (confirm("Apagar este relatório?")) api.projetoApagarRelatorio(proj.id, rel.id).then(onChange); }} aria-label="Apagar"
-            className="grid h-7 w-7 place-items-center rounded text-black/35 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
-        </div>
-      </div>
-      <div className="mb-2 text-[11px] text-black/40">
-        {new Date(rel.created_at).toLocaleString("pt-BR")}{origem && ` · via ${origem}`}
-      </div>
-      <div className="md text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(rel.conteudo) }} />
+      <style>{`.md p{margin:.4rem 0}.md ul,.md ol{margin:.4rem 0;padding-left:1.2rem;list-style:revert}.md li{margin:.2rem 0}.md strong{font-weight:600}.md h1,.md h2,.md h3{font-weight:700;margin:.6rem 0 .3rem}.md table{border-collapse:collapse;margin:.5rem 0;font-size:.92em;width:100%}.md th,.md td{border:1px solid rgba(0,0,0,.15);padding:.3rem .5rem;text-align:left}.md code{background:rgba(0,0,0,.06);padding:.05rem .25rem;border-radius:.25rem}`}</style>
     </div>
   );
 }
