@@ -5,8 +5,9 @@ import { ClienteProvider } from "@/components/cliente-context";
 import { RegisterSW } from "@/components/RegisterSW";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://teamagents.bitzen.app"),
   title: "TeamAgents",
-  description: "Tríade de agentes de IA para captação, qualificação e análise de leads.",
+  description: "A equipe de IA da sua empresa — atende no WhatsApp e cuida da gestão.",
   applicationName: "TeamAgents",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "TeamAgents" },
