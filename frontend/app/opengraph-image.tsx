@@ -50,7 +50,7 @@ export default function OpenGraphImage() {
         </div>
 
         <div style={{ marginTop: "auto", fontSize: 26, color: "rgba(255,255,255,0.5)" }}>
-          teamagents.bitzen.app · powered by Claude (Anthropic)
+          teamagents.bitzen.app
         </div>
       </div>
     ),
