@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   Mail,
   Megaphone,
   MessageCircle,
@@ -31,9 +30,9 @@ const AGENTES = [
     acao: "resume seu email e extrai as ações",
   },
   {
-    icon: <BarChart3 size={15} className="text-amber-300" />,
-    nome: "Agente Diretor de BI",
-    acao: "relatórios estratégicos no seu WhatsApp",
+    icon: <Sparkles size={15} className="text-amber-300" />,
+    nome: "Assistentes",
+    acao: "10 especialistas: financeiro, jurídico, projetos…",
   },
 ];
 
