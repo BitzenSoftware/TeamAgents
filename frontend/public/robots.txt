@@ -1,0 +1,41 @@
+# TeamAgents — robots.txt
+# Site indexável por buscadores tradicionais E por crawlers de IA / buscas
+# generativas (liberação explícita abaixo).
+
+User-agent: *
+Allow: /
+
+# ----- Buscas e treinamento de IA: liberação explícita -----
+# OpenAI / ChatGPT
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# Anthropic / Claude
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Google (Gemini / AI Overviews — uso para IA)
+User-agent: Google-Extended
+Allow: /
+
+# Common Crawl (alimenta vários modelos)
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://teamagents.bitzen.app/sitemap.xml
