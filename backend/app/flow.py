@@ -2869,9 +2869,14 @@ def _podar_cascata(cliente_id: str, ativos: set[str]) -> None:
 
 
 # ---- Nível Departamento ----
-def departamentos_listar(cliente_id: str) -> list[dict]:
+def departamentos_listar(cliente_id: str, apenas_ids: list[str] | None = None) -> list[dict]:
+    """Lista departamentos da empresa. Se `apenas_ids` for dado (membro com
+    escopo), restringe aos departamentos atribuídos a ele."""
     db = get_db()
     deps = db.table("departamentos").select("id, nome, created_at").eq("cliente_id", cliente_id).execute().data or []
+    if apenas_ids is not None:
+        permitidos = set(apenas_ids)
+        deps = [d for d in deps if d["id"] in permitidos]
     deps.sort(key=lambda d: d.get("nome") or "")
     for d in deps:
         d["agente_ids"] = _link_agentes("departamento_agentes", "departamento_id", d["id"])
@@ -3114,3 +3119,69 @@ def projeto_relatorio_apagar(cliente_id: str, proj_id: str, rel_id: str) -> None
     if not _proj_do_cliente(cliente_id, proj_id):
         return
     get_db().table("projeto_relatorios").delete().eq("id", rel_id).eq("projeto_id", proj_id).execute()
+
+
+# ===================== Utilizadores (membros da empresa) =====================
+_MEMBRO_COLS = "id, email, nome, papel, permissoes, departamento_ids, auth_user_id, created_at"
+
+
+def membros_listar(cliente_id: str) -> list[dict]:
+    rows = get_db().table("membros").select(_MEMBRO_COLS).eq("cliente_id", cliente_id).execute().data or []
+    rows.sort(key=lambda r: r.get("created_at") or "")
+    return rows
+
+
+def _convidar_email(email: str) -> bool:
+    """Dispara o convite nativo do Supabase (usa o SMTP/Resend já configurado).
+    Best-effort: se falhar (ou e-mail já existir), não quebra a criação do membro."""
+    s = get_settings()
+    try:
+        httpx.post(
+            f"{s.supabase_url}/auth/v1/invite",
+            headers={
+                "apikey": s.supabase_service_role_key,
+                "Authorization": f"Bearer {s.supabase_service_role_key}",
+                "Content-Type": "application/json",
+            },
+            params={"redirect_to": f"{s.frontend_url}/redefinir"},
+            json={"email": email},
+            timeout=15,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def membro_criar(cliente_id: str, data: dict) -> dict:
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        raise ValueError("E-mail obrigatório.")
+    row = {
+        "cliente_id": cliente_id,
+        "email": email,
+        "nome": data.get("nome") or "",
+        "permissoes": data.get("permissoes") or [],
+        "departamento_ids": data.get("departamento_ids") or [],
+    }
+    novo = get_db().table("membros").insert(row).execute().data[0]
+    _convidar_email(email)  # best-effort
+    return novo
+
+
+def membro_atualizar(cliente_id: str, membro_id: str, patch: dict) -> dict | None:
+    campos = {k: patch[k] for k in ("nome", "permissoes", "departamento_ids") if k in patch}
+    if campos:
+        get_db().table("membros").update(campos).eq("id", membro_id).eq("cliente_id", cliente_id).execute()
+    rows = get_db().table("membros").select(_MEMBRO_COLS).eq("id", membro_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def membro_apagar(cliente_id: str, membro_id: str) -> None:
+    get_db().table("membros").delete().eq("id", membro_id).eq("cliente_id", cliente_id).execute()
+
+
+def membro_reenviar_convite(cliente_id: str, membro_id: str) -> bool:
+    rows = get_db().table("membros").select("email").eq("id", membro_id).eq("cliente_id", cliente_id).limit(1).execute().data
+    if not rows:
+        return False
+    return _convidar_email(rows[0]["email"])

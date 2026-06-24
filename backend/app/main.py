@@ -51,6 +51,8 @@ from .schemas import (
     GrowthPostUpdate,
     GrowthRefinarRequest,
     GrowthSinteseRequest,
+    MembroCreate,
+    MembroUpdate,
     HabilidadeCreate,
     HabilidadeUpdate,
     OAuthGoogleExchange,
@@ -92,12 +94,24 @@ def planos_publicos() -> list[dict]:
 
 # ===================== Identidade do tenant autenticado =====================
 @app.get("/me")
-def me(user_id: str = Depends(auth.verify_user)) -> dict:
-    """Devolve o cliente do utilizador autenticado, ou 404 se ainda não fez onboarding."""
-    cliente = auth.cliente_do_user(user_id)
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Sem cliente — necessário onboarding.")
-    return cliente
+def me(authorization: str | None = Header(default=None)) -> dict:
+    """Devolve a empresa do utilizador (dono OU membro convidado), com papel e
+    permissões. 404 só quando não é dono nem membro (precisa de onboarding)."""
+    u = auth._fetch_user(authorization)
+    cliente = auth.cliente_do_user(u["id"])
+    if cliente:
+        return {**cliente, "papel": "owner", "permissoes": None, "departamento_ids": None}
+    m = auth._membro_por_email(u.get("email"))
+    if m:
+        if not m.get("auth_user_id"):
+            auth._link_membro(m["id"], u["id"])
+        empresa = auth.cliente_por_id(m["cliente_id"])
+        if not empresa:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada.")
+        return {**empresa, "papel": "membro",
+                "permissoes": m.get("permissoes") or [],
+                "departamento_ids": m.get("departamento_ids") or []}
+    raise HTTPException(status_code=404, detail="Sem cliente — necessário onboarding.")
 
 
 # ===================== Configurações (ler/editar config do tenant) =====================
@@ -757,8 +771,10 @@ def gestao_agentes_set(payload: EmpresaAgentesUpdate, cliente_id: str = Depends(
 
 # --- Departamentos ---
 @app.get("/me/gestao/departamentos")
-def departamentos_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
-    return flow.departamentos_listar(cliente_id)
+def departamentos_listar(ctx: dict = Depends(auth.contexto_acesso)) -> list[dict]:
+    # Membro só vê os departamentos atribuídos; dono vê todos.
+    apenas = None if ctx["papel"] == "owner" else (ctx.get("departamento_ids") or [])
+    return flow.departamentos_listar(ctx["cliente_id"], apenas_ids=apenas)
 
 
 @app.post("/me/gestao/departamentos", status_code=201)
@@ -781,8 +797,11 @@ def departamento_apagar(dep_id: str, cliente_id: str = Depends(auth.current_clie
 
 # --- Projetos ---
 @app.get("/me/gestao/departamentos/{dep_id}/projetos")
-def projetos_listar(dep_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
-    return flow.projetos_listar(cliente_id, dep_id)
+def projetos_listar(dep_id: str, ctx: dict = Depends(auth.contexto_acesso)) -> list[dict]:
+    # Membro só acessa projetos dos seus departamentos.
+    if ctx["papel"] != "owner" and dep_id not in (ctx.get("departamento_ids") or []):
+        return []
+    return flow.projetos_listar(ctx["cliente_id"], dep_id)
 
 
 @app.get("/me/gestao/projetos/{proj_id}")
@@ -891,6 +910,38 @@ def projeto_relatorio_atualizar(proj_id: str, rel_id: str, payload: ProjetoRelat
 @app.delete("/me/gestao/projetos/{proj_id}/relatorios/{rel_id}", status_code=204)
 def projeto_relatorio_apagar(proj_id: str, rel_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.projeto_relatorio_apagar(cliente_id, proj_id, rel_id)
+
+
+# ===================== Utilizadores (membros da empresa) — só o dono =====================
+@app.get("/me/membros")
+def membros_listar(cliente_id: str = Depends(auth.owner_cliente_id)) -> list[dict]:
+    return flow.membros_listar(cliente_id)
+
+
+@app.post("/me/membros", status_code=201)
+def membro_criar(payload: MembroCreate, cliente_id: str = Depends(auth.owner_cliente_id)) -> dict:
+    try:
+        return flow.membro_criar(cliente_id, payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.patch("/me/membros/{membro_id}")
+def membro_atualizar(membro_id: str, payload: MembroUpdate, cliente_id: str = Depends(auth.owner_cliente_id)) -> dict:
+    res = flow.membro_atualizar(cliente_id, membro_id, payload.model_dump(exclude_none=True))
+    if not res:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    return res
+
+
+@app.delete("/me/membros/{membro_id}", status_code=204)
+def membro_apagar(membro_id: str, cliente_id: str = Depends(auth.owner_cliente_id)) -> None:
+    flow.membro_apagar(cliente_id, membro_id)
+
+
+@app.post("/me/membros/{membro_id}/reenviar-convite")
+def membro_reenviar(membro_id: str, cliente_id: str = Depends(auth.owner_cliente_id)) -> dict:
+    return {"ok": flow.membro_reenviar_convite(cliente_id, membro_id)}
 
 
 # ===================== Profissionais, Serviços e Agenda =====================

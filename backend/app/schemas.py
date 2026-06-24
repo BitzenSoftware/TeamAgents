@@ -509,6 +509,20 @@ class ProjetoChatRequest(BaseModel):
     mensagem: str = Field(min_length=1)
 
 
+# ===================== Utilizadores (membros da empresa) =====================
+class MembroCreate(BaseModel):
+    nome: str = ""
+    email: str = Field(min_length=3)
+    permissoes: list[str] = Field(default_factory=list)
+    departamento_ids: list[str] = Field(default_factory=list)
+
+
+class MembroUpdate(BaseModel):
+    nome: str | None = None
+    permissoes: list[str] | None = None
+    departamento_ids: list[str] | None = None
+
+
 class ProjetoRelatorioCreate(BaseModel):
     titulo: str = ""
     conteudo: str = Field(min_length=1)

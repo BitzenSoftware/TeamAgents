@@ -16,6 +16,21 @@ export type Cliente = {
   id: string;
   nome: string;
   created_at: string;
+  // Multi-usuário: papel do usuário logado nesta empresa + escopo (para membros).
+  papel?: "owner" | "membro";
+  permissoes?: string[] | null;      // hrefs de menu permitidos (membro)
+  departamento_ids?: string[] | null;
+};
+
+export type Membro = {
+  id: string;
+  email: string;
+  nome: string;
+  papel: string;
+  permissoes: string[];
+  departamento_ids: string[];
+  auth_user_id: string | null;
+  created_at: string;
 };
 
 export type Lead = {
@@ -657,6 +672,15 @@ export const api = {
     req<void>(`/growth/briefings/${id}`, { method: "DELETE" }),
   growthRefinarBriefing: (id: string, mensagem: string) =>
     req<GrowthBriefingSalvo>(`/growth/briefings/${id}/refinar`, { method: "POST", body: JSON.stringify({ mensagem }) }),
+
+  // --- Utilizadores (membros da empresa) — só o dono ---
+  membros: () => req<Membro[]>("/me/membros"),
+  criarMembro: (body: { nome: string; email: string; permissoes: string[]; departamento_ids: string[] }) =>
+    req<Membro>("/me/membros", { method: "POST", body: JSON.stringify(body) }),
+  atualizarMembro: (id: string, body: { nome?: string; permissoes?: string[]; departamento_ids?: string[] }) =>
+    req<Membro>(`/me/membros/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  apagarMembro: (id: string) => req<void>(`/me/membros/${id}`, { method: "DELETE" }),
+  reenviarConvite: (id: string) => req<{ ok: boolean }>(`/me/membros/${id}/reenviar-convite`, { method: "POST" }),
 
   // --- Assistentes do cliente (chat, multipart com anexos opcionais) ---
   assistenteChat: async (agente: string, mensagens: GrowthMensagem[], habilidadeIds?: string[], arquivos?: File[]) => {

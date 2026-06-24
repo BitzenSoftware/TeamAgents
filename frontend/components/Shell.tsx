@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Inbox,
   Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Network, Newspaper,
-  Package, Scissors, Settings, Sparkles, Users, X, type LucideIcon,
+  Package, Scissors, Settings, Sparkles, UserCog, Users, X, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
@@ -48,7 +48,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { session, signOut } = useAuth();
   const { cliente } = useCliente();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
-  const nav = isAdmin ? [...NAV, ...NAV_ADMIN] : NAV;
+  // Multi-usuário: membro convidado só vê os menus permitidos; dono vê tudo + Utilizadores.
+  const isMembro = cliente?.papel === "membro";
+  const perms = cliente?.permissoes ?? null;
+  const baseNav = isMembro && perms ? NAV.filter((i) => perms.includes(i.href)) : NAV;
+  const ownerExtra: NavItem[] = isMembro
+    ? []
+    : [{ href: "/utilizadores", label: "Utilizadores", icon: UserCog, grupo: "Workspace" }];
+  const nav = isAdmin ? [...baseNav, ...ownerExtra, ...NAV_ADMIN] : [...baseNav, ...ownerExtra];
 
   // Menu lateral vira drawer no mobile; fecha ao navegar.
   const [menuAberto, setMenuAberto] = useState(false);

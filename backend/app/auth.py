@@ -62,14 +62,70 @@ def cliente_do_user(user_id: str) -> dict | None:
     return rows[0] if rows else None
 
 
-def current_cliente_id(user_id: str = Depends(verify_user)) -> str:
-    """Dependência: resolve o cliente do utilizador autenticado (403 se não tiver)."""
-    cliente = cliente_do_user(user_id)
-    if not cliente:
-        raise HTTPException(
-            status_code=403,
-            detail="Utilizador sem cliente associado. Conclua o onboarding primeiro.",
+def cliente_por_id(cliente_id: str) -> dict | None:
+    rows = get_db().table("clientes").select("id, nome").eq("id", cliente_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def _membro_por_email(email: str | None) -> dict | None:
+    """Procura um membro convidado pelo e-mail (verificado pelo GoTrue).
+    Tolerante a schema: se a tabela ainda não foi migrada, devolve None."""
+    if not email:
+        return None
+    try:
+        rows = (
+            get_db().table("membros")
+            .select("id, cliente_id, permissoes, departamento_ids, auth_user_id")
+            .eq("email", email.lower()).limit(1).execute().data
         )
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+
+def _link_membro(membro_id: str, user_id: str) -> None:
+    try:
+        get_db().table("membros").update({"auth_user_id": user_id}).eq("id", membro_id).execute()
+    except Exception:
+        pass
+
+
+def perfil_atual(authorization: str | None) -> dict:
+    """Resolve o perfil do utilizador autenticado:
+    {cliente_id, papel ('owner'|'membro'), permissoes, departamento_ids}.
+    O DONO (clientes.auth_user_id) tem acesso total; o MEMBRO entra na empresa
+    a que foi convidado (casado por e-mail). 403 se não for nem dono nem membro."""
+    u = _fetch_user(authorization)
+    cliente = cliente_do_user(u["id"])
+    if cliente:
+        return {"cliente_id": cliente["id"], "papel": "owner",
+                "permissoes": None, "departamento_ids": None, "email": u.get("email")}
+    m = _membro_por_email(u.get("email"))
+    if m:
+        if not m.get("auth_user_id"):
+            _link_membro(m["id"], u["id"])
+        return {"cliente_id": m["cliente_id"], "papel": "membro",
+                "permissoes": m.get("permissoes") or [],
+                "departamento_ids": m.get("departamento_ids") or [], "email": u.get("email")}
+    raise HTTPException(status_code=403, detail="Utilizador sem empresa associada.")
+
+
+def current_cliente_id(authorization: str | None = Header(default=None)) -> str:
+    """Dependência: resolve a empresa (dono OU membro convidado). 403 se nenhum."""
+    return perfil_atual(authorization)["cliente_id"]
+
+
+def contexto_acesso(authorization: str | None = Header(default=None)) -> dict:
+    """Dependência: perfil completo (cliente_id + papel + permissões + departamentos)."""
+    return perfil_atual(authorization)
+
+
+def owner_cliente_id(authorization: str | None = Header(default=None)) -> str:
+    """Dependência: SÓ o dono da conta (não membros). Para gerir Utilizadores."""
+    u = _fetch_user(authorization)
+    cliente = cliente_do_user(u["id"])
+    if not cliente:
+        raise HTTPException(status_code=403, detail="Apenas o dono da conta pode gerir usuários.")
     return cliente["id"]
 
 
