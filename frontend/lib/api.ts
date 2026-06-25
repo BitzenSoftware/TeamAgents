@@ -29,6 +29,7 @@ export type Membro = {
   papel: string;
   permissoes: string[];
   departamento_ids: string[];
+  avatar_url: string | null;
   auth_user_id: string | null;
   created_at: string;
 };
@@ -677,7 +678,7 @@ export const api = {
   membros: () => req<Membro[]>("/me/membros"),
   criarMembro: (body: { nome: string; email: string; permissoes: string[]; departamento_ids: string[] }) =>
     req<Membro>("/me/membros", { method: "POST", body: JSON.stringify(body) }),
-  atualizarMembro: (id: string, body: { nome?: string; permissoes?: string[]; departamento_ids?: string[] }) =>
+  atualizarMembro: (id: string, body: { nome?: string; permissoes?: string[]; departamento_ids?: string[]; avatar_url?: string | null }) =>
     req<Membro>(`/me/membros/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   apagarMembro: (id: string) => req<void>(`/me/membros/${id}`, { method: "DELETE" }),
   reenviarConvite: (id: string) => req<{ ok: boolean }>(`/me/membros/${id}/reenviar-convite`, { method: "POST" }),

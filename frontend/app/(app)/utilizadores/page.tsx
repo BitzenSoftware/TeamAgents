@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Mail, UserRound, Check } from "lucide-react";
+import { Plus, Trash2, Mail, UserRound, Check, Camera, Loader2 } from "lucide-react";
 import { api, type Departamento, type Membro } from "@/lib/api";
 import { useCliente } from "@/components/cliente-context";
+import { supabase } from "@/lib/supabase";
 
 // Menus que podem ser concedidos a um membro (chave = href, igual ao Shell).
 const MENUS: { href: string; label: string }[] = [
@@ -32,6 +33,7 @@ export default function UtilizadoresPage() {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [editar, setEditar] = useState<Membro | "novo" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
     api.membros().then(setMembros).catch((e) => setErro(e instanceof Error ? e.message : String(e)));
@@ -42,6 +44,30 @@ export default function UtilizadoresPage() {
     if (!cliLoading && ehMembro) { router.replace("/pipeline"); return; }
     if (!cliLoading && !ehMembro) carregar();
   }, [cliLoading, ehMembro, carregar, router]);
+
+  const nomeDepto = useCallback(
+    (id: string) => departamentos.find((d) => d.id === id)?.nome ?? null,
+    [departamentos],
+  );
+
+  async function enviarFoto(m: Membro, file: File) {
+    if (enviandoFoto) return;
+    setErro(null); setEnviandoFoto(m.id);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `${m.id}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, cacheControl: "3600" });
+      if (error) throw error;
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = `${data.publicUrl}?v=${Date.now()}`; // fura cache do CDN
+      await api.atualizarMembro(m.id, { avatar_url: url });
+      carregar();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviandoFoto(null);
+    }
+  }
 
   if (!cliLoading && ehMembro) return null;
 
@@ -65,32 +91,79 @@ export default function UtilizadoresPage() {
           Nenhum utilizador convidado. Clique em <strong>Criar utilizador</strong> para convidar alguém por e-mail.
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {membros.map((m) => (
-            <div key={m.id} className="rounded-xl border border-black/10 bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand/10 text-brand"><UserRound size={18} /></span>
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold">{m.nome || m.email}</div>
-                    <div className="truncate text-xs text-black/45">{m.email}</div>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <button onClick={() => setEditar(m)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg border border-black/10 text-black/50 hover:bg-black/[0.03]"><Pencil size={14} /></button>
-                  <button onClick={() => { if (confirm(`Remover ${m.nome || m.email}?`)) api.apagarMembro(m.id).then(carregar); }} aria-label="Remover" className="grid h-8 w-8 place-items-center rounded-lg border border-black/10 text-black/40 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-black/45">
-                <span>{m.permissoes.length} menu(s) · {m.departamento_ids.length} depto(s)</span>
-                <span className={m.auth_user_id ? "text-emerald-600" : "text-amber-600"}>{m.auth_user_id ? "ativo" : "convite pendente"}</span>
-              </div>
-              {!m.auth_user_id && (
-                <button onClick={() => api.reenviarConvite(m.id).then(() => alert("Convite reenviado."))}
-                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"><Mail size={12} /> Reenviar convite</button>
-              )}
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-black/10 text-left text-[11px] font-semibold uppercase tracking-wider text-black/40">
+                <th className="px-4 py-3 font-semibold">Utilizador</th>
+                <th className="px-4 py-3 font-semibold">E-mail</th>
+                <th className="px-4 py-3 font-semibold">Departamentos</th>
+                <th className="w-px px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {membros.map((m) => {
+                const nomesDepto = m.departamento_ids.map(nomeDepto).filter(Boolean) as string[];
+                return (
+                  <tr key={m.id} className="border-b border-black/[0.06] last:border-0 hover:bg-black/[0.015]">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <label
+                          title="Adicionar/alterar foto"
+                          className="group relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-brand/10 text-brand"
+                        >
+                          {m.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={m.avatar_url} alt={m.nome || m.email} className="h-full w-full object-cover" />
+                          ) : (
+                            <UserRound size={18} />
+                          )}
+                          {enviandoFoto === m.id ? (
+                            <span className="absolute inset-0 grid place-items-center bg-black/45 text-white"><Loader2 size={14} className="animate-spin" /></span>
+                          ) : (
+                            <span className="absolute inset-0 hidden place-items-center bg-black/45 text-white group-hover:grid"><Camera size={14} /></span>
+                          )}
+                          <input type="file" accept="image/*" className="hidden"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(m, f); e.currentTarget.value = ""; }} />
+                        </label>
+                        <div className="min-w-0">
+                          <button onClick={() => setEditar(m)}
+                            className="block max-w-[18rem] truncate text-left font-semibold text-ink hover:text-brand hover:underline">
+                            {m.nome || "(sem nome)"}
+                          </button>
+                          <span className={`text-[11px] ${m.auth_user_id ? "text-emerald-600" : "text-amber-600"}`}>
+                            {m.auth_user_id ? "ativo" : "convite pendente"}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-black/60">
+                      <div className="truncate">{m.email}</div>
+                      {!m.auth_user_id && (
+                        <button onClick={() => api.reenviarConvite(m.id).then(() => alert("Convite reenviado."))}
+                          className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"><Mail size={11} /> Reenviar convite</button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {nomesDepto.length === 0 ? (
+                        <span className="text-black/30">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {nomesDepto.map((n) => (
+                            <span key={n} className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] text-black/60">{n}</span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => { if (confirm(`Remover ${m.nome || m.email}?`)) api.apagarMembro(m.id).then(carregar); }}
+                        aria-label="Remover" className="grid h-8 w-8 place-items-center rounded-lg text-black/35 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

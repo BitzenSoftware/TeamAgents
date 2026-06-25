@@ -521,6 +521,7 @@ class MembroUpdate(BaseModel):
     nome: str | None = None
     permissoes: list[str] | None = None
     departamento_ids: list[str] | None = None
+    avatar_url: str | None = None
 
 
 class ProjetoRelatorioCreate(BaseModel):

@@ -3128,7 +3128,7 @@ def projeto_relatorio_apagar(cliente_id: str, proj_id: str, rel_id: str) -> None
 
 
 # ===================== Utilizadores (membros da empresa) =====================
-_MEMBRO_COLS = "id, email, nome, papel, permissoes, departamento_ids, auth_user_id, created_at"
+_MEMBRO_COLS = "id, email, nome, papel, permissoes, departamento_ids, avatar_url, auth_user_id, created_at"
 
 
 def membros_listar(cliente_id: str) -> list[dict]:
@@ -3175,7 +3175,7 @@ def membro_criar(cliente_id: str, data: dict) -> dict:
 
 
 def membro_atualizar(cliente_id: str, membro_id: str, patch: dict) -> dict | None:
-    campos = {k: patch[k] for k in ("nome", "permissoes", "departamento_ids") if k in patch}
+    campos = {k: patch[k] for k in ("nome", "permissoes", "departamento_ids", "avatar_url") if k in patch}
     if campos:
         get_db().table("membros").update(campos).eq("id", membro_id).eq("cliente_id", cliente_id).execute()
     rows = get_db().table("membros").select(_MEMBRO_COLS).eq("id", membro_id).eq("cliente_id", cliente_id).limit(1).execute().data
