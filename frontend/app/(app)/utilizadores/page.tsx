@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Mail, UserRound, Check, Camera, Loader2 } from "lucide-react";
 import { api, type Departamento, type Membro } from "@/lib/api";
 import { useCliente } from "@/components/cliente-context";
+import { useAuth } from "@/components/auth-context";
 import { supabase } from "@/lib/supabase";
 
 // Menus que podem ser concedidos a um membro (chave = href, igual ao Shell).
@@ -27,6 +28,7 @@ const MENUS: { href: string; label: string }[] = [
 export default function UtilizadoresPage() {
   const router = useRouter();
   const { cliente, loading: cliLoading } = useCliente();
+  const { session } = useAuth();
   const ehMembro = cliente?.papel === "membro";
 
   const [membros, setMembros] = useState<Membro[]>([]);
@@ -86,11 +88,7 @@ export default function UtilizadoresPage() {
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
 
-      {membros.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Nenhum utilizador convidado. Clique em <strong>Criar utilizador</strong> para convidar alguém por e-mail.
-        </p>
-      ) : (
+      {(
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <table className="w-full text-sm">
             <thead>
@@ -102,6 +100,21 @@ export default function UtilizadoresPage() {
               </tr>
             </thead>
             <tbody>
+              {/* Dono da empresa (admin) — não é um membro convidado; sempre no topo. */}
+              <tr className="border-b border-black/[0.06] bg-brand/[0.03]">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand/15 text-brand"><UserRound size={18} /></span>
+                    <div className="min-w-0">
+                      <div className="max-w-[18rem] truncate font-semibold text-ink">{cliente?.nome || "Administrador"}</div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">Admin · dono</span>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-black/60"><div className="truncate">{session?.user.email ?? "—"}</div></td>
+                <td className="px-4 py-3 text-black/50">Todos os departamentos</td>
+                <td className="px-4 py-3" />
+              </tr>
               {membros.map((m) => {
                 const nomesDepto = m.departamento_ids.map(nomeDepto).filter(Boolean) as string[];
                 return (
@@ -162,6 +175,13 @@ export default function UtilizadoresPage() {
                   </tr>
                 );
               })}
+              {membros.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-black/40">
+                    Nenhum utilizador convidado ainda. Clique em <strong>Criar utilizador</strong> para convidar alguém por e-mail.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
