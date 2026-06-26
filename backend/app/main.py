@@ -1178,7 +1178,7 @@ async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth
     if not page_id or not token:
         raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
     try:
-        return await flow.postar_facebook(page_id, token, req.mensagem, req.image_url)
+        return await flow.postar_facebook(page_id, token, req.mensagem, req.image_url, req.video_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -1220,9 +1220,10 @@ async def postar_instagram(req: SocialPostRequest, cliente_id: str = Depends(aut
     token = cfg.get("facebook_page_access_token")
     if not ig_id or not token:
         raise HTTPException(status_code=400, detail="Instagram Business ID e Access Token são obrigatórios.")
-    image_url = req.image_url or "https://picsum.photos/1080"
+    # Vídeo (Reels) tem prioridade; senão imagem (com placeholder se nada vier).
+    image_url = None if req.video_url else (req.image_url or "https://picsum.photos/1080")
     try:
-        return await flow.postar_instagram(ig_id, token, req.mensagem, image_url)
+        return await flow.postar_instagram(ig_id, token, req.mensagem, image_url, req.video_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -1022,11 +1022,16 @@ async def _diagnosticar_token_facebook(client: httpx.AsyncClient, token: str) ->
     return None
 
 
-async def postar_facebook(page_id: str, token: str, mensagem: str, image_url: str | None = None) -> dict:
-    """Publica na Facebook Page. Com image_url, publica uma foto com legenda
-    (endpoint /photos); sem, publica só texto no feed."""
+async def postar_facebook(
+    page_id: str, token: str, mensagem: str, image_url: str | None = None, video_url: str | None = None
+) -> dict:
+    """Publica na Facebook Page. Com video_url publica um vídeo (endpoint /videos);
+    com image_url, uma foto com legenda (/photos); sem nenhum, só texto no feed."""
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        if image_url:
+        if video_url:
+            endpoint = f"https://graph.facebook.com/v21.0/{page_id}/videos"
+            data = {"file_url": video_url, "description": mensagem, "access_token": token}
+        elif image_url:
             endpoint = f"https://graph.facebook.com/v21.0/{page_id}/photos"
             data = {"url": image_url, "message": mensagem, "access_token": token}
         else:
@@ -1046,21 +1051,29 @@ async def postar_facebook(page_id: str, token: str, mensagem: str, image_url: st
         return r.json()
 
 
-async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str) -> dict:
-    """Publica uma imagem com legenda no Instagram Business Account (duas etapas)."""
+async def postar_instagram(
+    ig_id: str, token: str, mensagem: str, image_url: str | None = None, video_url: str | None = None
+) -> dict:
+    """Publica no Instagram Business Account (duas etapas). Com video_url, publica
+    um Reels (processamento assíncrono, com polling de status); senão, uma imagem."""
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        # Etapa 1: criar container de media — todos os campos como query params
-        r1 = await client.post(
-            f"https://graph.facebook.com/v21.0/{ig_id}/media",
-            params={"access_token": token, "image_url": image_url, "caption": mensagem},
-        )
+        # Etapa 1: criar o container de media — todos os campos como query params.
+        if video_url:
+            params = {"access_token": token, "media_type": "REELS", "video_url": video_url, "caption": mensagem}
+        else:
+            params = {"access_token": token, "image_url": image_url, "caption": mensagem}
+        r1 = await client.post(f"https://graph.facebook.com/v21.0/{ig_id}/media", params=params)
         if not r1.is_success:
             body = r1.json() if r1.headers.get("content-type", "").startswith("application/json") else {}
             msg = body.get("error", {}).get("message") or r1.text
             raise ValueError(msg)
         creation_id = r1.json()["id"]
 
-        # Etapa 2: publicar o container
+        # Etapa 1.5 (só vídeo/Reels): esperar a Meta terminar de processar o vídeo.
+        if video_url:
+            await _aguardar_container_instagram(client, creation_id, token)
+
+        # Etapa 2: publicar o container.
         r2 = await client.post(
             f"https://graph.facebook.com/v21.0/{ig_id}/media_publish",
             params={"access_token": token, "creation_id": creation_id},
@@ -1070,6 +1083,27 @@ async def postar_instagram(ig_id: str, token: str, mensagem: str, image_url: str
             msg = body.get("error", {}).get("message") or r2.text
             raise ValueError(msg)
         return r2.json()
+
+
+async def _aguardar_container_instagram(
+    client: httpx.AsyncClient, creation_id: str, token: str, tentativas: int = 30, intervalo: float = 4.0
+) -> None:
+    """Consulta o status do container do Reels até FINISHED. Lança erro em ERROR/EXPIRED
+    ou se estourar o tempo (≈ tentativas × intervalo segundos)."""
+    for _ in range(tentativas):
+        r = await client.get(
+            f"https://graph.facebook.com/v21.0/{creation_id}",
+            params={"access_token": token, "fields": "status_code,status"},
+        )
+        if r.is_success:
+            status = r.json().get("status_code")
+            if status == "FINISHED":
+                return
+            if status in ("ERROR", "EXPIRED"):
+                detalhe = r.json().get("status") or status
+                raise ValueError(f"Falha ao processar o vídeo no Instagram: {detalhe}")
+        await asyncio.sleep(intervalo)
+    raise ValueError("O Instagram demorou demais para processar o vídeo. Tente um vídeo menor ou tente novamente.")
 
 
 async def oauth_facebook_exchange(code: str, redirect_uri: str) -> dict:

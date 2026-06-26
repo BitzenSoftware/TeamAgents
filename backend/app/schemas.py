@@ -211,6 +211,7 @@ class SocialConfigUpdate(BaseModel):
 class SocialPostRequest(BaseModel):
     mensagem: str = Field(min_length=1)
     image_url: str | None = None
+    video_url: str | None = None
 
 
 class TokenExchangeRequest(BaseModel):
