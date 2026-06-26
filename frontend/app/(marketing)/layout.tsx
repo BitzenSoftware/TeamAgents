@@ -31,24 +31,49 @@ export const metadata: Metadata = {
   },
 };
 
-// Dados estruturados (Schema.org). Sem aggregateRating: não inventamos avaliações.
+// Dados estruturados (Schema.org). @graph com a entidade da marca (Organization),
+// o site (WebSite) e o produto (SoftwareApplication) — ajuda buscadores e IAs a
+// entenderem quem somos e o que oferecemos. Sem aggregateRating: não inventamos avaliações.
 const JSON_LD = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "TeamAgents",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  url: SITE,
-  description:
-    "Plataforma de agentes de IA para empresas: atendimento e captação no WhatsApp + especialistas em finanças, jurídico, RH, projetos e estratégia, com gestão por projetos e análise de documentos.",
-  offers: { "@type": "Offer", price: "179.00", priceCurrency: "BRL" },
-  featureList: [
-    "Atendimento e captação no WhatsApp 24/7",
-    "Criação e publicação de anúncios no Instagram e Facebook",
-    "Relatórios semanais de resultado",
-    "10 agentes especialistas (financeiro, jurídico, RH, projetos, estratégia e mais)",
-    "Gestão por departamentos e projetos com análise de documentos",
-    "Relatórios e planos de ação em PDF",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE}/#organization`,
+      name: "TeamAgents",
+      legalName: "TeamAgents — Bitzen",
+      url: SITE,
+      logo: `${SITE}/icon.svg`,
+      description:
+        "TeamAgents é uma plataforma brasileira de agentes de IA para empresas: atende e capta clientes no WhatsApp e fornece especialistas em finanças, jurídico, RH, projetos e estratégia.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE}/#website`,
+      url: SITE,
+      name: "TeamAgents",
+      inLanguage: "pt-BR",
+      publisher: { "@id": `${SITE}/#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "TeamAgents",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: SITE,
+      publisher: { "@id": `${SITE}/#organization` },
+      description:
+        "Plataforma de agentes de IA para empresas: atendimento e captação no WhatsApp + especialistas em finanças, jurídico, RH, projetos e estratégia, com gestão por projetos e análise de documentos.",
+      offers: { "@type": "Offer", price: "179.00", priceCurrency: "BRL" },
+      featureList: [
+        "Atendimento e captação no WhatsApp 24/7",
+        "Criação e publicação de anúncios no Instagram e Facebook",
+        "Relatórios semanais de resultado",
+        "Agentes especialistas (financeiro, jurídico, RH, projetos, estratégia e mais)",
+        "Gestão por departamentos e projetos com análise de documentos",
+        "Relatórios e planos de ação em PDF",
+      ],
+    },
   ],
 };
 

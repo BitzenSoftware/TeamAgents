@@ -530,6 +530,20 @@ export default function LandingPage() {
 
       {/* ====================== FAQ ====================== */}
       <section id="faq" className="px-6 py-24">
+        {/* FAQPage (Schema.org) — o que ChatGPT, Perplexity e o AI Overviews do Google leem para responder perguntas. */}
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQ.map((f) => ({
+              "@type": "Question",
+              name: f.q,
+              acceptedAnswer: { "@type": "Answer", text: f.a },
+            })),
+          }) }}
+        />
         <div className="mx-auto max-w-3xl">
           <div className="mb-12 text-center"><h2 className="mb-3 text-3xl font-bold tracking-tight">Perguntas frequentes</h2><p className="text-black/50">Tudo o que costumam perguntar antes de começar.</p></div>
           <div className="space-y-3">

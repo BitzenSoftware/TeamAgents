@@ -5,10 +5,18 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const SITE = "https://teamagents.bitzen.app";
 
 export const metadata: Metadata = {
-  title: "Blog | Automação de WhatsApp e IA para clínicas de estética — TeamAgents",
+  title: "Blog | IA para empresas: atendimento no WhatsApp e gestão — TeamAgents",
   description:
-    "Conteúdos sobre automação de atendimento, agendamento no WhatsApp e gestão de clínicas de estética com IA.",
+    "Conteúdos sobre agentes de IA para empresas: automação de atendimento e captação no WhatsApp, e gestão (finanças, jurídico, projetos, estratégia) com inteligência artificial.",
   alternates: { canonical: `${SITE}/blog` },
+  openGraph: {
+    title: "Blog TeamAgents — IA para atendimento e gestão de empresas",
+    description:
+      "Agentes de IA para atender no WhatsApp e cuidar da gestão da sua empresa. Artigos práticos sobre IA aplicada a negócios.",
+    url: `${SITE}/blog`,
+    type: "website",
+    locale: "pt_BR",
+  },
 };
 
 type Resumo = { slug: string; titulo: string; resumo: string | null; capa_url: string | null; created_at: string };
@@ -29,7 +37,7 @@ export default async function BlogPage() {
       <Link href="/" className="text-sm font-medium text-brand hover:underline">← Voltar ao site</Link>
       <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">Blog</h1>
       <p className="mt-1.5 text-black/55">
-        Automação, atendimento no WhatsApp e gestão de clínicas de estética com IA.
+        IA aplicada a negócios: atendimento e captação no WhatsApp, e gestão (finanças, jurídico, projetos, estratégia).
       </p>
 
       {posts.length === 0 ? (

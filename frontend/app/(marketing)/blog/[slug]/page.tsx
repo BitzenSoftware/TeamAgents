@@ -76,9 +76,9 @@ export default async function ArtigoPage({ params }: { params: { slug: string } 
       <article className="artigo mt-6" dangerouslySetInnerHTML={{ __html: html }} />
 
       <div className="mt-10 rounded-2xl border border-brand/20 bg-brand/[0.04] p-6 text-center">
-        <p className="text-lg font-semibold">Quer ver isso funcionando na sua clínica?</p>
+        <p className="text-lg font-semibold">Quer ver isso funcionando na sua empresa?</p>
         <p className="mt-1 text-sm text-black/55">
-          A recepção de IA do TeamAgents atende, qualifica e agenda no WhatsApp 24/7.
+          Os agentes de IA do TeamAgents atendem no WhatsApp e cuidam da gestão (finanças, jurídico, projetos) 24/7.
         </p>
         <Link href="/login" className="mt-3 inline-block rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90">
           Começar agora →
