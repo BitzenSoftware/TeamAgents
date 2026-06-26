@@ -1022,13 +1022,17 @@ async def _diagnosticar_token_facebook(client: httpx.AsyncClient, token: str) ->
     return None
 
 
-async def postar_facebook(page_id: str, token: str, mensagem: str) -> dict:
-    """Publica uma mensagem na Facebook Page."""
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"https://graph.facebook.com/v21.0/{page_id}/feed",
-            data={"message": mensagem, "access_token": token},
-        )
+async def postar_facebook(page_id: str, token: str, mensagem: str, image_url: str | None = None) -> dict:
+    """Publica na Facebook Page. Com image_url, publica uma foto com legenda
+    (endpoint /photos); sem, publica só texto no feed."""
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        if image_url:
+            endpoint = f"https://graph.facebook.com/v21.0/{page_id}/photos"
+            data = {"url": image_url, "message": mensagem, "access_token": token}
+        else:
+            endpoint = f"https://graph.facebook.com/v21.0/{page_id}/feed"
+            data = {"message": mensagem, "access_token": token}
+        r = await client.post(endpoint, data=data)
         if not r.is_success:
             body = r.json()
             erro = body.get("error", {})

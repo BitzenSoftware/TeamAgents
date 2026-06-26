@@ -420,6 +420,7 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
   const [sel, setSel] = useState<RedeId[]>([]);
   const [imageUrl, setImageUrl] = useState("");
   const [posting, setPosting] = useState(false);
+  const [ajudaUrl, setAjudaUrl] = useState(false);
   const [resultados, setResultados] = useState<{ rede: RedeId; ok: boolean; msg: string }[]>([]);
 
   function configurado(id: RedeId): boolean {
@@ -435,17 +436,20 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
     setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   }
 
-  const precisaImagem = sel.includes("instagram");
+  // Instagram exige imagem; Facebook aceita imagem (opcional) ou só texto.
+  const imagemObrigatoria = sel.includes("instagram");
+  const mostraCampoImagem = sel.includes("instagram") || sel.includes("facebook");
   const labelRede = (id: RedeId) => REDES.find((r) => r.id === id)?.label ?? id;
 
   async function postar() {
     setPosting(true);
     setResultados([]);
     const res: { rede: RedeId; ok: boolean; msg: string }[] = [];
+    const img = imageUrl.trim() || undefined;
     for (const rede of sel) {
       try {
-        if (rede === "facebook") await api.postarFacebook(texto);
-        else if (rede === "instagram") await api.postarInstagram(texto, imageUrl.trim() || undefined);
+        if (rede === "facebook") await api.postarFacebook(texto, img);
+        else if (rede === "instagram") await api.postarInstagram(texto, img);
         else await api.postarDiscord(texto);
         res.push({ rede, ok: true, msg: "publicado" });
       } catch (err) {
@@ -484,20 +488,52 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
             </button>
           );
         })}
+        {/* Ajuda: como transformar imagem/vídeo em URL (ao lado do Discord). */}
+        <button
+          type="button"
+          onClick={() => setAjudaUrl((v) => !v)}
+          aria-label="Como gerar a URL da imagem"
+          aria-expanded={ajudaUrl ? "true" : "false"}
+          title="Como gerar a URL da imagem"
+          className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition ${
+            ajudaUrl ? "border-brand bg-brand/10 text-brand" : "border-black/15 text-black/40 hover:bg-black/5"
+          }`}
+        >
+          ?
+        </button>
         <button
           type="button"
           onClick={postar}
-          disabled={posting || sel.length === 0 || (precisaImagem && !imageUrl.trim())}
+          disabled={posting || sel.length === 0 || (imagemObrigatoria && !imageUrl.trim())}
           className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-40"
         >
           {posting ? "Publicando…" : "Postar"}
         </button>
       </div>
-      {precisaImagem && (
+
+      {ajudaUrl && (
+        <div className="mt-2 rounded-lg border border-black/10 bg-black/[0.02] p-3 text-[11px] leading-relaxed text-black/60">
+          <p className="mb-1 font-semibold text-black/70">Como gerar a URL da imagem</p>
+          <p>
+            O Instagram e o Facebook baixam a imagem de uma <strong>URL pública</strong>. Use um destes serviços
+            gratuitos, faça o upload e copie o <strong>link direto</strong> do arquivo (deve terminar em
+            <code className="mx-1 rounded bg-black/[0.06] px-1">.jpg</code>/<code className="rounded bg-black/[0.06] px-1">.png</code>,
+            e não a página do site):
+          </p>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+            <li><a href="https://postimages.org" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">PostImages</a> — sem cadastro; após enviar, copie o campo <em>“Link direto”</em>.</li>
+            <li><a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Imgur</a> — clique com o botão direito na imagem enviada e use <em>“Copiar endereço da imagem”</em>.</li>
+            <li><a href="https://cloudinary.com" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Cloudinary</a> — conta grátis; ideal quando você também for usar vídeo.</li>
+          </ul>
+          <p className="mt-1.5 text-black/45">Em breve: anexar vídeo (Reels no Instagram). Para vídeo, prefira o Cloudinary.</p>
+        </div>
+      )}
+
+      {mostraCampoImagem && (
         <input
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="URL da imagem (obrigatório para Instagram)"
+          placeholder={imagemObrigatoria ? "URL da imagem (obrigatório para Instagram)" : "URL da imagem (opcional para Facebook)"}
           className="campo mt-2 text-xs"
         />
       )}

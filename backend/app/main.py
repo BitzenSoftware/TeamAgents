@@ -1178,7 +1178,7 @@ async def postar_facebook(req: SocialPostRequest, cliente_id: str = Depends(auth
     if not page_id or not token:
         raise HTTPException(status_code=400, detail="Page ID e Access Token do Facebook são obrigatórios.")
     try:
-        return await flow.postar_facebook(page_id, token, req.mensagem)
+        return await flow.postar_facebook(page_id, token, req.mensagem, req.image_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
