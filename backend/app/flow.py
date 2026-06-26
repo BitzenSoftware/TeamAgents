@@ -1086,10 +1086,11 @@ async def postar_instagram(
 
 
 async def _aguardar_container_instagram(
-    client: httpx.AsyncClient, creation_id: str, token: str, tentativas: int = 30, intervalo: float = 4.0
+    client: httpx.AsyncClient, creation_id: str, token: str, tentativas: int = 20, intervalo: float = 4.0
 ) -> None:
     """Consulta o status do container do Reels até FINISHED. Lança erro em ERROR/EXPIRED
-    ou se estourar o tempo (≈ tentativas × intervalo segundos)."""
+    ou se estourar o tempo (≈ tentativas × intervalo segundos). O teto fica abaixo do
+    timeout de proxy do Render (~100s) para devolver uma mensagem clara, em vez de um 502."""
     for _ in range(tentativas):
         r = await client.get(
             f"https://graph.facebook.com/v21.0/{creation_id}",
@@ -1103,7 +1104,10 @@ async def _aguardar_container_instagram(
                 detalhe = r.json().get("status") or status
                 raise ValueError(f"Falha ao processar o vídeo no Instagram: {detalhe}")
         await asyncio.sleep(intervalo)
-    raise ValueError("O Instagram demorou demais para processar o vídeo. Tente um vídeo menor ou tente novamente.")
+    raise ValueError(
+        "O Instagram ainda está processando o vídeo (vídeos maiores demoram mais). "
+        "Aguarde alguns instantes e tente publicar de novo, ou use um vídeo mais curto/leve."
+    )
 
 
 async def oauth_facebook_exchange(code: str, redirect_uri: str) -> dict:
