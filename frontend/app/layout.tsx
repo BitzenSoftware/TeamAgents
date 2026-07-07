@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-context";
 import { ClienteProvider } from "@/components/cliente-context";
+import { LocaleProvider } from "@/components/i18n-context";
 import { RegisterSW } from "@/components/RegisterSW";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/lib/i18n/locale";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://teamagents.bitzen.app"),
@@ -22,14 +25,18 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieLocale = cookies().get(LOCALE_COOKIE)?.value;
+  const locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
   return (
-    <html lang="pt">
+    <html lang={locale}>
       <body>
-        <AuthProvider>
-          <ClienteProvider>
-            {children}
-          </ClienteProvider>
-        </AuthProvider>
+        <LocaleProvider initial={locale}>
+          <AuthProvider>
+            <ClienteProvider>
+              {children}
+            </ClienteProvider>
+          </AuthProvider>
+        </LocaleProvider>
         <RegisterSW />
       </body>
     </html>

@@ -4,22 +4,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
+import { useT } from "@/components/i18n-context";
 import { Shell } from "@/components/Shell";
 
 const PUBLIC = ["/", "/login"];
-
-const MENSAGENS_ESPERA = [
-  "Conectando ao servidor…",
-  "O servidor está acordando, aguarde…",
-  "Pode demorar até 1 minuto na primeira vez…",
-  "Quase lá…",
-];
 
 export function Guard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { session, loading: authLoading } = useAuth();
   const { needsOnboarding, loading: cliLoading } = useCliente();
+  const t = useT();
+  const MENSAGENS_ESPERA = t.guard.espera;
   const [msgIdx, setMsgIdx] = useState(0);
 
   const isPublic = PUBLIC.includes(pathname);
@@ -78,7 +74,7 @@ export function Guard({ children }: { children: React.ReactNode }) {
 
   // Páginas da app só com sessão + cliente.
   if (!session || needsOnboarding) {
-    return <div className="grid min-h-screen place-items-center text-sm text-black/40">Redirecionando…</div>;
+    return <div className="grid min-h-screen place-items-center text-sm text-black/40">{t.guard.redirecionando}</div>;
   }
   return <Shell>{children}</Shell>;
 }

@@ -12,31 +12,17 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/Logo";
+import { useT } from "@/components/i18n-context";
 
-const AGENTES = [
-  {
-    icon: <MessageCircle size={15} className="text-emerald-300" />,
-    nome: "Agente SDR",
-    acao: "qualifica e agenda reuniões no WhatsApp",
-  },
-  {
-    icon: <Megaphone size={15} className="text-violet-300" />,
-    nome: "Agente de Copywriting",
-    acao: "anúncios de alta conversão em segundos",
-  },
-  {
-    icon: <Mail size={15} className="text-sky-300" />,
-    nome: "Agente Executivo",
-    acao: "resume seu email e extrai as ações",
-  },
-  {
-    icon: <Sparkles size={15} className="text-amber-300" />,
-    nome: "Assistentes",
-    acao: "10 especialistas: financeiro, jurídico, projetos…",
-  },
+const AGENTE_ICONS = [
+  <MessageCircle key="0" size={15} className="text-emerald-300" />,
+  <Megaphone key="1" size={15} className="text-violet-300" />,
+  <Mail key="2" size={15} className="text-sky-300" />,
+  <Sparkles key="3" size={15} className="text-amber-300" />,
 ];
 
 export default function LoginPage() {
+  const t = useT().login;
   const [modo, setModo] = useState<"entrar" | "criar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,9 +43,9 @@ export default function LoginPage() {
           redirectTo: `${window.location.origin}/redefinir`,
         });
         if (error) throw error;
-        setInfo("Enviamos um link de recuperação para o seu email. Abra-o para redefinir a senha.");
+        setInfo(t.infoLinkEnviado);
       } catch (err) {
-        setErro(err instanceof Error ? err.message : "Não foi possível enviar o email.");
+        setErro(err instanceof Error ? err.message : t.erroEmail);
       } finally {
         setLoading(false);
       }
@@ -67,11 +53,11 @@ export default function LoginPage() {
     }
     if (modo === "criar") {
       if (password.length < 6) {
-        setErro("A senha deve ter pelo menos 6 caracteres.");
+        setErro(t.erroSenhaMin);
         return;
       }
       if (password !== confirmar) {
-        setErro("As senhas não coincidem.");
+        setErro(t.erroSenhasDiferentes);
         return;
       }
     }
@@ -85,11 +71,11 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
-          setInfo("Conta criada. Confirme o email para entrar (ou desative a confirmação no Supabase).");
+          setInfo(t.infoContaCriada);
         }
       }
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro de autenticação");
+      setErro(err instanceof Error ? err.message : t.erroAuth);
     } finally {
       setLoading(false);
     }
@@ -118,28 +104,27 @@ export default function LoginPage() {
         <div className="relative">
           <div className="lg-anim lg-up mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70">
             <Sparkles size={12} className="text-amber-300" />
-            Agentes de IA com modelos Claude, da Anthropic
+            {t.marcaBadge}
           </div>
           <h1 className="lg-anim lg-up mb-3 text-3xl font-bold leading-[1.15] tracking-tight [animation-delay:.08s] xl:text-4xl">
-            Sua equipe de IA
+            {t.marcaTitulo1}
             <br />
             <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-              está esperando por você.
+              {t.marcaTitulo2}
             </span>
           </h1>
           <p className="lg-anim lg-up mb-8 max-w-sm text-sm leading-relaxed text-white/50 [animation-delay:.16s]">
-            Entre para acompanhar seus leads, campanhas, emails e relatórios — os agentes
-            nunca pararam de trabalhar.
+            {t.marcaSubtitulo}
           </p>
 
           <div className="space-y-2.5">
-            {AGENTES.map((a, i) => (
+            {t.agentes.map((a, i) => (
               <div
                 key={a.nome}
                 className="lg-anim lg-up flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
                 style={{ animationDelay: `${0.24 + i * 0.1}s` }}
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/8">{a.icon}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/8">{AGENTE_ICONS[i]}</span>
                 <div className="min-w-0">
                   <div className="text-[13px] font-semibold text-white/90">{a.nome}</div>
                   <div className="truncate text-[11px] text-white/40">{a.acao}</div>
@@ -157,10 +142,10 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-5 text-[11px] text-white/35">
           <span className="flex items-center gap-1.5">
             <Shield size={12} />
-            Dados isolados por empresa
+            {t.trust1}
           </span>
           <span>·</span>
-          <span>Trabalhando 24/7 pelo seu negócio</span>
+          <span>{t.trust2}</span>
         </div>
       </aside>
 
@@ -177,21 +162,17 @@ export default function LoginPage() {
 
           <div className="mb-7">
             <h2 className="text-2xl font-bold tracking-tight">
-              {modo === "entrar" ? "Bem-vindo de volta" : modo === "criar" ? "Crie sua conta" : "Recuperar acesso"}
+              {modo === "entrar" ? t.tituloEntrar : modo === "criar" ? t.tituloCriar : t.tituloRecuperar}
             </h2>
             <p className="mt-1.5 text-sm text-black/50">
-              {modo === "entrar"
-                ? "Entre no painel para ver seus agentes trabalhando."
-                : modo === "criar"
-                  ? "Em minutos você tem uma equipe de IA trabalhando por você."
-                  : "Informe seu email e enviamos um link para redefinir a senha."}
+              {modo === "entrar" ? t.subEntrar : modo === "criar" ? t.subCriar : t.subRecuperar}
             </p>
           </div>
 
           <form onSubmit={submit} className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-xl shadow-black/[0.04]">
             <div>
               <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-black/60">
-                Email
+                {t.email}
               </label>
               <input
                 id="login-email"
@@ -209,7 +190,7 @@ export default function LoginPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="login-password" className="block text-xs font-medium text-black/60">
-                  Senha
+                  {t.senha}
                 </label>
                 {modo === "entrar" && (
                   <button
@@ -217,7 +198,7 @@ export default function LoginPage() {
                     onClick={() => { setModo("recuperar"); setErro(null); setInfo(null); }}
                     className="text-xs font-medium text-brand hover:underline"
                   >
-                    Esqueceu a senha?
+                    {t.esqueceu}
                   </button>
                 )}
               </div>
@@ -237,7 +218,7 @@ export default function LoginPage() {
                   onClick={() => setMostrar(!mostrar)}
                   className="absolute inset-y-0 right-3 my-auto h-fit text-xs font-medium text-black/40 hover:text-ink"
                 >
-                  {mostrar ? "Ocultar" : "Mostrar"}
+                  {mostrar ? t.ocultar : t.mostrar}
                 </button>
               </div>
             </div>
@@ -246,7 +227,7 @@ export default function LoginPage() {
             {modo === "criar" && (
               <div>
                 <label htmlFor="login-confirmar" className="mb-1.5 block text-xs font-medium text-black/60">
-                  Confirmar senha
+                  {t.confirmarSenha}
                 </label>
                 <input
                   id="login-confirmar"
@@ -267,12 +248,12 @@ export default function LoginPage() {
               className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-dark py-3 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-brand/40 disabled:opacity-50"
             >
               {loading
-                ? "Um momento…"
+                ? t.btnMomento
                 : modo === "entrar"
-                  ? "Entrar no painel"
+                  ? t.btnEntrar
                   : modo === "criar"
-                    ? "Criar conta grátis"
-                    : "Enviar link de redefinição"}
+                    ? t.btnCriar
+                    : t.btnEnviarLink}
               {!loading && <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />}
             </button>
 
@@ -283,16 +264,16 @@ export default function LoginPage() {
           <div className="mt-5 text-center text-sm text-black/50">
             {modo === "entrar" ? (
               <>
-                Ainda não tem conta?{" "}
+                {t.aindaNaoTemConta}{" "}
                 <button type="button" onClick={() => setModo("criar")} className="font-semibold text-brand hover:underline">
-                  Criar conta
+                  {t.criarConta}
                 </button>
               </>
             ) : (
               <>
-                {modo === "recuperar" ? "Lembrou a senha?" : "Já tem conta?"}{" "}
+                {modo === "recuperar" ? t.lembrouSenha : t.jaTemConta}{" "}
                 <button type="button" onClick={() => { setModo("entrar"); setErro(null); setInfo(null); }} className="font-semibold text-brand hover:underline">
-                  Entrar
+                  {t.entrar}
                 </button>
               </>
             )}
@@ -300,7 +281,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <Link href="/" className="text-xs text-black/35 transition hover:text-black/60">
-              ← Voltar ao site
+              {t.voltarSite}
             </Link>
           </div>
         </div>

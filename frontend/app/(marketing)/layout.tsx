@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CookieConsent } from "@/components/marketing/CookieConsent";
 
 const SITE = "https://teamagents.bitzen.app";
 
@@ -86,6 +87,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
       {children}
+      <CookieConsent />
     </>
   );
 }

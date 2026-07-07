@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth-context";
 import { useCliente } from "@/components/cliente-context";
+import { useLocale } from "@/components/i18n-context";
 import { Logo } from "@/components/Logo";
 import { api, SUPERADMIN_EMAIL, type Consumo } from "@/lib/api";
 
@@ -47,6 +48,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { session, signOut } = useAuth();
   const { cliente } = useCliente();
+  const { locale, setLocale, t } = useLocale();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   // Multi-usuário: membro convidado só vê os menus permitidos; dono vê tudo + Utilizadores.
   const isMembro = cliente?.papel === "membro";
@@ -89,7 +91,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     !!consumo && !consumo.ilimitado && (consumo.total ?? 0) === 0 && (consumo.creditos_avulsos ?? 0) === 0;
   const mostrarAviso = semCreditos && !pathname.startsWith("/assinatura") && !pathname.startsWith("/onboarding");
 
-  const nomeConta = cliente?.nome ?? "Painel";
+  const nomeConta = cliente?.nome ?? t.shell.contaPadrao;
   const inicial = (cliente?.nome?.trim()?.[0] ?? session?.user.email?.[0] ?? "T").toUpperCase();
 
   return (
@@ -117,7 +119,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMenuAberto(false)}
-            aria-label="Fechar menu"
+            aria-label={t.shell.fecharMenu}
             className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg text-black/40 hover:bg-black/[0.04] lg:hidden"
           >
             <X size={18} />
@@ -131,7 +133,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             if (itens.length === 0) return null;
             return (
               <div key={grupo} className="mb-1">
-                <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-black/30">{grupo}</div>
+                <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-black/30">{t.shell.grupos[grupo as keyof typeof t.shell.grupos] ?? grupo}</div>
                 {itens.map((item) => {
                   const active = pathname.startsWith(item.href);
                   const badge = item.href === "/suporte" ? naoLidas : item.href === "/admin-suporte" ? adminNaoLidas : 0;
@@ -145,7 +147,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                       }`}
                     >
                       <Ico size={17} className={active ? "text-white" : "text-black/35 group-hover:text-brand"} />
-                      <span className="flex-1 truncate">{item.label}</span>
+                      <span className="flex-1 truncate">{t.shell.nav[item.href] ?? item.label}</span>
                       {badge > 0 && (
                         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-white text-brand" : "bg-rose-500 text-white"}`}>
                           {badge}
@@ -159,22 +161,30 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Rodapé: conta + sair */}
-        <div className="mt-auto flex items-center gap-2.5 border-t border-black/5 px-1 pt-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">{inicial}</span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-medium text-ink">{nomeConta}</div>
-            <div className="truncate text-[11px] text-black/40">{session?.user.email}</div>
+        {/* Rodapé: idioma + conta + sair */}
+        <div className="mt-auto border-t border-black/5 pt-3">
+          <div className="mb-2 flex items-center gap-1 px-1" aria-label={t.shell.idioma}>
+            <button type="button" onClick={() => setLocale("pt")} aria-pressed={locale === "pt"}
+              className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${locale === "pt" ? "bg-brand text-white" : "text-black/50 hover:bg-black/[0.04]"}`}>PT</button>
+            <button type="button" onClick={() => setLocale("en")} aria-pressed={locale === "en"}
+              className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${locale === "en" ? "bg-brand text-white" : "text-black/50 hover:bg-black/[0.04]"}`}>EN</button>
           </div>
-          <button
-            type="button"
-            onClick={signOut}
-            title="Sair"
-            aria-label="Sair"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-black/40 transition hover:bg-rose-50 hover:text-rose-600"
-          >
-            <LogOut size={16} />
-          </button>
+          <div className="flex items-center gap-2.5 px-1">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">{inicial}</span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium text-ink">{nomeConta}</div>
+              <div className="truncate text-[11px] text-black/40">{session?.user.email}</div>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              title={t.shell.sair}
+              aria-label={t.shell.sair}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-black/40 transition hover:bg-rose-50 hover:text-rose-600"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -184,7 +194,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
-            aria-label="Abrir menu"
+            aria-label={t.shell.abrirMenu}
             className="grid h-9 w-9 place-items-center rounded-lg text-ink hover:bg-black/[0.04]"
           >
             <Menu size={20} />
@@ -201,13 +211,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {mostrarAviso && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
               <span className="text-sm text-amber-900">
-                <strong>Sua conta ainda não tem créditos.</strong> Escolha um plano para ativar os agentes.
+                <strong>{t.shell.avisoSemCreditos}</strong> {t.shell.avisoEscolhaPlano}
               </span>
               <Link
                 href="/assinatura"
                 className="shrink-0 rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
               >
-                Escolher plano →
+                {t.shell.escolherPlano}
               </Link>
             </div>
           )}
