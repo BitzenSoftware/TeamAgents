@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { QRCodeCanvas } from "qrcode.react";
 import { useCliente } from "@/components/cliente-context";
+import { useT } from "@/components/i18n-context";
 import { api, type AgendamentoConfig, type Campanha, type Cliente, type Habilidade, type Profissional, type Servico, type SocialConfig } from "@/lib/api";
 
 export default function CampanhasPage() {
+  const t = useT().campanhas;
   const { cliente } = useCliente();
   const [lista, setLista] = useState<Campanha[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
@@ -42,37 +44,36 @@ export default function CampanhasPage() {
     <div className="p-6">
       <header className="mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">Fábrica de Campanhas</h1>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setCustomizar(true)}
               className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              Customizar Agendamento
+              {t.customizarBtn}
             </button>
             <button
               type="button"
               onClick={() => setModalAberto(true)}
               className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              + Nova campanha
+              {t.novaBtn}
             </button>
           </div>
         </div>
-        <p className="mt-1 text-sm text-black/50">Gera anúncios de alta conversão para o seu tráfego pago</p>
+        <p className="mt-1 text-sm text-black/50">{t.subtitulo}</p>
       </header>
 
       {lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há campanhas. Clique em <strong>“+ Nova campanha”</strong> para gerar seus
-          primeiros anúncios.
+          {t.vazioPre}<strong>{t.vazioStrong}</strong>{t.vazioPos}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
-            <div className="mb-2 text-xs font-medium text-black/50">Campanhas geradas ({lista.length})</div>
+            <div className="mb-2 text-xs font-medium text-black/50">{t.geradas} ({lista.length})</div>
             <div className="space-y-1.5">
               {lista.map((c) => {
                 const sel = c.id === selId;
@@ -101,7 +102,7 @@ export default function CampanhasPage() {
               <CampanhaDetalhe key={selecionada.id} c={selecionada} onChange={carregar} social={social} numeroEmpresa={numeroEmpresa} servicos={servicos} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Selecione uma campanha à esquerda.
+                {t.selecione}
               </div>
             )}
           </section>
@@ -131,6 +132,8 @@ export default function CampanhasPage() {
 
 /* ---------------- Painel de detalhe da campanha ---------------- */
 function CampanhaDetalhe({ c, onChange, social, numeroEmpresa, servicos }: { c: Campanha; onChange: () => void; social: SocialConfig | null; numeroEmpresa: string | null; servicos: Servico[] }) {
+  const t = useT().campanhas;
+  const cm = useT().common;
   const [editando, setEditando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apagando, setApagando] = useState(false);
@@ -165,21 +168,21 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa, servicos }: { c: 
       setEditando(false);
       onChange();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.erroSalvar);
     } finally {
       setSaving(false);
     }
   }
 
   async function apagar() {
-    if (!window.confirm(`Apagar a campanha "${c.nome_campanha}"? Esta ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`${t.apagarConfirm} "${c.nome_campanha}"${t.apagarConfirmSuf}`)) return;
     setApagando(true);
     setErro(null);
     try {
       await api.apagarCampanha(c.id);
       onChange();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao apagar");
+      setErro(err instanceof Error ? err.message : t.erroApagar);
       setApagando(false);
     }
   }
@@ -188,28 +191,28 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa, servicos }: { c: 
     return (
       <div className="rounded-xl border border-black/10 bg-white p-5">
         <div className="space-y-3">
-          <Field label="Nome da campanha">
-            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder="Nome da campanha" />
+          <Field label={t.nomeCampanha}>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="campo" placeholder={t.nomeCampanha} />
           </Field>
-          <Field label="Anúncio — Foco na Dor">
-            <textarea value={anuncioDor} onChange={(e) => setAnuncioDor(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado na dor" />
+          <Field label={t.anuncioDor}>
+            <textarea value={anuncioDor} onChange={(e) => setAnuncioDor(e.target.value)} className="campo h-28 resize-none" placeholder={t.anuncioDorPh} />
           </Field>
-          <Field label="Anúncio — Foco no Benefício">
-            <textarea value={anuncioBeneficio} onChange={(e) => setAnuncioBeneficio(e.target.value)} className="campo h-28 resize-none" placeholder="Texto do anúncio focado no benefício" />
+          <Field label={t.anuncioBeneficio}>
+            <textarea value={anuncioBeneficio} onChange={(e) => setAnuncioBeneficio(e.target.value)} className="campo h-28 resize-none" placeholder={t.anuncioBeneficioPh} />
           </Field>
-          <Field label="Palavra-chave de gatilho">
-            <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder="PALAVRA_CHAVE" />
+          <Field label={t.palavraChave}>
+            <input value={palavraChave} onChange={(e) => setPalavraChave(e.target.value)} className="campo font-mono" placeholder={t.palavraChavePh} />
           </Field>
-          <Field label="Serviços desta campanha (o agente agenda esses)">
+          <Field label={t.servicosDesta}>
             <ServicoPicker servicos={servicos} selecionados={servIds} onChange={setServIds} />
           </Field>
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-              {saving ? "Salvando…" : "Salvar"}
+              {saving ? cm.salvando : cm.salvar}
             </button>
             <button type="button" onClick={cancelar} disabled={saving} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
-              Cancelar
+              {cm.cancelar}
             </button>
           </div>
         </div>
@@ -227,29 +230,29 @@ function CampanhaDetalhe({ c, onChange, social, numeroEmpresa, servicos }: { c: 
       </div>
       <div className="space-y-3 p-5">
         <div className="rounded-lg border border-black/10 p-3">
-          <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Foco na Dor</span>
+          <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">{t.focoDor}</span>
           <p className="whitespace-pre-wrap text-sm">{c.anuncio_dor}</p>
           <PostarAnuncio texto={c.anuncio_dor} social={social} />
         </div>
         <div className="rounded-lg border border-black/10 p-3">
-          <span className="mb-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Foco no Benefício</span>
+          <span className="mb-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t.focoBeneficio}</span>
           <p className="whitespace-pre-wrap text-sm">{c.anuncio_beneficio}</p>
           <PostarAnuncio texto={c.anuncio_beneficio} social={social} />
         </div>
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-paper p-3 text-sm">
-          <Meta k="Gatilho" v={c.gatilho_principal} />
-          <Meta k="Dor-alvo" v={c.dor_alvo} />
-          <Meta k="Desejo-alvo" v={c.desejo_alvo} />
-          <Meta k="Palavra-chave" v={c.palavra_chave_gatilho} mono />
+          <Meta k={t.gatilho} v={c.gatilho_principal} />
+          <Meta k={t.dorAlvo} v={c.dor_alvo} />
+          <Meta k={t.desejoAlvo} v={c.desejo_alvo} />
+          <Meta k={t.palavraChaveMeta} v={c.palavra_chave_gatilho} mono />
         </div>
         <LinkCaptacao numero={numeroEmpresa} palavraChave={c.palavra_chave_gatilho} />
         {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
         <div className="flex gap-2 border-t border-black/5 pt-3">
           <button type="button" onClick={() => setEditando(true)} className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5">
-            Editar
+            {t.editar}
           </button>
           <button type="button" onClick={apagar} disabled={apagando} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40">
-            {apagando ? "Apagando…" : "Apagar"}
+            {apagando ? t.apagando : t.apagar}
           </button>
         </div>
       </div>
@@ -271,6 +274,8 @@ function ModalNovaCampanha({
   onClose: () => void;
   onCreated: (c: Campanha) => void;
 }) {
+  const t = useT().campanhas;
+  const cm = useT().common;
   const [nomeCampanha, setNomeCampanha] = useState("");
   const [nicho, setNicho] = useState("");
   const [dor, setDor] = useState("");
@@ -301,7 +306,7 @@ function ModalNovaCampanha({
       });
       onCreated(c);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao gerar campanha");
+      setErro(err instanceof Error ? err.message : t.erroGerar);
       setLoading(false);
     }
   }
@@ -313,38 +318,38 @@ function ModalNovaCampanha({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-          <span className="text-sm font-semibold text-white">Nova campanha</span>
+          <span className="text-sm font-semibold text-white">{t.modalNova}</span>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">
             ×
           </button>
         </div>
         <form onSubmit={gerar} className="space-y-4 p-5">
-          <Field label="Nome da campanha">
-            <input required value={nomeCampanha} onChange={(e) => setNomeCampanha(e.target.value)} className="campo" placeholder="Ex: Contabilidade Sem Burocracia" />
+          <Field label={t.nomeCampanha}>
+            <input required value={nomeCampanha} onChange={(e) => setNomeCampanha(e.target.value)} className="campo" placeholder={t.nomeCampanhaPh} />
           </Field>
-          <Field label="Nicho de mercado">
-            <input required value={nicho} onChange={(e) => setNicho(e.target.value)} className="campo" placeholder="Ex: Escritórios de contabilidade de pequeno porte" />
+          <Field label={t.nicho}>
+            <input required value={nicho} onChange={(e) => setNicho(e.target.value)} className="campo" placeholder={t.nichoPh} />
           </Field>
-          <Field label="Dor latente / objetivo do negócio">
-            <textarea required value={dor} onChange={(e) => setDor(e.target.value)} className="campo h-24 resize-none" placeholder="Ex: O dono é engolido pela burocracia e não consegue crescer." />
+          <Field label={t.dorLatente}>
+            <textarea required value={dor} onChange={(e) => setDor(e.target.value)} className="campo h-24 resize-none" placeholder={t.dorLatentePh} />
           </Field>
           <div className="block">
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs font-medium text-black/60">Habilidades (opcional)</span>
+              <span className="text-xs font-medium text-black/60">{t.habilidadesOpcional}</span>
               {habilidades.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setSelecionadas(selecionadas.length === habilidades.length ? [] : habilidades.map((h) => h.id))}
                   className="text-xs font-medium text-brand hover:underline"
                 >
-                  {selecionadas.length === habilidades.length ? "Limpar" : "Selecionar todas"}
+                  {selecionadas.length === habilidades.length ? t.limpar : t.selecionarTodas}
                 </button>
               )}
             </div>
             {habilidades.length === 0 ? (
               <p className="rounded-lg border border-dashed border-black/15 p-3 text-xs text-black/40">
-                Sem habilidades ativas. Crie conhecimento da empresa no menu{" "}
-                <Link href="/habilidades" className="font-medium text-brand hover:underline">Habilidades</Link>.
+                {t.semHabPre}
+                <Link href="/habilidades" className="font-medium text-brand hover:underline">{t.semHabLink}</Link>{t.semHabPos}
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -368,23 +373,23 @@ function ModalNovaCampanha({
             )}
             <p className="mt-1 text-xs text-black/40">
               {selecionadas.length === 0
-                ? "Nenhuma selecionada — gera só com nicho + dor (mais econômico em tokens)."
-                : `${selecionadas.length} habilidade${selecionadas.length > 1 ? "s" : ""} no prompt.`}
+                ? t.nenhumaSel
+                : `${selecionadas.length} ${selecionadas.length > 1 ? t.habPromptPlur : t.habPromptSing}`}
             </p>
           </div>
-          <Field label="Serviços desta campanha (opcional — o agente agenda esses)">
+          <Field label={t.servicosOpcional}>
             <ServicoPicker servicos={servicos} selecionados={servIds} onChange={setServIds} />
           </Field>
-          <Field label="Link de calendário (opcional)">
-            <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder="https://cal.com/voce/15min" />
+          <Field label={t.linkCal}>
+            <input value={link} onChange={(e) => setLink(e.target.value)} className="campo" placeholder={t.linkCalPh} />
           </Field>
           {erro && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} disabled={loading} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40">
-              Cancelar
+              {cm.cancelar}
             </button>
             <button type="submit" disabled={loading || !cliente} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-              {loading ? "Gerando com a IA…" : "Gerar anúncios"}
+              {loading ? t.gerandoIA : t.gerarAnuncios}
             </button>
           </div>
         </form>
@@ -417,6 +422,7 @@ const REDES = [
 type RedeId = (typeof REDES)[number]["id"];
 
 function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig | null }) {
+  const tc = useT().campanhas;
   const [sel, setSel] = useState<RedeId[]>([]);
   const [midiaUrl, setMidiaUrl] = useState("");
   const [tipoMidia, setTipoMidia] = useState<"imagem" | "video">("imagem");
@@ -454,9 +460,9 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
         if (rede === "facebook") await api.postarFacebook(texto, img, vid);
         else if (rede === "instagram") await api.postarInstagram(texto, img, vid);
         else await api.postarDiscord(texto);
-        res.push({ rede, ok: true, msg: "publicado" });
+        res.push({ rede, ok: true, msg: tc.publicado });
       } catch (err) {
-        res.push({ rede, ok: false, msg: err instanceof Error ? err.message : "erro" });
+        res.push({ rede, ok: false, msg: err instanceof Error ? err.message : tc.erroCurto });
       }
     }
     setResultados(res);
@@ -476,7 +482,7 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
               onClick={() => toggle(r.id)}
               disabled={!ok}
               aria-label={r.label}
-              title={ok ? r.label : `Conecte o ${r.label} em Configurações`}
+              title={ok ? r.label : `${tc.conectePre}${r.label}${tc.contePos}`}
               className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
                 ativo
                   ? "border-brand bg-brand"
@@ -496,9 +502,9 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
         <button
           type="button"
           onClick={() => setAjudaUrl((v) => !v)}
-          aria-label="Como gerar a URL da mídia"
-          aria-expanded={ajudaUrl ? "true" : "false"}
-          title="Como gerar a URL da mídia"
+          aria-label={tc.comoGerarUrl}
+          aria-expanded={ajudaUrl}
+          title={tc.comoGerarUrl}
           className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition ${
             ajudaUrl ? "border-brand bg-brand/10 text-brand" : "border-black/15 text-black/40 hover:bg-black/5"
           }`}
@@ -511,45 +517,43 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
           disabled={posting || sel.length === 0 || (midiaObrigatoria && !midiaUrl.trim())}
           className="ml-auto rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-40"
         >
-          {posting ? "Publicando…" : "Postar"}
+          {posting ? tc.postando : tc.postar}
         </button>
       </div>
 
       {ajudaUrl && (
         <div className="mt-2 rounded-lg border border-black/10 bg-black/[0.02] p-3 text-[11px] leading-relaxed text-black/60">
-          <p className="mb-1 font-semibold text-black/70">Como gerar a URL da mídia</p>
+          <p className="mb-1 font-semibold text-black/70">{tc.comoGerarUrl}</p>
           <p>
-            O Instagram e o Facebook baixam o arquivo de uma <strong>URL pública</strong>. Faça o upload em um destes
-            serviços e copie o <strong>link direto</strong> do arquivo (deve terminar na extensão do arquivo, ex.
-            <code className="mx-1 rounded bg-black/[0.06] px-1">.jpg</code>/<code className="rounded bg-black/[0.06] px-1">.mp4</code>,
-            e não a página do site):
+            {tc.ajudaIntroA}<strong>{tc.ajudaIntroPublica}</strong>{tc.ajudaIntroB}<strong>{tc.ajudaIntroLinkDireto}</strong>{tc.ajudaIntroC}
+            <code className="mx-1 rounded bg-black/[0.06] px-1">.jpg</code>/<code className="rounded bg-black/[0.06] px-1">.mp4</code>{tc.ajudaIntroD}
           </p>
-          <p className="mt-2 font-semibold text-black/70">Imagem</p>
+          <p className="mt-2 font-semibold text-black/70">{tc.ajudaImagem}</p>
           <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
-            <li><a href="https://postimages.org" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">PostImages</a> — sem cadastro; após enviar, copie o campo <em>“Link direto”</em>.</li>
-            <li><a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Imgur</a> — clique com o botão direito na imagem e use <em>“Copiar endereço da imagem”</em>.</li>
+            <li><a href="https://postimages.org" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">PostImages</a>{tc.ajudaPostimages}<em>{tc.ajudaPostimagesEm}</em>{tc.ponto}</li>
+            <li><a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Imgur</a>{tc.ajudaImgur}<em>{tc.ajudaImgurEm}</em>{tc.ponto}</li>
           </ul>
-          <p className="mt-2 font-semibold text-black/70">Vídeo (Reels no Instagram / vídeo no Facebook)</p>
+          <p className="mt-2 font-semibold text-black/70">{tc.ajudaVideoTitulo}</p>
           <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
-            <li><a href="https://cloudinary.com" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Cloudinary</a> — conta grátis; após enviar, copie a URL que termina em <code className="rounded bg-black/[0.06] px-1">.mp4</code>. É o mais confiável para vídeo.</li>
+            <li><a href="https://cloudinary.com" target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Cloudinary</a>{tc.ajudaCloudinaryA}<code className="rounded bg-black/[0.06] px-1">.mp4</code>{tc.ajudaCloudinaryB}</li>
           </ul>
-          <p className="mt-1.5 text-black/45">Dica: vídeos do Instagram saem como <strong>Reels</strong> e a Meta leva alguns segundos para processar — a publicação pode demorar um pouco.</p>
+          <p className="mt-1.5 text-black/45">{tc.ajudaDica}<strong>{tc.ajudaDicaReels}</strong>{tc.ajudaDicaPos}</p>
         </div>
       )}
 
       {mostraCampoMidia && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-black/10 p-0.5 text-[11px]">
-            {(["imagem", "video"] as const).map((t) => (
+            {(["imagem", "video"] as const).map((m) => (
               <button
-                key={t}
+                key={m}
                 type="button"
-                onClick={() => setTipoMidia(t)}
+                onClick={() => setTipoMidia(m)}
                 className={`rounded-md px-2.5 py-1 font-medium transition ${
-                  tipoMidia === t ? "bg-brand text-white" : "text-black/50 hover:bg-black/5"
+                  tipoMidia === m ? "bg-brand text-white" : "text-black/50 hover:bg-black/5"
                 }`}
               >
-                {t === "imagem" ? "Imagem" : "Vídeo"}
+                {m === "imagem" ? tc.imagem : tc.video}
               </button>
             ))}
           </div>
@@ -558,8 +562,8 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
             onChange={(e) => setMidiaUrl(e.target.value)}
             placeholder={
               tipoMidia === "video"
-                ? midiaObrigatoria ? "URL do vídeo .mp4 (obrigatório para Instagram)" : "URL do vídeo .mp4 (opcional para Facebook)"
-                : midiaObrigatoria ? "URL da imagem (obrigatório para Instagram)" : "URL da imagem (opcional para Facebook)"
+                ? midiaObrigatoria ? tc.phVideoObrig : tc.phVideoOpc
+                : midiaObrigatoria ? tc.phImagemObrig : tc.phImagemOpc
             }
             className="campo min-w-0 flex-1 text-xs"
           />
@@ -569,7 +573,7 @@ function PostarAnuncio({ texto, social }: { texto: string; social: SocialConfig 
         <div className="mt-2 space-y-1">
           {resultados.map((r) => (
             <p key={r.rede} className={`text-[11px] ${r.ok ? "text-emerald-700" : "text-rose-700"}`}>
-              {r.ok ? "✓" : "✗"} {labelRede(r.rede)}: {r.ok ? "publicado" : r.msg}
+              {r.ok ? "✓" : "✗"} {labelRede(r.rede)}: {r.ok ? tc.publicado : r.msg}
             </p>
           ))}
         </div>
@@ -598,20 +602,20 @@ function Meta({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
 
 /* ---------------- Link/QR de captação (a ponte anúncio → WhatsApp) ---------------- */
 function LinkCaptacao({ numero, palavraChave }: { numero: string | null; palavraChave: string }) {
+  const t = useT().campanhas;
   const [copiado, setCopiado] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
   if (!numero) {
     return (
       <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
-        <strong>Link de captação indisponível.</strong> Conecte o WhatsApp da clínica em{" "}
-        <Link href="/configuracoes" className="font-medium underline">Configurações</Link> — assim que
-        ligar, geramos aqui o link e o QR Code que trazem as clientes direto pra esta campanha.
+        <strong>{t.indispStrong}</strong>{t.indispPre}
+        <Link href="/configuracoes" className="font-medium underline">{t.configLink}</Link>{t.indispPos}
       </div>
     );
   }
 
-  const msg = `Oi! Vi o anúncio e quero saber mais sobre ${palavraChave} 💬`;
+  const msg = `${t.msgPre}${palavraChave}${t.msgPos}`;
   const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
 
   function copiar() {
@@ -631,25 +635,24 @@ function LinkCaptacao({ numero, palavraChave }: { numero: string | null; palavra
 
   return (
     <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
-      <div className="mb-2 text-xs font-semibold text-emerald-800">📲 Link de captação — leva direto pro WhatsApp da clínica</div>
+      <div className="mb-2 text-xs font-semibold text-emerald-800">{t.linkTitulo}</div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div ref={qrRef} className="mx-auto shrink-0 rounded-lg border border-emerald-200 bg-white p-2 sm:mx-0">
           <QRCodeCanvas value={link} size={108} level="M" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="mb-2 text-[11px] leading-relaxed text-emerald-900/70">
-            Cole no botão do anúncio, na bio do Instagram, no story ou imprima o QR. Quem clicar já chega
-            no seu WhatsApp com a palavra-chave — e cai <strong>nesta campanha</strong> automaticamente.
+            {t.linkExplicaA}<strong>{t.linkExplicaStrong}</strong>{t.linkExplicaB}
           </p>
           <div className="mb-2 break-all rounded-md border border-emerald-200 bg-white px-2 py-1.5 font-mono text-[11px] text-black/55">
             {link}
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={copiar} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
-              {copiado ? "✓ Copiado" : "Copiar link"}
+              {copiado ? t.copiado : t.copiarLink}
             </button>
             <button type="button" onClick={baixarQr} className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100">
-              Baixar QR Code
+              {t.baixarQr}
             </button>
           </div>
         </div>
@@ -660,11 +663,12 @@ function LinkCaptacao({ numero, palavraChave }: { numero: string | null; palavra
 
 /* ---------------- Seletor de serviços (chips) ---------------- */
 function ServicoPicker({ servicos, selecionados, onChange }: { servicos: Servico[]; selecionados: string[]; onChange: (ids: string[]) => void }) {
+  const t = useT().campanhas;
   if (servicos.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-black/15 p-3 text-xs text-black/40">
-        Sem serviços ativos. Cadastre no menu{" "}
-        <Link href="/servicos" className="font-medium text-brand hover:underline">Serviços</Link>.
+        {t.semServicosPre}
+        <Link href="/servicos" className="font-medium text-brand hover:underline">{t.servicosLink}</Link>{t.semServicosPos}
       </p>
     );
   }
@@ -686,6 +690,8 @@ function ServicoPicker({ servicos, selecionados, onChange }: { servicos: Servico
 
 /* ---------------- Modal: Customizar Agendamento (config global) ---------------- */
 function ModalCustomizarAgendamento({ onClose }: { onClose: () => void }) {
+  const t = useT().campanhas;
+  const cm = useT().common;
   const [cfg, setCfg] = useState<AgendamentoConfig | null>(null);
   const [profs, setProfs] = useState<Profissional[]>([]);
   const [salvando, setSalvando] = useState(false);
@@ -726,52 +732,52 @@ function ModalCustomizarAgendamento({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-black/10 px-5 py-4">
-          <h2 className="text-lg font-semibold">Customizar Agendamento</h2>
-          <p className="text-xs text-black/50">Define como o agente conduz o agendamento (vale para todas as campanhas).</p>
+          <h2 className="text-lg font-semibold">{t.customTitulo}</h2>
+          <p className="text-xs text-black/50">{t.customSubtitulo}</p>
         </div>
         {!cfg ? (
-          <p className="p-6 text-sm text-black/40">Carregando…</p>
+          <p className="p-6 text-sm text-black/40">{t.carregando}</p>
         ) : (
           <div className="space-y-4 p-5">
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/60">O agente pergunta primeiro:</label>
-              <select aria-label="Ordem do fluxo de agendamento" value={primeiroPasso} onChange={(e) => set("fluxo_ordem", e.target.value === "servico" ? ["servico", "profissional"] : ["profissional", "servico"])}
+              <label className="mb-1 block text-xs font-medium text-black/60">{t.perguntaPrimeiro}</label>
+              <select aria-label={t.perguntaPrimeiro} value={primeiroPasso} onChange={(e) => set("fluxo_ordem", e.target.value === "servico" ? ["servico", "profissional"] : ["profissional", "servico"])}
                 className="campo">
-                <option value="profissional">Profissional → Serviço</option>
-                <option value="servico">Serviço → Profissional</option>
+                <option value="profissional">{t.profServico}</option>
+                <option value="servico">{t.servicoProf}</option>
               </select>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.perguntar_profissional} onChange={(e) => set("perguntar_profissional", e.target.checked)} />
-              Perguntar qual profissional
+              {t.perguntarProf}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.permitir_qualquer} onChange={(e) => set("permitir_qualquer", e.target.checked)} />
-              Permitir &quot;qualquer profissional disponível&quot; (encaixe automático)
+              {t.permitirQualquer}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.perguntar_nome} onChange={(e) => set("perguntar_nome", e.target.checked)} />
-              Pedir o nome do cliente ao agendar
+              {t.pedirNome}
             </label>
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/60">Profissional padrão (quando não perguntar)</label>
-              <select aria-label="Profissional padrão" value={cfg.profissional_padrao_id ?? ""} onChange={(e) => set("profissional_padrao_id", e.target.value || null)} className="campo">
-                <option value="">— nenhum —</option>
+              <label className="mb-1 block text-xs font-medium text-black/60">{t.profPadrao}</label>
+              <select aria-label={t.profPadrao} value={cfg.profissional_padrao_id ?? ""} onChange={(e) => set("profissional_padrao_id", e.target.value || null)} className="campo">
+                <option value="">{t.nenhum}</option>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/60">Oferecer horários até quantos dias à frente</label>
-              <input aria-label="Dias à frente" type="number" min={1} max={90} value={cfg.dias_futuros} onChange={(e) => set("dias_futuros", Number(e.target.value))} className="campo" />
+              <label className="mb-1 block text-xs font-medium text-black/60">{t.diasFrente}</label>
+              <input aria-label={t.diasFrente} type="number" min={1} max={90} value={cfg.dias_futuros} onChange={(e) => set("dias_futuros", Number(e.target.value))} className="campo" />
             </div>
             {erro && <p className="rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
           </div>
         )}
         <div className="flex justify-end gap-2 border-t border-black/10 px-5 py-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancelar</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">{cm.cancelar}</button>
           <button type="button" onClick={salvar} disabled={salvando || !cfg}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-            {salvando ? "Salvando…" : "Salvar"}
+            {salvando ? cm.salvando : cm.salvar}
           </button>
         </div>
       </div>
