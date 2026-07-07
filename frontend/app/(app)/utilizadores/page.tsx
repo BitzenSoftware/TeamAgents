@@ -6,26 +6,17 @@ import { Plus, Trash2, Mail, UserRound, Check, Camera, Loader2 } from "lucide-re
 import { api, type Departamento, type Membro } from "@/lib/api";
 import { useCliente } from "@/components/cliente-context";
 import { useAuth } from "@/components/auth-context";
+import { useT } from "@/components/i18n-context";
 import { supabase } from "@/lib/supabase";
 
-// Menus que podem ser concedidos a um membro (chave = href, igual ao Shell).
-const MENUS: { href: string; label: string }[] = [
-  { href: "/pipeline", label: "Agente SDR" },
-  { href: "/campanhas", label: "Agente de Copywriting" },
-  { href: "/executivo", label: "Agente Executivo" },
-  { href: "/assistentes", label: "Assistentes" },
-  { href: "/gestao", label: "Gestão" },
-  { href: "/profissionais", label: "Profissionais" },
-  { href: "/servicos", label: "Serviços" },
-  { href: "/agenda", label: "Agenda" },
-  { href: "/habilidades", label: "Habilidades" },
-  { href: "/consumo", label: "Consumo" },
-  { href: "/configuracoes", label: "Configurações" },
-  { href: "/suporte", label: "Suporte" },
-  { href: "/guia", label: "Guia do Usuário" },
+// Menus que podem ser concedidos a um membro (chave = href; rótulo vem do shell.nav).
+const MENU_HREFS = [
+  "/pipeline", "/campanhas", "/executivo", "/assistentes", "/gestao", "/profissionais",
+  "/servicos", "/agenda", "/habilidades", "/consumo", "/configuracoes", "/suporte", "/guia",
 ];
 
 export default function UtilizadoresPage() {
+  const tr = useT().utilizadores;
   const router = useRouter();
   const { cliente, loading: cliLoading } = useCliente();
   const { session } = useAuth();
@@ -77,12 +68,12 @@ export default function UtilizadoresPage() {
     <div className="p-6">
       <header className="mb-5 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Utilizadores</h1>
-          <p className="text-sm text-black/50">Convide pessoas, defina permissões e departamentos. Todos compartilham o mesmo saldo de créditos da empresa.</p>
+          <h1 className="text-xl font-semibold">{tr.titulo}</h1>
+          <p className="text-sm text-black/50">{tr.subtitulo}</p>
         </div>
         <button onClick={() => setEditar("novo")}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-          <Plus size={16} /> Criar utilizador
+          <Plus size={16} /> {tr.criarBtn}
         </button>
       </header>
 
@@ -93,9 +84,9 @@ export default function UtilizadoresPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-black/10 text-left text-[11px] font-semibold uppercase tracking-wider text-black/40">
-                <th className="px-4 py-3 font-semibold">Utilizador</th>
-                <th className="px-4 py-3 font-semibold">E-mail</th>
-                <th className="px-4 py-3 font-semibold">Departamentos</th>
+                <th className="px-4 py-3 font-semibold">{tr.thUtilizador}</th>
+                <th className="px-4 py-3 font-semibold">{tr.thEmail}</th>
+                <th className="px-4 py-3 font-semibold">{tr.thDepartamentos}</th>
                 <th className="w-px px-4 py-3" />
               </tr>
             </thead>
@@ -106,13 +97,13 @@ export default function UtilizadoresPage() {
                   <div className="flex items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand/15 text-brand"><UserRound size={18} /></span>
                     <div className="min-w-0">
-                      <div className="max-w-[18rem] truncate font-semibold text-ink">{cliente?.nome || "Administrador"}</div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">Admin · dono</span>
+                      <div className="max-w-[18rem] truncate font-semibold text-ink">{cliente?.nome || tr.administrador}</div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">{tr.adminDono}</span>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-black/60"><div className="truncate">{session?.user.email ?? "—"}</div></td>
-                <td className="px-4 py-3 text-black/50">Todos os departamentos</td>
+                <td className="px-4 py-3 text-black/50">{tr.todosDepartamentos}</td>
                 <td className="px-4 py-3" />
               </tr>
               {membros.map((m) => {
@@ -122,7 +113,7 @@ export default function UtilizadoresPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <label
-                          title="Adicionar/alterar foto"
+                          title={tr.adicionarFoto}
                           className="group relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-brand/10 text-brand"
                         >
                           {m.avatar_url ? (
@@ -142,10 +133,10 @@ export default function UtilizadoresPage() {
                         <div className="min-w-0">
                           <button onClick={() => setEditar(m)}
                             className="block max-w-[18rem] truncate text-left font-semibold text-ink hover:text-brand hover:underline">
-                            {m.nome || "(sem nome)"}
+                            {m.nome || tr.semNome}
                           </button>
                           <span className={`text-[11px] ${m.auth_user_id ? "text-emerald-600" : "text-amber-600"}`}>
-                            {m.auth_user_id ? "ativo" : "convite pendente"}
+                            {m.auth_user_id ? tr.ativo : tr.convitePendente}
                           </span>
                         </div>
                       </div>
@@ -153,8 +144,8 @@ export default function UtilizadoresPage() {
                     <td className="px-4 py-3 text-black/60">
                       <div className="truncate">{m.email}</div>
                       {!m.auth_user_id && (
-                        <button onClick={() => api.reenviarConvite(m.id).then(() => alert("Convite reenviado."))}
-                          className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"><Mail size={11} /> Reenviar convite</button>
+                        <button onClick={() => api.reenviarConvite(m.id).then(() => alert(tr.conviteReenviado))}
+                          className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:underline"><Mail size={11} /> {tr.reenviarConvite}</button>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -169,8 +160,8 @@ export default function UtilizadoresPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => { if (confirm(`Remover ${m.nome || m.email}?`)) api.apagarMembro(m.id).then(carregar); }}
-                        aria-label="Remover" className="grid h-8 w-8 place-items-center rounded-lg text-black/35 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
+                      <button onClick={() => { if (confirm(`${tr.removerConfirmPre} ${m.nome || m.email}?`)) api.apagarMembro(m.id).then(carregar); }}
+                        aria-label={tr.removerAria} className="grid h-8 w-8 place-items-center rounded-lg text-black/35 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
                     </td>
                   </tr>
                 );
@@ -178,7 +169,7 @@ export default function UtilizadoresPage() {
               {membros.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-sm text-black/40">
-                    Nenhum utilizador convidado ainda. Clique em <strong>Criar utilizador</strong> para convidar alguém por e-mail.
+                    {tr.vazioPre}<strong>{tr.vazioStrong}</strong>{tr.vazioPos}
                   </td>
                 </tr>
               )}
@@ -202,6 +193,9 @@ export default function UtilizadoresPage() {
 function ModalMembro({ membro, departamentos, onClose, onSaved }: {
   membro: Membro | null; departamentos: Departamento[]; onClose: () => void; onSaved: () => void;
 }) {
+  const tr = useT().utilizadores;
+  const cm = useT().common;
+  const navLabels = useT().shell.nav;
   const [aba, setAba] = useState<"dados" | "permissoes" | "departamentos">("dados");
   const [nome, setNome] = useState(membro?.nome ?? "");
   const [email, setEmail] = useState(membro?.email ?? "");
@@ -215,7 +209,7 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
 
   async function salvar() {
     if (salvando) return;
-    if (!membro && !email.trim()) { setErro("Informe o e-mail."); setAba("dados"); return; }
+    if (!membro && !email.trim()) { setErro(tr.informeEmail); setAba("dados"); return; }
     setSalvando(true); setErro(null);
     try {
       if (membro) await api.atualizarMembro(membro.id, { nome: nome.trim(), permissoes: perms, departamento_ids: deps });
@@ -230,13 +224,13 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-black/10 px-5 py-4">
-          <h2 className="text-lg font-semibold">{membro ? `Editar — ${membro.nome || membro.email}` : "Criar utilizador"}</h2>
+          <h2 className="text-lg font-semibold">{membro ? `${tr.editarPrefix}${membro.nome || membro.email}` : tr.criarTitulo}</h2>
         </div>
         <div className="flex gap-1 border-b border-black/10 px-3">
           {(["dados", "permissoes", "departamentos"] as const).map((a) => (
             <button key={a} onClick={() => setAba(a)}
               className={`-mb-px border-b-2 px-3.5 py-2.5 text-sm font-medium transition ${aba === a ? "border-brand text-brand" : "border-transparent text-black/50 hover:text-ink"}`}>
-              {a === "dados" ? "Dados" : a === "permissoes" ? "Permissões" : "Departamentos"}
+              {a === "dados" ? tr.abaDados : a === "permissoes" ? tr.abaPermissoes : tr.abaDepartamentos}
             </button>
           ))}
         </div>
@@ -245,15 +239,15 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
           {aba === "dados" && (
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-black/55">Nome</label>
-                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da pessoa"
+                <label className="mb-1 block text-xs font-medium text-black/55">{tr.nome}</label>
+                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={tr.nomePh}
                   className={inputCls} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-black/55">E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!membro} type="email" placeholder="email@empresa.com"
+                <label className="mb-1 block text-xs font-medium text-black/55">{tr.email}</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!membro} type="email" placeholder={tr.emailPh}
                   className={`${inputCls} ${membro ? "bg-black/[0.03] text-black/50" : ""}`} />
-                {!membro && <p className="mt-1 text-[11px] text-black/40">Enviaremos um convite por e-mail para esta pessoa definir a senha.</p>}
+                {!membro && <p className="mt-1 text-[11px] text-black/40">{tr.conviteInfo}</p>}
               </div>
             </div>
           )}
@@ -261,17 +255,17 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
           {aba === "permissoes" && (
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs text-black/50">Marque os menus que este usuário pode ver.</p>
+                <p className="text-xs text-black/50">{tr.marqueMenus}</p>
                 <div className="flex gap-2 text-[11px]">
-                  <button onClick={() => setPerms(MENUS.map((m) => m.href))} className="font-medium text-brand hover:underline">Todos</button>
-                  <button onClick={() => setPerms([])} className="text-black/40 hover:underline">Nenhum</button>
+                  <button onClick={() => setPerms([...MENU_HREFS])} className="font-medium text-brand hover:underline">{tr.todos}</button>
+                  <button onClick={() => setPerms([])} className="text-black/40 hover:underline">{tr.nenhum}</button>
                 </div>
               </div>
               <div className="space-y-0.5">
-                {MENUS.map((mn) => (
-                  <label key={mn.href} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-black/[0.03]">
-                    <input type="checkbox" checked={perms.includes(mn.href)} onChange={() => toggle(perms, setPerms, mn.href)} />
-                    {mn.label}
+                {MENU_HREFS.map((href) => (
+                  <label key={href} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-black/[0.03]">
+                    <input type="checkbox" checked={perms.includes(href)} onChange={() => toggle(perms, setPerms, href)} />
+                    {navLabels[href] ?? href}
                   </label>
                 ))}
               </div>
@@ -280,9 +274,9 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
 
           {aba === "departamentos" && (
             <div>
-              <p className="mb-2 text-xs text-black/50">O usuário só verá os projetos dos departamentos marcados.</p>
+              <p className="mb-2 text-xs text-black/50">{tr.deptInfo}</p>
               {departamentos.length === 0 ? (
-                <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">Nenhum departamento criado ainda (menu Gestão).</p>
+                <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">{tr.semDeptos}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {departamentos.map((d) => {
@@ -302,10 +296,10 @@ function ModalMembro({ membro, departamentos, onClose, onSaved }: {
 
         {erro && <p className="mx-5 mb-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
         <div className="flex justify-end gap-2 border-t border-black/10 px-5 py-3">
-          <button onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancelar</button>
+          <button onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">{cm.cancelar}</button>
           <button onClick={salvar} disabled={salvando}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-            {salvando ? "Salvando…" : membro ? "Salvar" : "Convidar"}
+            {salvando ? cm.salvando : membro ? cm.salvar : tr.convidar}
           </button>
         </div>
       </div>
