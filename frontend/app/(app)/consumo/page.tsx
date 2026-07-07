@@ -1,27 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useT } from "@/components/i18n-context";
 import { api, type Consumo, type ConsumoDashboard } from "@/lib/api";
 
 type Gran = "dia" | "semana" | "mes" | "ano";
 
-const GRAN_TABS: { id: Gran; label: string }[] = [
-  { id: "dia", label: "Diário" },
-  { id: "semana", label: "Semanal" },
-  { id: "mes", label: "Mensal" },
-  { id: "ano", label: "Anual" },
-];
+const GRAN_IDS: Gran[] = ["dia", "semana", "mes", "ano"];
 
-// Origem → rótulo amigável + cor
-const ORIGEM: Record<string, { label: string; cor: string }> = {
-  campanhas: { label: "Campanhas (Copywriting)", cor: "#4f46e5" },
-  sdr: { label: "SDR (WhatsApp)", cor: "#16a34a" },
-  bi: { label: "Diretor de BI", cor: "#d97706" },
-  executivo: { label: "Agente Executivo (Email)", cor: "#db2777" },
-  outro: { label: "Outro", cor: "#64748b" },
+// Origem → cor (o rótulo vem do dicionário)
+const ORIGEM_COR: Record<string, string> = {
+  campanhas: "#4f46e5", sdr: "#16a34a", bi: "#d97706", executivo: "#db2777", outro: "#64748b",
 };
 
 export default function ConsumoPage() {
+  const tr = useT().consumo;
   const anoAtual = new Date().getFullYear();
   const [consumo, setConsumo] = useState<Consumo | null>(null);
   const [dash, setDash] = useState<ConsumoDashboard | null>(null);
@@ -59,9 +52,9 @@ export default function ConsumoPage() {
   return (
     <div className="p-6">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold">Consumo de Créditos</h1>
+        <h1 className="text-xl font-semibold">{tr.titulo}</h1>
         <p className="mt-1 text-sm text-black/50">
-          Acompanhe o consumo do plano e veja onde os créditos são gastos, por período e por agente.
+          {tr.subtitulo}
         </p>
       </header>
 
@@ -70,23 +63,23 @@ export default function ConsumoPage() {
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {consumo.ilimitado ? (
             <>
-              <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub="ilimitado" />
-              <CardKpi titulo="Disponíveis" valor="∞" />
-              <CardKpi titulo="Plano" valor="Superadmin" sub="créditos ilimitados" />
+              <CardKpi titulo={tr.kpiUsados} valor={`${consumo.usados}`} sub={tr.ilimitado} />
+              <CardKpi titulo={tr.disponiveis} valor="∞" />
+              <CardKpi titulo={tr.plano} valor={tr.superadmin} sub={tr.creditosIlimitados} />
             </>
           ) : (
             <>
-              <CardKpi titulo="Créditos usados (mês)" valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
+              <CardKpi titulo={tr.kpiUsados} valor={`${consumo.usados}`} sub={`/ ${consumo.total}`} />
               <CardKpi
-                titulo="Disponíveis"
+                titulo={tr.disponiveis}
                 valor={`${consumo.disponivel_total ?? consumo.restantes}`}
                 sub={
                   consumo.creditos_avulsos
-                    ? `(${consumo.restantes} do plano + ${consumo.creditos_avulsos} avulsos)`
+                    ? `(${consumo.restantes} ${tr.doPlano} + ${consumo.creditos_avulsos} ${tr.avulsos})`
                     : undefined
                 }
               />
-              <CardKpiBar titulo="Uso do plano" percent={consumo.percent} />
+              <CardKpiBar titulo={tr.usoPlano} percent={consumo.percent} />
             </>
           )}
         </div>
@@ -95,16 +88,16 @@ export default function ConsumoPage() {
       {/* Controlos */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-lg border border-black/10 bg-white p-1">
-          {GRAN_TABS.map((t) => (
+          {GRAN_IDS.map((id) => (
             <button
-              key={t.id}
+              key={id}
               type="button"
-              onClick={() => setGran(t.id)}
+              onClick={() => setGran(id)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                gran === t.id ? "bg-brand text-white" : "text-black/55 hover:bg-black/5"
+                gran === id ? "bg-brand text-white" : "text-black/55 hover:bg-black/5"
               }`}
             >
-              {t.label}
+              {tr.gran[id]}
             </button>
           ))}
         </div>
@@ -112,7 +105,7 @@ export default function ConsumoPage() {
           <select
             value={ano}
             onChange={(e) => setAno(Number(e.target.value))}
-            aria-label="Ano"
+            aria-label={tr.anoAria}
             className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           >
             {anos.map((a) => (
@@ -123,7 +116,7 @@ export default function ConsumoPage() {
           </select>
         )}
         <span className="ml-auto text-sm text-black/50">
-          Total no período: <strong className="text-ink">{dash?.total ?? 0}</strong> créditos
+          {tr.totalPeriodo} <strong className="text-ink">{dash?.total ?? 0}</strong> {tr.creditos}
         </span>
       </div>
 
@@ -131,15 +124,14 @@ export default function ConsumoPage() {
         {/* Gráfico de barras (série temporal) */}
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white lg:col-span-2">
           <div className="bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-xs font-semibold text-white">
-            Consumo por {GRAN_TABS.find((t) => t.id === gran)?.label.toLowerCase()}
+            {tr.consumoPor} {tr.gran[gran].toLowerCase()}
           </div>
           <div className="p-4">
             {loading ? (
-              <p className="py-10 text-center text-sm text-black/40">Carregando…</p>
+              <p className="py-10 text-center text-sm text-black/40">{tr.carregando}</p>
             ) : series.length === 0 ? (
               <p className="py-10 text-center text-sm text-black/40">
-                Sem consumo registrado neste período. Os gráficos vão preenchendo à medida que os agentes
-                trabalham.
+                {tr.semConsumo}
               </p>
             ) : (
               <div className="flex h-56 items-end gap-1 overflow-x-auto">
@@ -164,28 +156,28 @@ export default function ConsumoPage() {
         {/* Repartição por origem */}
         <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <div className="bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-xs font-semibold text-white">
-            Onde você gastou mais
+            {tr.ondeGastou}
           </div>
           <div className="space-y-3 p-4">
             {origens.length === 0 ? (
-              <p className="py-6 text-center text-sm text-black/40">Sem dados.</p>
+              <p className="py-6 text-center text-sm text-black/40">{tr.semDados}</p>
             ) : (
               origens.map(([origem, v]) => {
-                const meta = ORIGEM[origem] ?? ORIGEM.outro;
+                const cor = ORIGEM_COR[origem] ?? ORIGEM_COR.outro;
                 const pct = Math.round((v / totalOrigem) * 100);
                 return (
                   <div key={origem}>
                     <div className="mb-1 flex items-center justify-between text-xs">
                       <span className="flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.cor }} />
-                        {meta.label}
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: cor }} />
+                        {tr.origem[origem] ?? tr.origem.outro}
                       </span>
                       <span className="text-black/50">
                         {v} · {pct}%
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: meta.cor }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cor }} />
                     </div>
                   </div>
                 );
