@@ -1,31 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useT } from "@/components/i18n-context";
 import { api, type AgenteSkill, type Habilidade } from "@/lib/api";
 
-const AGENTES: { valor: AgenteSkill; label: string }[] = [
-  { valor: "global", label: "Global (todos)" },
-  { valor: "copywriting", label: "Agente de Copywriting" },
-  { valor: "sdr", label: "Agente SDR" },
-  { valor: "bi", label: "Agente Diretor de BI" },
-  { valor: "assistente", label: "Agente Executivo" },
-  { valor: "financeiro", label: "Agente Financeiro" },
-  { valor: "juridico", label: "Agente Jurídico" },
-  { valor: "suporte", label: "Agente de Suporte" },
-  { valor: "produto", label: "Agente de Produto" },
-  { valor: "rh", label: "Agente de RH / Pessoas" },
-  { valor: "auditoria", label: "Agente de Auditoria Interna" },
-  { valor: "projetos", label: "Agente de Projetos" },
-  { valor: "estrategia", label: "Agente de Estratégia" },
-  { valor: "crescimento", label: "Agente de Growth" },
-  { valor: "operacoes", label: "Agente de Operações" },
+const AGENTE_VALORES: AgenteSkill[] = [
+  "global", "copywriting", "sdr", "bi", "assistente", "financeiro", "juridico", "suporte",
+  "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes",
 ];
 
-const AGENTE_LABEL: Record<AgenteSkill, string> = Object.fromEntries(
-  AGENTES.map((a) => [a.valor, a.label]),
-) as Record<AgenteSkill, string>;
-
 export default function HabilidadesPage() {
+  const t = useT().habilidades;
+  const AGENTE_LABEL = t.agentes;
   const [lista, setLista] = useState<Habilidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -76,7 +62,7 @@ export default function HabilidadesPage() {
   }
 
   async function apagar(h: Habilidade) {
-    if (!window.confirm(`Apagar a habilidade "${h.titulo}"?`)) return;
+    if (!window.confirm(`${t.apagarConfirm} "${h.titulo}"?`)) return;
     await api.apagarHabilidade(h.id);
     setSelId(null);
     carregar();
@@ -86,38 +72,37 @@ export default function HabilidadesPage() {
     <div className="p-6">
       <header className="mb-5">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold">Habilidades</h1>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
               onClick={() => setModelosAberto(true)}
               disabled={semCreditos}
-              title={semCreditos ? "Assine um plano para adicionar habilidades" : undefined}
+              title={semCreditos ? t.semCreditosTitle : undefined}
               className="rounded-lg border border-brand/30 bg-brand/5 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              ✨ Modelos de estética
+              {t.modelosBtn}
             </button>
             <button
               type="button"
               onClick={() => setModalAberto(true)}
               disabled={semCreditos}
-              title={semCreditos ? "Assine um plano para adicionar habilidades" : undefined}
+              title={semCreditos ? t.semCreditosTitle : undefined}
               className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              + Adicionar habilidade
+              {t.adicionarBtn}
             </button>
           </div>
         </div>
         <p className="mt-1 text-sm text-black/50">
-          O conhecimento da sua empresa. Cada habilidade pertence a um agente (ou é global, usada por
-          todos) — ofertas, tom de voz, argumentos, respostas a objeções.
+          {t.subtitulo}
         </p>
         {/* Filtro por agente */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {(["todos", "global", "copywriting", "sdr", "bi", "assistente", "financeiro", "juridico", "suporte", "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes"] as (AgenteSkill | "todos")[]).map(
             (v) => {
               const ativo = filtro === v;
-              const label = v === "todos" ? "Todos" : AGENTE_LABEL[v];
+              const label = v === "todos" ? t.todos : AGENTE_LABEL[v];
               return (
                 <button
                   key={v}
@@ -139,22 +124,21 @@ export default function HabilidadesPage() {
 
       {!loading && lista.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há habilidades. Clique em <strong>“+ Adicionar habilidade”</strong> — quanto mais
-          souber a empresa, melhores os anúncios e as conversas.
+          {t.vazioPre}<strong>{t.vazioStrong}</strong>{t.vazioPos}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
             <div className="mb-2 text-xs font-medium text-black/50">
-              {filtro === "todos" ? "Salvas" : AGENTE_LABEL[filtro]}{" "}
+              {filtro === "todos" ? t.salvas : AGENTE_LABEL[filtro]}{" "}
               {listaFiltrada.length > 0 && `(${listaFiltrada.length})`}
             </div>
             {loading ? (
-              <p className="text-sm text-black/40">Carregando…</p>
+              <p className="text-sm text-black/40">{t.carregando}</p>
             ) : listaFiltrada.length === 0 ? (
               <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
-                Nenhuma habilidade neste agente.
+                {t.nenhumaNesteAgente}
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -181,7 +165,7 @@ export default function HabilidadesPage() {
                       </span>
                       <span
                         className={`mt-1 h-2 w-2 shrink-0 rounded-full ${h.ativo ? "bg-emerald-500" : "bg-black/20"}`}
-                        title={h.ativo ? "Ativa" : "Inativa"}
+                        title={h.ativo ? t.ativa : t.inativa}
                       />
                     </button>
                   );
@@ -196,7 +180,7 @@ export default function HabilidadesPage() {
               <Detalhe key={selecionada.id} h={selecionada} onToggle={() => toggle(selecionada)} onApagar={() => apagar(selecionada)} onSaved={carregar} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Selecione uma habilidade à esquerda para ver o conteúdo.
+                {t.selecioneParaVer}
               </div>
             )}
           </section>
@@ -237,6 +221,8 @@ function Detalhe({
   onApagar: () => void;
   onSaved: () => void;
 }) {
+  const t = useT().habilidades;
+  const c = useT().common;
   const [editando, setEditando] = useState(false);
   const [titulo, setTitulo] = useState(h.titulo);
   const [conteudo, setConteudo] = useState(h.conteudo);
@@ -261,7 +247,7 @@ function Detalhe({
       setEditando(false);
       onSaved();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar");
+      setErro(e instanceof Error ? e.message : t.erroSalvar);
     } finally {
       setSaving(false);
     }
@@ -271,42 +257,42 @@ function Detalhe({
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
         <div className="min-w-0">
-          <h2 className="min-w-0 break-words text-base font-semibold text-white">{editando ? "Editando habilidade" : h.titulo}</h2>
-          <div className="mt-0.5 text-[11px] text-white/70">{AGENTE_LABEL[h.agente]}</div>
+          <h2 className="min-w-0 break-words text-base font-semibold text-white">{editando ? t.editandoTitulo : h.titulo}</h2>
+          <div className="mt-0.5 text-[11px] text-white/70">{t.agentes[h.agente]}</div>
         </div>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
             h.ativo ? "bg-white/20 text-white" : "bg-black/20 text-white/80"
           }`}
         >
-          {h.ativo ? "Ativa" : "Inativa"}
+          {h.ativo ? t.ativa : t.inativa}
         </span>
       </div>
       <div className="p-5">
         {editando ? (
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-black/50">Agente</span>
+              <span className="mb-1 block text-xs font-medium text-black/50">{t.agente}</span>
               <select
                 value={agente}
                 onChange={(e) => setAgente(e.target.value as AgenteSkill)}
                 className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
               >
-                {AGENTES.map((a) => (
-                  <option key={a.valor} value={a.valor}>{a.label}</option>
+                {AGENTE_VALORES.map((v) => (
+                  <option key={v} value={v}>{t.agentes[v]}</option>
                 ))}
               </select>
             </label>
             <input
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Título"
+              placeholder={t.tituloPh}
               className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
             />
             <textarea
               value={conteudo}
               onChange={(e) => setConteudo(e.target.value)}
-              placeholder="Conteúdo"
+              placeholder={t.conteudoPh}
               className="h-72 w-full resize-y rounded-lg border border-black/15 bg-white px-3 py-2 text-sm leading-relaxed"
             />
             {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
@@ -317,7 +303,7 @@ function Detalhe({
                 disabled={saving || !titulo.trim() || !conteudo.trim()}
                 className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
               >
-                {saving ? "Salvando…" : "Salvar"}
+                {saving ? c.salvando : c.salvar}
               </button>
               <button
                 type="button"
@@ -325,7 +311,7 @@ function Detalhe({
                 disabled={saving}
                 className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5 disabled:opacity-40"
               >
-                Cancelar
+                {c.cancelar}
               </button>
             </div>
           </div>
@@ -338,21 +324,21 @@ function Detalhe({
                 onClick={() => setEditando(true)}
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
               >
-                Editar
+                {t.editar}
               </button>
               <button
                 type="button"
                 onClick={onToggle}
                 className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5"
               >
-                {h.ativo ? "Desativar" : "Ativar"}
+                {h.ativo ? t.desativar : t.ativar}
               </button>
               <button
                 type="button"
                 onClick={onApagar}
                 className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
               >
-                Apagar
+                {t.apagar}
               </button>
             </div>
           </>
@@ -372,6 +358,8 @@ function ModalAdicionar({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT().habilidades;
+  const c = useT().common;
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [agente, setAgente] = useState<AgenteSkill>(defaultAgente);
@@ -387,7 +375,7 @@ function ModalAdicionar({
       await api.criarHabilidade(titulo.trim(), conteudo.trim(), agente);
       onSaved();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.erroSalvar);
       setSaving(false);
     }
   }
@@ -396,22 +384,22 @@ function ModalAdicionar({
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-          <span className="text-sm font-semibold text-white">Nova habilidade</span>
+          <span className="text-sm font-semibold text-white">{t.modalNovaTitulo}</span>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">
             ×
           </button>
         </div>
         <form onSubmit={adicionar} className="space-y-3 p-5">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-black/50">Agente</span>
+            <span className="mb-1 block text-xs font-medium text-black/50">{t.agente}</span>
             <select
               value={agente}
               onChange={(e) => setAgente(e.target.value as AgenteSkill)}
               className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
             >
-              {AGENTES.map((a) => (
-                <option key={a.valor} value={a.valor}>
-                  {a.label}
+              {AGENTE_VALORES.map((v) => (
+                <option key={v} value={v}>
+                  {t.agentes[v]}
                 </option>
               ))}
             </select>
@@ -419,13 +407,13 @@ function ModalAdicionar({
           <input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Título — ex: Nossa oferta principal"
+            placeholder={t.novoTituloPh}
             className="w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           />
           <textarea
             value={conteudo}
             onChange={(e) => setConteudo(e.target.value)}
-            placeholder="Conteúdo — ex: Fazemos a contabilidade completa por R$499/mês, com garantia de resposta em 24h. Diferencial: app próprio e contador dedicado."
+            placeholder={t.novoConteudoPh}
             className="h-36 w-full resize-none rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           />
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
@@ -436,14 +424,14 @@ function ModalAdicionar({
               disabled={saving}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5 disabled:opacity-40"
             >
-              Cancelar
+              {c.cancelar}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
             >
-              {saving ? "Salvando…" : "Adicionar habilidade"}
+              {saving ? c.salvando : t.adicionarHabilidade}
             </button>
           </div>
         </form>
@@ -452,47 +440,8 @@ function ModalAdicionar({
   );
 }
 
-/* ---------------- Modelos prontos para clínicas de estética ---------------- */
-type Modelo = { titulo: string; agente: AgenteSkill; conteudo: string };
-
-const TEMPLATES_ESTETICA: Modelo[] = [
-  {
-    titulo: "Tom de voz da clínica",
-    agente: "global",
-    conteudo:
-      "Fale de forma acolhedora, próxima e segura, tratando a paciente por \"você\". Use no máximo 1 emoji por mensagem. NUNCA prometa resultado garantido nem faça diagnóstico pelo WhatsApp — o resultado depende de avaliação presencial. Não passe preço fechado sem avaliação; quando perguntarem valores, fale \"a partir de\" e convide para a avaliação. Seja breve (2 a 3 frases). [Edite com o nome e a personalidade da sua clínica.]",
-  },
-  {
-    titulo: "Roteiro de qualificação (perguntas padrão)",
-    agente: "sdr",
-    conteudo:
-      "Ao receber uma cliente nova, conduza a conversa nesta ordem, uma pergunta de cada vez:\n1) Acolha pelo nome e pergunte qual procedimento ou incômodo ela quer resolver.\n2) Pergunte se já fez esse procedimento antes ou se seria a primeira vez.\n3) Entenda a urgência/ocasião (evento, casamento, só pesquisando).\n4) Explique em 1 frase como funciona e tranquilize a principal dúvida.\n5) Ofereça a AVALIAÇÃO como próximo passo e proponha 2 horários concretos.\nObjetivo final: agendar a avaliação. Se a cliente pedir para falar com humano ou for um caso clínico delicado, transfira.",
-  },
-  {
-    titulo: "Procedimentos, valores e objeções",
-    agente: "sdr",
-    conteudo:
-      "Tabela de referência (edite com os seus valores reais):\n• Preenchimento labial — a partir de R$ 1.200 · dura 8–12 meses\n• Botox (toxina) — a partir de R$ 900 · dura 4–6 meses\n• Harmonização facial — sob avaliação\n• Limpeza de pele — a partir de R$ 180\n\nObjeções:\n• \"Tá caro\": divida pela durabilidade (ex.: R$ 1.200 por ~10 meses) e ofereça parcelamento.\n• \"Dói?\": explique o anestésico/conforto e a experiência da profissional.\n• \"É seguro?\": reforce que é feito por profissional habilitada, com produto registrado.\n• \"Vou pensar\": ofereça a avaliação gratuita, sem compromisso, para tirar todas as dúvidas.",
-  },
-  {
-    titulo: "Política de agendamento e avaliação",
-    agente: "sdr",
-    conteudo:
-      "A avaliação é [gratuita/R$ X] e sem compromisso. Para confirmar, peça nome completo e o melhor dia/horário. Reforce o endereço e oriente chegar 10 min antes. Em caso de remarcação, peça aviso com [24h] de antecedência. Horário de atendimento: [seg–sáb, 9h–19h]. [Edite com as regras reais da sua clínica.]",
-  },
-  {
-    titulo: "Estilo dos anúncios da clínica",
-    agente: "copywriting",
-    conteudo:
-      "Os anúncios devem focar em autoestima e no resultado desejado (sentir-se bem, natural, renovada), nunca em medo ou em promessa absoluta. Evite \"cura\", \"garantido\", \"100%\". Sempre termine com CTA para chamar no WhatsApp. Respeite o conselho de classe: nada de antes/depois proibido e nada de prometer resultado. Tom: elegante, acolhedor e confiante. [Edite com os diferenciais e o público da sua clínica.]",
-  },
-  {
-    titulo: "O que destacar nos emails de fornecedores",
-    agente: "assistente",
-    conteudo:
-      "Ao resumir emails de fornecedores e administrativos, priorize: entregas de toxina e preenchedores (data e confirmação), validade dos lotes, boletos a vencer e valores a conferir, convênios e parcerias, e qualquer pendência que trave a agenda. Liste como ações com prazo. Ignore newsletters e propaganda sem ação.",
-  },
-];
+/* ---------------- Modelos prontos para clínicas de estética (conteúdo no dicionário) ---------------- */
+type Modelo = { titulo: string; agente: string; conteudo: string };
 
 function ModalModelos({
   existentes,
@@ -503,7 +452,9 @@ function ModalModelos({
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const jaTem = useMemo(() => new Set(existentes.map((t) => t.toLowerCase())), [existentes]);
+  const t = useT().habilidades;
+  const TEMPLATES_ESTETICA = t.templates;
+  const jaTem = useMemo(() => new Set(existentes.map((x) => x.toLowerCase())), [existentes]);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -516,11 +467,11 @@ function ModalModelos({
     setBusy(m.titulo);
     setErro(null);
     try {
-      await api.criarHabilidade(m.titulo, m.conteudo, m.agente);
+      await api.criarHabilidade(m.titulo, m.conteudo, m.agente as AgenteSkill);
       setAdded((s) => new Set(s).add(m.titulo));
       onChanged();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao adicionar");
+      setErro(e instanceof Error ? e.message : t.erroAdicionar);
     } finally {
       setBusy(null);
     }
@@ -538,13 +489,12 @@ function ModalModelos({
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
-          <span className="text-sm font-semibold text-white">✨ Modelos de estética</span>
+          <span className="text-sm font-semibold text-white">{t.modelosBtn}</span>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">×</button>
         </div>
         <div className="border-b border-black/5 px-5 py-3">
           <p className="text-xs leading-relaxed text-black/55">
-            Habilidades prontas para clínicas de estética. Adicione as que fizerem sentido e
-            depois <strong>edite com os valores e o jeito da sua clínica</strong> — elas já vêm ativas.
+            {t.modelosDesc1}<strong>{t.modelosDescStrong}</strong>{t.modelosDesc2}
           </p>
         </div>
         <div className="flex-1 space-y-2.5 overflow-y-auto p-5">
@@ -555,7 +505,7 @@ function ModalModelos({
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold">{m.titulo}</span>
                   <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-black/50">
-                    {AGENTE_LABEL[m.agente]}
+                    {t.agentes[m.agente]}
                   </span>
                 </div>
                 <p className="mb-2.5 line-clamp-2 whitespace-pre-wrap text-xs text-black/45">{m.conteudo}</p>
@@ -569,7 +519,7 @@ function ModalModelos({
                       : "bg-brand text-white hover:opacity-90 disabled:opacity-40"
                   }`}
                 >
-                  {ok ? "✓ Adicionada" : busy === m.titulo ? "Adicionando…" : "Adicionar"}
+                  {ok ? t.adicionada : busy === m.titulo ? t.adicionando : t.adicionar}
                 </button>
               </div>
             );
@@ -577,10 +527,10 @@ function ModalModelos({
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-black/5 px-5 py-3">
-          <span className="text-xs text-black/40">{faltam > 0 ? `${faltam} por adicionar` : "Tudo adicionado ✓"}</span>
+          <span className="text-xs text-black/40">{faltam > 0 ? `${faltam} ${t.porAdicionarSuf}` : t.tudoAdicionado}</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
-              Fechar
+              {t.fechar}
             </button>
             <button
               type="button"
@@ -588,7 +538,7 @@ function ModalModelos({
               disabled={faltam === 0 || busy !== null}
               className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
             >
-              Adicionar todos
+              {t.adicionarTodos}
             </button>
           </div>
         </div>
