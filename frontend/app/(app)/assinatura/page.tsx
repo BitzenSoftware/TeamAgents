@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, type Consumo, type PacoteAtivo, type PlanoAtivo } from "@/lib/api";
+import { useLocale, useT } from "@/components/i18n-context";
 
 export default function AssinaturaPage() {
+  const t = useT().assinatura;
+  const { locale } = useLocale();
   const [consumo, setConsumo] = useState<Consumo | null>(null);
   const [planos, setPlanos] = useState<PlanoAtivo[]>([]);
   const [pacotes, setPacotes] = useState<PacoteAtivo[]>([]);
@@ -21,10 +24,10 @@ export default function AssinaturaPage() {
     api.pacotesAtivos().then(setPacotes).catch(() => {});
     // Banner de retorno do Checkout/compra
     const q = new URLSearchParams(window.location.search);
-    if (q.get("assinatura") === "sucesso") setAviso("Assinatura concluída! Pode demorar alguns segundos para refletir.");
-    else if (q.get("compra") === "sucesso") setAviso("Compra concluída! Os créditos entram em instantes.");
-    else if (q.get("assinatura") === "cancelado" || q.get("compra") === "cancelado") setAviso("Operação cancelada — nada foi cobrado.");
-  }, [recarregarConsumo]);
+    if (q.get("assinatura") === "sucesso") setAviso(t.avisoAssinaturaSucesso);
+    else if (q.get("compra") === "sucesso") setAviso(t.avisoCompraSucesso);
+    else if (q.get("assinatura") === "cancelado" || q.get("compra") === "cancelado") setAviso(t.avisoCancelada);
+  }, [recarregarConsumo, t]);
 
   const temAssinatura = !!consumo?.tem_assinatura;
   const planoAtualId = consumo?.plano_id ?? null;
@@ -43,7 +46,7 @@ export default function AssinaturaPage() {
         window.location.href = url;
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível mudar de plano.");
+      setErro(e instanceof Error ? e.message : t.erroMudarPlano);
       setBusy(null);
     }
   }
@@ -55,7 +58,7 @@ export default function AssinaturaPage() {
       const { url } = await api.comprarCreditos(p.id);
       window.location.href = url;
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível abrir a compra.");
+      setErro(e instanceof Error ? e.message : t.erroAbrirCompra);
       setBusy(null);
     }
   }
@@ -67,20 +70,20 @@ export default function AssinaturaPage() {
       const { url } = await api.portal();
       window.location.href = url;
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível abrir o portal de pagamento.");
+      setErro(e instanceof Error ? e.message : t.erroAbrirPortal);
       setBusy(null);
     }
   }
 
   async function cancelar() {
-    if (!confirm("Cancelar a assinatura? Você mantém o acesso até o fim do período já pago; depois não renova.")) return;
+    if (!confirm(t.confirmarCancelar)) return;
     setErro(null);
     setBusy("cancel");
     try {
       await api.cancelarAssinatura();
       recarregarConsumo();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível cancelar.");
+      setErro(e instanceof Error ? e.message : t.erroCancelar);
     } finally {
       setBusy(null);
     }
@@ -93,35 +96,34 @@ export default function AssinaturaPage() {
       await api.reativarAssinatura();
       recarregarConsumo();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível reativar.");
+      setErro(e instanceof Error ? e.message : t.erroReativar);
     } finally {
       setBusy(null);
     }
   }
 
   function rotuloPlano(p: PlanoAtivo): { label: string; tipo: "atual" | "upgrade" | "downgrade" | "assinar" | "indisponivel" } {
-    if (!p.stripe_price_id) return { label: "Indisponível", tipo: "indisponivel" };
-    if (p.id === planoAtualId) return { label: "Plano atual", tipo: "atual" };
-    if (!temAssinatura) return { label: "Assinar", tipo: "assinar" };
+    if (!p.stripe_price_id) return { label: t.lblIndisponivel, tipo: "indisponivel" };
+    if (p.id === planoAtualId) return { label: t.lblPlanoAtual, tipo: "atual" };
+    if (!temAssinatura) return { label: t.lblAssinar, tipo: "assinar" };
     return p.creditos_mensais > creditosAtuais
-      ? { label: "Upgrade", tipo: "upgrade" }
-      : { label: "Downgrade", tipo: "downgrade" };
+      ? { label: t.lblUpgrade, tipo: "upgrade" }
+      : { label: t.lblDowngrade, tipo: "downgrade" };
   }
 
   return (
     <div className="p-6">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold">Assinatura</h1>
+        <h1 className="text-xl font-semibold">{t.titulo}</h1>
         <p className="mt-1 text-sm text-black/50">
-          Faça upgrade/downgrade do seu plano e compre pacotes de créditos avulsos.
+          {t.subtitulo}
         </p>
       </header>
 
       {consumo?.pagamento_em_falha && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
           <span className="text-sm text-rose-800">
-            <strong>O último pagamento falhou.</strong> Verifique o seu método de pagamento e tente novamente
-            para não perder o acesso aos agentes.
+            <strong>{t.pagamentoFalhaStrong}</strong>{t.pagamentoFalhaResto}
           </span>
           {consumo.tem_assinatura && (
             <button
@@ -130,15 +132,14 @@ export default function AssinaturaPage() {
               disabled={busy === "portal"}
               className="shrink-0 rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {busy === "portal" ? "Abrindo…" : "Atualizar pagamento"}
+              {busy === "portal" ? t.abrindo : t.atualizarPagamento}
             </button>
           )}
         </div>
       )}
       {consumo && !consumo.pagamento_em_falha && consumo.sem_plano && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <strong>Ainda não tem um plano ativo.</strong> Escolha um plano abaixo e conclua o pagamento —
-          os créditos são liberados assim que o pagamento for confirmado.
+          <strong>{t.semPlanoStrong}</strong>{t.semPlanoResto}
         </p>
       )}
       {aviso && (
@@ -150,10 +151,10 @@ export default function AssinaturaPage() {
       <section className="mb-6 overflow-hidden rounded-xl border border-black/10 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-brand to-brand-dark px-4 py-2.5 text-white">
           <span className="text-xs font-semibold">
-            Planos
+            {t.planos}
             {consumo?.plano_nome && (
               <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
-                Atual: {consumo.plano_nome}
+                {t.atualPre} {consumo.plano_nome}
               </span>
             )}
           </span>
@@ -162,7 +163,7 @@ export default function AssinaturaPage() {
               {consumo?.assinatura_cancela_em ? (
                 <>
                   <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-[11px] font-medium text-amber-950">
-                    Cancela em {fmtData(consumo.assinatura_cancela_em)}
+                    {t.cancelaEm} {fmtData(consumo.assinatura_cancela_em, locale)}
                   </span>
                   <button
                     type="button"
@@ -170,7 +171,7 @@ export default function AssinaturaPage() {
                     disabled={busy === "react"}
                     className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-brand hover:bg-white/90 disabled:opacity-50"
                   >
-                    {busy === "react" ? "Reativando…" : "Reativar assinatura"}
+                    {busy === "react" ? t.reativando : t.reativarAssinatura}
                   </button>
                 </>
               ) : (
@@ -180,7 +181,7 @@ export default function AssinaturaPage() {
                   disabled={busy === "cancel"}
                   className="rounded-lg bg-rose-500/90 px-3 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
                 >
-                  {busy === "cancel" ? "Cancelando…" : "Cancelar assinatura"}
+                  {busy === "cancel" ? t.cancelando : t.cancelarAssinatura}
                 </button>
               )}
             </div>
@@ -188,7 +189,7 @@ export default function AssinaturaPage() {
         </div>
         <div className="p-4">
           {planos.length === 0 ? (
-            <p className="py-6 text-center text-sm text-black/40">Sem planos disponíveis.</p>
+            <p className="py-6 text-center text-sm text-black/40">{t.semPlanos}</p>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {planos.map((p) => {
@@ -214,16 +215,16 @@ export default function AssinaturaPage() {
                       <span className="font-semibold">{p.nome}</span>
                       {atual && (
                         <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-medium text-brand">
-                          Atual
+                          {t.atualBadge}
                         </span>
                       )}
                     </div>
                     <div className="mt-1 text-2xl font-semibold">
-                      R$ {Number(p.preco).toFixed(2)}
-                      <span className="text-sm font-normal text-black/40"> /mês</span>
+                      {t.moeda} {Number(p.preco).toFixed(2)}
+                      <span className="text-sm font-normal text-black/40"> {t.porMes}</span>
                     </div>
                     <div className="mt-0.5 text-xs text-black/50">
-                      {p.creditos_mensais.toLocaleString("pt-BR")} créditos/mês
+                      {p.creditos_mensais.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditosMes}
                     </div>
                     <button
                       type="button"
@@ -231,7 +232,7 @@ export default function AssinaturaPage() {
                       disabled={bloq || busy === `plano-${p.id}`}
                       className={`mt-3 rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:opacity-40 ${cor}`}
                     >
-                      {busy === `plano-${p.id}` ? "Processando…" : r.label}
+                      {busy === `plano-${p.id}` ? t.processando : r.label}
                     </button>
                   </div>
                 );
@@ -246,12 +247,12 @@ export default function AssinaturaPage() {
         <section className="overflow-hidden rounded-xl border border-black/10 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5 text-white">
             <span className="text-xs font-semibold">
-              Pacotes de créditos avulsos
+              {t.pacotesTitulo}
               <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-normal">
-                Saldo: {consumo?.creditos_avulsos ?? 0}
+                {t.saldo} {consumo?.creditos_avulsos ?? 0}
               </span>
             </span>
-            <span className="text-[11px] text-white/70">Compra única · ilimitada · não expiram · usados após a mesada do plano</span>
+            <span className="text-[11px] text-white/70">{t.pacotesNota}</span>
           </div>
           <div className="p-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -261,18 +262,18 @@ export default function AssinaturaPage() {
                   <div key={p.id} className="flex flex-col rounded-xl border border-black/10 p-4">
                     <span className="font-semibold">{p.nome}</span>
                     <div className="mt-1 text-2xl font-semibold">
-                      R$ {Number(p.preco).toFixed(2)}
-                      <span className="text-sm font-normal text-black/40"> única</span>
+                      {t.moeda} {Number(p.preco).toFixed(2)}
+                      <span className="text-sm font-normal text-black/40"> {t.unica}</span>
                     </div>
-                    <div className="mt-0.5 text-xs text-black/50">+{p.creditos.toLocaleString("pt-BR")} créditos</div>
+                    <div className="mt-0.5 text-xs text-black/50">+{p.creditos.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditos}</div>
                     <button
                       type="button"
                       onClick={() => comprar(p)}
                       disabled={semStripe || busy === `pac-${p.id}`}
-                      title={semStripe ? "Pacote ainda não disponível para compra." : undefined}
+                      title={semStripe ? t.pacoteIndispTitle : undefined}
                       className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                     >
-                      {busy === `pac-${p.id}` ? "Abrindo…" : semStripe ? "Indisponível" : "Comprar"}
+                      {busy === `pac-${p.id}` ? t.abrindo : semStripe ? t.indisponivelBtn : t.comprar}
                     </button>
                   </div>
                 );
@@ -285,7 +286,7 @@ export default function AssinaturaPage() {
   );
 }
 
-function fmtData(iso: string): string {
+function fmtData(iso: string, locale: string): string {
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale === "en" ? "en-US" : "pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }

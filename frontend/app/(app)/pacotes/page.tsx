@@ -4,8 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, SUPERADMIN_EMAIL, type Pacote } from "@/lib/api";
 import { useAuth } from "@/components/auth-context";
+import { useLocale, useT } from "@/components/i18n-context";
 
 export default function PacotesPage() {
+  const t = useT().pacotes;
+  const tp = useT().planos;
+  const { locale } = useLocale();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
@@ -42,7 +46,7 @@ export default function PacotesPage() {
   const selecionado = pacotes.find((p) => p.id === selId) ?? null;
 
   async function novo() {
-    const p = await api.criarPacote({ nome: "Novo pacote", creditos: 0, preco: 0, ordem: pacotes.length + 1 });
+    const p = await api.criarPacote({ nome: t.novoPacoteNome, creditos: 0, preco: 0, ordem: pacotes.length + 1 });
     setPacotes((l) => [...l, p].sort((a, b) => a.ordem - b.ordem));
     setSelId(p.id);
   }
@@ -51,32 +55,32 @@ export default function PacotesPage() {
     <div className="p-6">
       <header className="mb-5">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold">Pacotes de Créditos</h1>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
           <button
             type="button"
             onClick={novo}
             className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
           >
-            + Novo pacote
+            {t.novoBtn}
           </button>
         </div>
         <p className="mt-1 text-sm text-black/50">
-          Pacotes de compra única (top-ups). Os créditos somam-se ao saldo do cliente e não expiram.
+          {t.subtitulo}
         </p>
       </header>
 
       {erro && <p className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{erro}</p>}
-      {loading && <p className="text-sm text-black/40">Carregando…</p>}
+      {loading && <p className="text-sm text-black/40">{tp.carregando}</p>}
 
       {!loading && pacotes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/40">
-          Ainda não há pacotes. Clique em <strong>“+ Novo pacote”</strong> para criar o primeiro.
+          {t.vazioPre}<strong>{t.vazioStrong}</strong>{t.vazioPos}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
           {/* Lista (master) */}
           <aside className="md:col-span-4 lg:col-span-3">
-            <div className="mb-2 text-xs font-medium text-black/50">Pacotes ({pacotes.length})</div>
+            <div className="mb-2 text-xs font-medium text-black/50">{t.count} ({pacotes.length})</div>
             <div className="space-y-1.5">
               {pacotes.map((p) => {
                 const sel = p.id === selId;
@@ -98,11 +102,11 @@ export default function PacotesPage() {
                           p.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {p.ativo ? "Ativo" : "Inativo"}
+                        {p.ativo ? tp.ativo : tp.inativo}
                       </span>
                     </div>
                     <div className="mt-0.5 break-words text-[11px] text-black/40">
-                      {p.creditos.toLocaleString("pt-BR")} créditos · R$ {Number(p.preco).toFixed(2)}
+                      {p.creditos.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditos} · {tp.moeda} {Number(p.preco).toFixed(2)}
                     </div>
                   </button>
                 );
@@ -116,7 +120,7 @@ export default function PacotesPage() {
               <PacoteEditor key={selecionado.id} pacote={selecionado} onChanged={carregar} />
             ) : (
               <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-                Selecione um pacote à esquerda.
+                {t.selecione}
               </div>
             )}
           </section>
@@ -127,6 +131,10 @@ export default function PacotesPage() {
 }
 
 function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => void }) {
+  const t = useT().pacotes;
+  const tp = useT().planos;
+  const c = useT().common;
+  const { locale } = useLocale();
   const [p, setP] = useState<Pacote>(pacote);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
@@ -147,10 +155,10 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
     try {
       const atualizado = await api.registarPacoteStripe(p.id);
       setP(atualizado);
-      setStripeMsg("✓ Cadastrado na Stripe — price_id preenchido.");
+      setStripeMsg(tp.stripeSucesso);
       onChanged();
     } catch (e) {
-      setStripeMsg(`Erro: ${e instanceof Error ? e.message : "falha na Stripe"}`);
+      setStripeMsg(`${tp.stripeErroPre}${e instanceof Error ? e.message : tp.stripeErroDefault}`);
     } finally {
       setStripeBusy(false);
     }
@@ -175,7 +183,7 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
   }
 
   async function apagar() {
-    if (!confirm(`Apagar o pacote "${p.nome}"?`)) return;
+    if (!confirm(`${t.apagarConfirm} "${p.nome}"?`)) return;
     await api.apagarPacote(p.id);
     onChanged();
   }
@@ -184,9 +192,9 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-black/10 bg-gradient-to-r from-brand to-brand-dark px-4 py-3 text-white">
         <div>
-          <div className="text-sm font-semibold">{p.nome || "Pacote"}</div>
+          <div className="text-sm font-semibold">{p.nome || t.pacoteDefault}</div>
           <div className="text-xs text-white/70">
-            {Number(p.creditos).toLocaleString("pt-BR")} créditos · R$ {Number(p.preco).toFixed(2)} (única)
+            {Number(p.creditos).toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditos} · {tp.moeda} {Number(p.preco).toFixed(2)} {t.unica}
           </div>
         </div>
         <span
@@ -194,30 +202,30 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
             p.ativo ? "bg-white/20 text-white" : "bg-black/20 text-white/70"
           }`}
         >
-          {p.ativo ? "Ativo" : "Inativo"}
+          {p.ativo ? tp.ativo : tp.inativo}
         </span>
       </div>
 
       <div className="p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Nome">
-            <input className="ip" title="Nome" value={p.nome} onChange={(e) => set("nome", e.target.value)} />
+          <Campo label={tp.nome}>
+            <input className="ip" title={tp.nome} value={p.nome} onChange={(e) => set("nome", e.target.value)} />
           </Campo>
-          <Campo label="Créditos">
-            <input className="ip" title="Créditos" type="number" value={p.creditos} onChange={(e) => set("creditos", Number(e.target.value))} />
+          <Campo label={t.creditosLabel}>
+            <input className="ip" title={t.creditosLabel} type="number" value={p.creditos} onChange={(e) => set("creditos", Number(e.target.value))} />
           </Campo>
-          <Campo label="Preço (R$)">
-            <input className="ip" title="Preço (R$)" type="number" step="0.01" value={p.preco} onChange={(e) => set("preco", Number(e.target.value))} />
+          <Campo label={tp.precoLabel}>
+            <input className="ip" title={tp.precoLabel} type="number" step="0.01" value={p.preco} onChange={(e) => set("preco", Number(e.target.value))} />
           </Campo>
-          <Campo label="Ordem">
-            <input className="ip" title="Ordem" type="number" value={p.ordem} onChange={(e) => set("ordem", Number(e.target.value))} />
+          <Campo label={tp.ordem}>
+            <input className="ip" title={tp.ordem} type="number" value={p.ordem} onChange={(e) => set("ordem", Number(e.target.value))} />
           </Campo>
           <div className="sm:col-span-2">
-            <Campo label="Stripe price_id">
+            <Campo label={tp.stripePid}>
               <div className="relative">
                 <input
                   className="ip font-mono pr-16"
-                  title="Stripe price_id"
+                  title={tp.stripePid}
                   type={showPid ? "text" : "password"}
                   value={p.stripe_price_id ?? ""}
                   onChange={(e) => set("stripe_price_id", e.target.value)}
@@ -228,7 +236,7 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
                   onClick={() => setShowPid((v) => !v)}
                   className="absolute inset-y-0 right-2 my-auto h-fit text-xs text-black/40 hover:text-ink"
                 >
-                  {showPid ? "Ocultar" : "Mostrar"}
+                  {showPid ? tp.ocultar : tp.mostrar}
                 </button>
               </div>
             </Campo>
@@ -239,20 +247,20 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
                 disabled={stripeBusy}
                 className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-40"
               >
-                {stripeBusy ? "Cadastrando…" : p.stripe_price_id ? "↻ Recriar preço na Stripe" : "⚡ Criar na Stripe"}
+                {stripeBusy ? tp.cadastrando : p.stripe_price_id ? tp.recriarStripe : tp.criarStripe}
               </button>
               {p.stripe_price_id ? (
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                  Stripe ✓
+                  {tp.stripeOk}
                 </span>
               ) : (
                 <span className="text-[11px] text-black/40">
-                  Cria o produto/preço de compra única na Stripe automaticamente.
+                  {t.criaProduto}
                 </span>
               )}
             </div>
             {stripeMsg && (
-              <p className={`mt-1 text-xs ${stripeMsg.startsWith("Erro") ? "text-rose-600" : "text-emerald-700"}`}>
+              <p className={`mt-1 text-xs ${stripeMsg.startsWith(tp.stripeErroPre) ? "text-rose-600" : "text-emerald-700"}`}>
                 {stripeMsg}
               </p>
             )}
@@ -262,15 +270,15 @@ function PacoteEditor({ pacote, onChanged }: { pacote: Pacote; onChanged: () => 
         <div className="mt-4 flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={p.ativo} onChange={(e) => set("ativo", e.target.checked)} />
-            Ativo
+            {tp.ativoLabel}
           </label>
           <div className="ml-auto flex items-center gap-2">
-            {ok && <span className="text-sm text-emerald-700">✓ Salvo</span>}
+            {ok && <span className="text-sm text-emerald-700">{tp.salvo}</span>}
             <button type="button" onClick={guardar} disabled={saving} className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-              {saving ? "…" : "Salvar"}
+              {saving ? "…" : c.salvar}
             </button>
             <button type="button" onClick={apagar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
-              Apagar
+              {tp.apagar}
             </button>
           </div>
         </div>
