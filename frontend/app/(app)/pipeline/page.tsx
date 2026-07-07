@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useCliente } from "@/components/cliente-context";
+import { useLocale, useT } from "@/components/i18n-context";
 import { api, type Conversa, type Lead, type StatusQualificacao } from "@/lib/api";
 
-const COLUNAS: { status: StatusQualificacao; label: string; cor: string }[] = [
-  { status: "FRIO", label: "Frio", cor: "bg-slate-100 text-slate-700" },
-  { status: "EM_ANDAMENTO", label: "Em andamento", cor: "bg-amber-100 text-amber-800" },
-  { status: "QUALIFICADO", label: "Qualificado", cor: "bg-emerald-100 text-emerald-800" },
-  { status: "DESQUALIFICADO", label: "Desqualificado", cor: "bg-rose-100 text-rose-700" },
+const COLUNAS: { status: StatusQualificacao; cor: string }[] = [
+  { status: "FRIO", cor: "bg-slate-100 text-slate-700" },
+  { status: "EM_ANDAMENTO", cor: "bg-amber-100 text-amber-800" },
+  { status: "QUALIFICADO", cor: "bg-emerald-100 text-emerald-800" },
+  { status: "DESQUALIFICADO", cor: "bg-rose-100 text-rose-700" },
 ];
 
 export default function PipelinePage() {
   const { cliente } = useCliente();
+  const t = useT().pipeline;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -36,14 +38,14 @@ export default function PipelinePage() {
     <div className="p-6">
       <header className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Pipeline Comercial</h1>
-          <p className="text-sm text-black/50">Leads atendidos e qualificados automaticamente pelo seu SDR</p>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
+          <p className="text-sm text-black/50">{t.subtitulo}</p>
         </div>
         <button
           onClick={carregar}
           className="rounded-lg border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5"
         >
-          {loading ? "Atualizando…" : "Atualizar"}
+          {loading ? t.atualizando : t.atualizar}
         </button>
       </header>
 
@@ -56,7 +58,7 @@ export default function PipelinePage() {
             <section key={col.status} className="rounded-xl border border-black/10 bg-white/60 p-3">
               <div className="mb-3 flex items-center justify-between">
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${col.cor}`}>
-                  {col.label}
+                  {t.colunas[col.status] ?? col.status}
                 </span>
                 <span className="text-xs text-black/40">{doStatus.length}</span>
               </div>
@@ -72,19 +74,19 @@ export default function PipelinePage() {
                     <div className="mt-1 flex gap-1">
                       {lead.reuniao_agendada && (
                         <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">
-                          reunião 🚀
+                          {t.badgeReuniao}
                         </span>
                       )}
                       {lead.transferido_humano && (
                         <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700">
-                          → humano
+                          {t.badgeHumano}
                         </span>
                       )}
                     </div>
                   </button>
                 ))}
                 {doStatus.length === 0 && (
-                  <p className="px-1 py-4 text-center text-xs text-black/30">vazio</p>
+                  <p className="px-1 py-4 text-center text-xs text-black/30">{t.vazio}</p>
                 )}
               </div>
             </section>
@@ -98,6 +100,8 @@ export default function PipelinePage() {
 }
 
 function ConversaDrawer({ lead, onClose, onChange }: { lead: Lead; onClose: () => void; onChange: () => void }) {
+  const { locale } = useLocale();
+  const t = useT().pipeline;
   const [msgs, setMsgs] = useState<Conversa[]>([]);
   const [loading, setLoading] = useState(true);
   const [reativando, setReativando] = useState(false);
@@ -139,13 +143,13 @@ function ConversaDrawer({ lead, onClose, onChange }: { lead: Lead; onClose: () =
           </div>
           {lead.maior_gargalo && (
             <p className="mt-2 text-xs text-black/60">
-              <span className="font-medium">Gargalo:</span> {lead.maior_gargalo}
+              <span className="font-medium">{t.gargalo}</span> {lead.maior_gargalo}
             </p>
           )}
           {lead.transferido_humano && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5">
               <span className="text-[11px] leading-snug text-blue-800">
-                Atendimento assumido por humano — a IA está em silêncio aqui.
+                {t.humanoAviso}
               </span>
               <button
                 type="button"
@@ -153,15 +157,15 @@ function ConversaDrawer({ lead, onClose, onChange }: { lead: Lead; onClose: () =
                 disabled={reativando}
                 className="shrink-0 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
-                {reativando ? "…" : "Reativar IA"}
+                {reativando ? "…" : t.reativarIa}
               </button>
             </div>
           )}
         </header>
         <div className="flex-1 space-y-3 overflow-auto p-4">
-          {loading && <p className="text-sm text-black/40">Carregando conversa…</p>}
+          {loading && <p className="text-sm text-black/40">{t.carregandoConversa}</p>}
           {!loading && msgs.length === 0 && (
-            <p className="text-sm text-black/40">Sem mensagens ainda.</p>
+            <p className="text-sm text-black/40">{t.semMensagens}</p>
           )}
           {msgs.map((m, i) => {
             const doLead = m.autor === "LEAD";
@@ -174,7 +178,7 @@ function ConversaDrawer({ lead, onClose, onChange }: { lead: Lead; onClose: () =
                 >
                   {m.mensagem}
                   <div className={`mt-1 text-[10px] ${doLead ? "text-black/30" : "text-white/40"}`}>
-                    {new Date(m.created_at).toLocaleString("pt-BR")}
+                    {new Date(m.created_at).toLocaleString(locale === "en" ? "en-US" : "pt-BR")}
                   </div>
                 </div>
               </div>

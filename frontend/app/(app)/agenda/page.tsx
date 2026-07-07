@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, Loader2 } from "lucide-react";
+import { useLocale, useT } from "@/components/i18n-context";
 import { api, type Agendamento, type Profissional, type Servico, type Slot } from "@/lib/api";
 
 const HORA_INI = 7;
 const HORA_FIM = 21;
 const PX_HORA = 52;
-const DIAS_LABEL = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 // As escalas são no fuso da clínica (Brasil). Exibimos/posicionamos sempre nesse
 // fuso, independentemente do fuso do navegador de quem está olhando.
@@ -35,6 +35,8 @@ function inicioSemana(base: Date): Date {
 }
 
 export default function AgendaPage() {
+  const { locale } = useLocale();
+  const t = useT().agenda;
   const [profs, setProfs] = useState<Profissional[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [profId, setProfId] = useState<string>("");
@@ -72,30 +74,30 @@ export default function AgendaPage() {
     <div className="p-6">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Agenda</h1>
-          <p className="text-sm text-black/50">Horários no fuso da clínica (Brasil). Marcações manuais bloqueiam a disponibilidade.</p>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
+          <p className="text-sm text-black/50">{t.subtitulo}</p>
         </div>
         <button onClick={() => setNovo(true)} disabled={!profId}
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-          <Plus size={16} /> Novo agendamento
+          <Plus size={16} /> {t.novo}
         </button>
       </header>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <select value={profId} onChange={(e) => setProfId(e.target.value)} aria-label="Profissional"
+        <select value={profId} onChange={(e) => setProfId(e.target.value)} aria-label={t.profissionalAria}
           className="rounded-lg border border-black/15 px-3 py-2 text-sm outline-none focus:border-brand">
-          {profs.length === 0 && <option value="">Nenhum profissional</option>}
+          {profs.length === 0 && <option value="">{t.nenhumProf}</option>}
           {profs.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
         </select>
         <div className="flex items-center gap-1">
-          <button onClick={() => setSemana((s) => { const d = new Date(s); d.setDate(d.getDate() - 7); return d; })} aria-label="Semana anterior"
+          <button onClick={() => setSemana((s) => { const d = new Date(s); d.setDate(d.getDate() - 7); return d; })} aria-label={t.semanaAnterior}
             className="grid h-9 w-9 place-items-center rounded-lg border border-black/15 hover:bg-black/5"><ChevronLeft size={16} /></button>
-          <button onClick={() => setSemana(inicioSemana(new Date()))} className="rounded-lg border border-black/15 px-3 py-2 text-xs font-medium hover:bg-black/5">Hoje</button>
-          <button onClick={() => setSemana((s) => { const d = new Date(s); d.setDate(d.getDate() + 7); return d; })} aria-label="Próxima semana"
+          <button onClick={() => setSemana(inicioSemana(new Date()))} className="rounded-lg border border-black/15 px-3 py-2 text-xs font-medium hover:bg-black/5">{t.hoje}</button>
+          <button onClick={() => setSemana((s) => { const d = new Date(s); d.setDate(d.getDate() + 7); return d; })} aria-label={t.proximaSemana}
             className="grid h-9 w-9 place-items-center rounded-lg border border-black/15 hover:bg-black/5"><ChevronRight size={16} /></button>
         </div>
         <span className="text-sm text-black/50">
-          {dias[0].date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {dias[6].date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+          {dias[0].date.toLocaleDateString(locale === "en" ? "en-US" : "pt-BR", { day: "2-digit", month: "short" })} – {dias[6].date.toLocaleDateString(locale === "en" ? "en-US" : "pt-BR", { day: "2-digit", month: "short" })}
         </span>
       </div>
 
@@ -107,7 +109,7 @@ export default function AgendaPage() {
             <div className="border-b border-black/10" />
             {dias.map((d, i) => (
               <div key={i} className={`border-b border-l border-black/10 py-2 text-center ${d.ymd === hojeYmd ? "bg-brand/5" : ""}`}>
-                <div className="text-[11px] font-medium text-black/45">{DIAS_LABEL[i]}</div>
+                <div className="text-[11px] font-medium text-black/45">{t.diasLabel[i]}</div>
                 <div className={`text-sm font-semibold ${d.ymd === hojeYmd ? "text-brand" : ""}`}>{d.num}</div>
               </div>
             ))}
@@ -140,6 +142,7 @@ export default function AgendaPage() {
 function DiaColuna({ ymd, ags, nomeServico, onChange }: {
   ymd: string; ags: Agendamento[]; nomeServico: (id: string | null) => string; onChange: () => void;
 }) {
+  const t = useT().agenda;
   const doDia = ags.filter((a) => partes(a.inicio).ymd === ymd);
   return (
     <div className="relative border-l border-black/10" style={{ height: (HORA_FIM - HORA_INI) * PX_HORA }}>
@@ -153,10 +156,10 @@ function DiaColuna({ ymd, ags, nomeServico, onChange }: {
         const alt = (durMin / 60) * PX_HORA;
         if (top < 0 || p.hh >= HORA_FIM) return null;
         return (
-          <button key={a.id} onClick={() => { if (confirm("Cancelar este agendamento?")) api.atualizarAgendamento(a.id, { status: "cancelado" }).then(onChange); }}
+          <button key={a.id} onClick={() => { if (confirm(t.cancelarConfirm)) api.atualizarAgendamento(a.id, { status: "cancelado" }).then(onChange); }}
             className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-brand/30 bg-brand/10 px-1.5 py-1 text-left text-[10px] leading-tight text-brand-dark hover:bg-brand/20"
             style={{ top, height: alt }}>
-            <div className="truncate font-semibold">{a.cliente_nome || a.contato || "Cliente"}</div>
+            <div className="truncate font-semibold">{a.cliente_nome || a.contato || t.clienteDefault}</div>
             {nomeServico(a.servico_id) && <div className="truncate text-brand/70">{nomeServico(a.servico_id)}</div>}
           </button>
         );
@@ -168,6 +171,8 @@ function DiaColuna({ ymd, ags, nomeServico, onChange }: {
 function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
   profs: Profissional[]; servicos: Servico[]; profIdInicial: string; onClose: () => void; onSaved: () => void;
 }) {
+  const t = useT().agenda;
+  const c = useT().common;
   const [profId, setProfId] = useState(profIdInicial);
   const [servicoId, setServicoId] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -216,32 +221,32 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
-          <h2 className="text-lg font-semibold">Novo agendamento</h2>
-          <button onClick={onClose} aria-label="Fechar" className="text-black/40 hover:text-ink"><X size={18} /></button>
+          <h2 className="text-lg font-semibold">{t.novo}</h2>
+          <button onClick={onClose} aria-label={t.fechar} className="text-black/40 hover:text-ink"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-auto p-5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/55">Profissional</label>
-              <select value={profId} onChange={(e) => setProfId(e.target.value)} aria-label="Profissional" className={inputCls}>
+              <label className="mb-1 block text-xs font-medium text-black/55">{t.profissional}</label>
+              <select value={profId} onChange={(e) => setProfId(e.target.value)} aria-label={t.profissional} className={inputCls}>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/55">Serviço</label>
-              <select value={servicoId} onChange={(e) => setServicoId(e.target.value)} aria-label="Serviço" className={inputCls}>
-                <option value="">Avaliação (30 min)</option>
+              <label className="mb-1 block text-xs font-medium text-black/55">{t.servico}</label>
+              <select value={servicoId} onChange={(e) => setServicoId(e.target.value)} aria-label={t.servico} className={inputCls}>
+                <option value="">{t.avaliacao}</option>
                 {servicosDoProf.map((s) => <option key={s.id} value={s.id}>{s.nome} ({s.duracao_min}min)</option>)}
               </select>
             </div>
           </div>
 
           <div className="mt-4">
-            <label className="mb-1 block text-xs font-medium text-black/55">Horário disponível</label>
+            <label className="mb-1 block text-xs font-medium text-black/55">{t.horarioDisponivel}</label>
             {carregandoSlots ? (
-              <p className="py-4 text-center text-sm text-black/40"><Loader2 size={15} className="inline animate-spin" /> calculando…</p>
+              <p className="py-4 text-center text-sm text-black/40"><Loader2 size={15} className="inline animate-spin" /> {t.calculando}</p>
             ) : slots.length === 0 ? (
-              <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">Sem horários livres — verifique a escala do profissional.</p>
+              <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">{t.semHorarios}</p>
             ) : (
               <div className="max-h-52 space-y-2 overflow-auto rounded-lg border border-black/10 p-2">
                 {slotsPorDia.map(([dia, lista]) => (
@@ -266,21 +271,21 @@ function ModalNovo({ profs, servicos, profIdInicial, onClose, onSaved }: {
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/55">Nome do cliente</label>
+              <label className="mb-1 block text-xs font-medium text-black/55">{t.nomeCliente}</label>
               <input value={nome} onChange={(e) => setNome(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-black/55">Contato</label>
-              <input value={contato} onChange={(e) => setContato(e.target.value)} placeholder="WhatsApp/telefone" className={inputCls} />
+              <label className="mb-1 block text-xs font-medium text-black/55">{t.contato}</label>
+              <input value={contato} onChange={(e) => setContato(e.target.value)} placeholder={t.contatoPh} className={inputCls} />
             </div>
           </div>
           {erro && <p className="mt-3 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{erro}</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-black/10 px-5 py-3">
-          <button onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancelar</button>
+          <button onClick={onClose} className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/5">{c.cancelar}</button>
           <button onClick={salvar} disabled={salvando || !slot}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-            {salvando ? "Salvando…" : "Agendar"}
+            {salvando ? c.salvando : t.agendar}
           </button>
         </div>
       </div>
