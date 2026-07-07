@@ -707,6 +707,25 @@ const pt = {
     processar: "Processar",
     erroProcessar: "Erro ao processar",
   },
+  suporte: {
+    titulo: "Suporte",
+    subtitulo: "Fale direto com a nossa equipe. Respondemos por aqui — fique de olho nesta tela.",
+    vazio: "👋 Tem alguma dúvida? Escreva abaixo — a nossa equipe responde aqui mesmo.",
+    suporteNome: "Suporte TeamAgents",
+    placeholder: "Escreva a sua dúvida…",
+    enviar: "Enviar",
+  },
+  adminSuporte: {
+    titulo: "Suporte — Caixa de entrada",
+    subtitulo: "Mensagens dos clientes. Responda direto por aqui.",
+    erroCarregar: "Erro ao carregar:",
+    conversas: "Conversas",
+    nenhuma: "Nenhuma mensagem ainda.",
+    empresa: "Empresa",
+    selecione: "Selecione uma conversa à esquerda.",
+    placeholder: "Escreva a resposta…",
+    responder: "Responder",
+  },
 };
 
 export type AppDict = typeof pt;
@@ -1414,6 +1433,25 @@ const en: AppDict = {
     processando: "Processing…",
     processar: "Process",
     erroProcessar: "Error processing",
+  },
+  suporte: {
+    titulo: "Support",
+    subtitulo: "Talk directly to our team. We reply right here — keep an eye on this screen.",
+    vazio: "👋 Have a question? Write below — our team replies right here.",
+    suporteNome: "TeamAgents Support",
+    placeholder: "Write your question…",
+    enviar: "Send",
+  },
+  adminSuporte: {
+    titulo: "Support — Inbox",
+    subtitulo: "Customer messages. Reply right here.",
+    erroCarregar: "Error loading:",
+    conversas: "Conversations",
+    nenhuma: "No messages yet.",
+    empresa: "Company",
+    selecione: "Select a conversation on the left.",
+    placeholder: "Write the reply…",
+    responder: "Reply",
   },
 };
 

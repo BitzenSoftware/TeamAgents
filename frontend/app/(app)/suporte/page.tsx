@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type SuporteMensagem } from "@/lib/api";
+import { useLocale, useT } from "@/components/i18n-context";
 
 export default function SuportePage() {
+  const tr = useT().suporte;
+  const { locale } = useLocale();
   const [msgs, setMsgs] = useState<SuporteMensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -43,9 +46,9 @@ export default function SuportePage() {
   return (
     <div className="mx-auto flex h-[calc(100vh-0px)] max-w-2xl flex-col p-6">
       <header className="mb-4">
-        <h1 className="text-xl font-semibold">Suporte</h1>
+        <h1 className="text-xl font-semibold">{tr.titulo}</h1>
         <p className="text-sm text-black/50">
-          Fale direto com a nossa equipe. Respondemos por aqui — fique de olho nesta tela.
+          {tr.subtitulo}
         </p>
       </header>
 
@@ -54,7 +57,7 @@ export default function SuportePage() {
           {carregou && msgs.length === 0 && (
             <div className="grid h-full place-items-center text-center text-sm text-black/40">
               <div>
-                👋 Tem alguma dúvida? Escreva abaixo — a nossa equipe responde aqui mesmo.
+                {tr.vazio}
               </div>
             </div>
           )}
@@ -69,10 +72,10 @@ export default function SuportePage() {
                       : "rounded-bl-sm border border-black/10 bg-paper text-black/80"
                   }`}
                 >
-                  {!meu && <div className="mb-0.5 text-[11px] font-semibold text-brand">Suporte TeamAgents</div>}
+                  {!meu && <div className="mb-0.5 text-[11px] font-semibold text-brand">{tr.suporteNome}</div>}
                   <span className="whitespace-pre-wrap">{m.mensagem}</span>
                   <div className={`mt-1 text-[10px] ${meu ? "text-white/50" : "text-black/30"}`}>
-                    {new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    {new Date(m.created_at).toLocaleString(locale === "en" ? "en-US" : "pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
               </div>
@@ -88,7 +91,7 @@ export default function SuportePage() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(e as unknown as React.FormEvent); }
             }}
-            placeholder="Escreva a sua dúvida…"
+            placeholder={tr.placeholder}
             rows={1}
             className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-black/15 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
@@ -97,7 +100,7 @@ export default function SuportePage() {
             disabled={enviando || !texto.trim()}
             className="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
           >
-            {enviando ? "…" : "Enviar"}
+            {enviando ? "…" : tr.enviar}
           </button>
         </form>
       </div>

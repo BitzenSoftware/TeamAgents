@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, SUPERADMIN_EMAIL, type SuporteMensagem, type SuporteThread } from "@/lib/api";
 import { useAuth } from "@/components/auth-context";
+import { useLocale, useT } from "@/components/i18n-context";
 
 export default function AdminSuportePage() {
+  const tr = useT().adminSuporte;
+  const { locale } = useLocale();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
@@ -76,11 +79,11 @@ export default function AdminSuportePage() {
   return (
     <div className="p-6">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold">Suporte — Caixa de entrada</h1>
-        <p className="mt-1 text-sm text-black/50">Mensagens dos clientes. Responda direto por aqui.</p>
+        <h1 className="text-xl font-semibold">{tr.titulo}</h1>
+        <p className="mt-1 text-sm text-black/50">{tr.subtitulo}</p>
         {erro && (
           <p className="mt-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">
-            Erro ao carregar: {erro}
+            {tr.erroCarregar} {erro}
           </p>
         )}
       </header>
@@ -88,10 +91,10 @@ export default function AdminSuportePage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Threads */}
         <aside className="md:col-span-4 lg:col-span-3">
-          <div className="mb-2 text-xs font-medium text-black/50">Conversas ({threads.length})</div>
+          <div className="mb-2 text-xs font-medium text-black/50">{tr.conversas} ({threads.length})</div>
           {threads.length === 0 ? (
             <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
-              Nenhuma mensagem ainda.
+              {tr.nenhuma}
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -108,7 +111,7 @@ export default function AdminSuportePage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={`min-w-0 flex-1 truncate text-sm ${ativo ? "font-semibold text-brand" : "font-medium"}`}>
-                        {t.nome || t.email || "Empresa"}
+                        {t.nome || t.email || tr.empresa}
                       </span>
                       {t.nao_lidas > 0 && (
                         <span className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -128,12 +131,12 @@ export default function AdminSuportePage() {
         <section className="md:col-span-8 lg:col-span-9">
           {!selThread ? (
             <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-              Selecione uma conversa à esquerda.
+              {tr.selecione}
             </div>
           ) : (
             <div className="flex h-[calc(100vh-220px)] flex-col overflow-hidden rounded-xl border border-black/10 bg-white">
               <div className="border-b border-black/10 px-4 py-3">
-                <div className="text-sm font-semibold">{selThread.nome || "Empresa"}</div>
+                <div className="text-sm font-semibold">{selThread.nome || tr.empresa}</div>
                 <div className="text-xs text-black/45">{selThread.email}</div>
               </div>
               <div className="flex-1 space-y-3 overflow-auto p-4">
@@ -148,7 +151,7 @@ export default function AdminSuportePage() {
                       >
                         <span className="whitespace-pre-wrap">{m.mensagem}</span>
                         <div className={`mt-1 text-[10px] ${meu ? "text-white/50" : "text-black/30"}`}>
-                          {new Date(m.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          {new Date(m.created_at).toLocaleString(locale === "en" ? "en-US" : "pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </div>
                     </div>
@@ -163,7 +166,7 @@ export default function AdminSuportePage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); responder(e as unknown as React.FormEvent); }
                   }}
-                  placeholder="Escreva a resposta…"
+                  placeholder={tr.placeholder}
                   rows={1}
                   className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-black/15 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
@@ -172,7 +175,7 @@ export default function AdminSuportePage() {
                   disabled={enviando || !texto.trim()}
                   className="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
                 >
-                  {enviando ? "…" : "Responder"}
+                  {enviando ? "…" : tr.responder}
                 </button>
               </form>
             </div>
