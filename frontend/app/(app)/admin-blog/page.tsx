@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, SUPERADMIN_EMAIL, type BlogPost } from "@/lib/api";
 import { useAuth } from "@/components/auth-context";
+import { useT } from "@/components/i18n-context";
 
 const VAZIO = { titulo: "", slug: "", resumo: "", meta_description: "", capa_url: "", conteudo: "", publicado: false };
 
 export default function AdminBlogPage() {
+  const tr = useT().adminBlog;
+  const cm = useT().common;
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
   const isAdmin = session?.user.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
@@ -47,28 +50,28 @@ export default function AdminBlogPage() {
   }
 
   async function salvar() {
-    if (!form.titulo.trim()) { setErro("Dê um título ao artigo."); return; }
+    if (!form.titulo.trim()) { setErro(tr.erroTitulo); return; }
     setSaving(true); setErro(null); setMsg(null);
     try {
       if (selId === "novo") {
         const np = await api.adminBlogCriar(form);
         setSelId(np.id);
         setForm((f) => ({ ...f, slug: np.slug }));
-        setMsg("Artigo criado.");
+        setMsg(tr.criado);
       } else if (selId) {
         const up = await api.adminBlogAtualizar(selId, form);
         setForm((f) => ({ ...f, slug: up.slug }));
-        setMsg("Artigo salvo.");
+        setMsg(tr.salvoMsg);
       }
       carregar();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar.");
+      setErro(e instanceof Error ? e.message : tr.erroSalvar);
     } finally { setSaving(false); }
   }
 
   async function apagar() {
     if (!selId || selId === "novo") return;
-    if (!confirm("Apagar este artigo?")) return;
+    if (!confirm(tr.apagarConfirm)) return;
     await api.adminBlogApagar(selId);
     setSelId(null); setForm({ ...VAZIO }); carregar();
   }
@@ -82,20 +85,20 @@ export default function AdminBlogPage() {
     <div className="p-6">
       <header className="mb-5 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Blog</h1>
-          <p className="mt-1 text-sm text-black/50">Crie e publique os artigos que aparecem na página de vendas (/blog).</p>
+          <h1 className="text-xl font-semibold">{tr.titulo}</h1>
+          <p className="mt-1 text-sm text-black/50">{tr.subtitulo}</p>
         </div>
         <button type="button" onClick={novo} className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
-          + Novo artigo
+          {tr.novoBtn}
         </button>
       </header>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Lista */}
         <aside className="md:col-span-4 lg:col-span-3">
-          <div className="mb-2 text-xs font-medium text-black/50">Artigos ({posts.length})</div>
+          <div className="mb-2 text-xs font-medium text-black/50">{tr.artigos} ({posts.length})</div>
           {posts.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">Nenhum artigo ainda.</p>
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">{tr.nenhum}</p>
           ) : (
             <div className="space-y-1.5">
               {posts.map((p) => {
@@ -106,7 +109,7 @@ export default function AdminBlogPage() {
                     <div className="flex items-center justify-between gap-2">
                       <span className={`min-w-0 flex-1 truncate text-sm ${ativo ? "font-semibold text-brand" : "font-medium"}`}>{p.titulo}</span>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${p.publicado ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                        {p.publicado ? "Publicado" : "Rascunho"}
+                        {p.publicado ? tr.publicado : tr.rascunho}
                       </span>
                     </div>
                     <div className="mt-0.5 truncate font-mono text-[11px] text-black/40">/blog/{p.slug}</div>
@@ -121,34 +124,34 @@ export default function AdminBlogPage() {
         <section className="md:col-span-8 lg:col-span-9">
           {!editando ? (
             <div className="grid h-full min-h-48 place-items-center rounded-xl border border-black/10 bg-white p-8 text-center text-sm text-black/40">
-              Selecione um artigo à esquerda ou clique em <strong className="mx-1">+ Novo artigo</strong>.
+              {tr.selecionePre}<strong className="mx-1">{tr.selecioneStrong}</strong>{tr.selecionePos}
             </div>
           ) : (
             <div className="space-y-3 rounded-xl border border-black/10 bg-white p-5">
-              <Campo label="Título">
-                <input className="ip" value={form.titulo} onChange={(e) => set("titulo", e.target.value)} placeholder="Ex: Como automatizar o agendamento da sua clínica pelo WhatsApp" />
+              <Campo label={tr.campoTitulo}>
+                <input className="ip" value={form.titulo} onChange={(e) => set("titulo", e.target.value)} placeholder={tr.tituloPh} />
               </Campo>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Campo label="Slug (URL) — deixe em branco para gerar do título">
-                  <input className="ip font-mono" value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="como-automatizar-agendamento" />
+                <Campo label={tr.slug}>
+                  <input className="ip font-mono" value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder={tr.slugPh} />
                 </Campo>
-                <Campo label="URL da imagem de capa (opcional)">
+                <Campo label={tr.capaUrl}>
                   <input className="ip" value={form.capa_url} onChange={(e) => set("capa_url", e.target.value)} placeholder="https://..." />
                 </Campo>
               </div>
-              <Campo label="Resumo (aparece na lista do blog)">
-                <textarea className="ip h-16 resize-none" value={form.resumo} onChange={(e) => set("resumo", e.target.value)} placeholder="1–2 frases que resumem o artigo." />
+              <Campo label={tr.resumo}>
+                <textarea className="ip h-16 resize-none" value={form.resumo} onChange={(e) => set("resumo", e.target.value)} placeholder={tr.resumoPh} />
               </Campo>
-              <Campo label="Meta description (SEO — até ~155 caracteres)">
-                <textarea className="ip h-16 resize-none" value={form.meta_description} onChange={(e) => set("meta_description", e.target.value)} placeholder="Descrição para o Google. Se vazio, usamos o resumo." />
+              <Campo label={tr.metaDesc}>
+                <textarea className="ip h-16 resize-none" value={form.meta_description} onChange={(e) => set("meta_description", e.target.value)} placeholder={tr.metaDescPh} />
               </Campo>
-              <Campo label="Conteúdo (Markdown) — use ## para títulos, - para listas, **negrito**">
-                <textarea className="ip h-96 resize-y font-mono text-[13px]" value={form.conteudo} onChange={(e) => set("conteudo", e.target.value)} placeholder={"## Introdução\n\nEscreva aqui...\n\n## Conclusão\n\n- ponto 1\n- ponto 2"} />
+              <Campo label={tr.conteudo}>
+                <textarea className="ip h-96 resize-y font-mono text-[13px]" value={form.conteudo} onChange={(e) => set("conteudo", e.target.value)} placeholder={tr.conteudoPh} />
               </Campo>
 
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.publicado} onChange={(e) => set("publicado", e.target.checked)} />
-                Publicado (visível no site)
+                {tr.publicadoCheck}
               </label>
 
               {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
@@ -156,16 +159,16 @@ export default function AdminBlogPage() {
 
               <div className="flex flex-wrap items-center gap-2 border-t border-black/5 pt-4">
                 <button type="button" onClick={salvar} disabled={saving} className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-                  {saving ? "Salvando…" : "Salvar"}
+                  {saving ? cm.salvando : cm.salvar}
                 </button>
                 {salvo?.publicado && (
                   <a href={`/blog/${salvo.slug}`} target="_blank" rel="noreferrer" className="rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5">
-                    Ver no site ↗
+                    {tr.verNoSite}
                   </a>
                 )}
                 {selId !== "novo" && (
                   <button type="button" onClick={apagar} className="ml-auto rounded-lg border border-rose-200 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                    Apagar
+                    {tr.apagar}
                   </button>
                 )}
               </div>
