@@ -428,7 +428,7 @@ export function Landing({ locale }: { locale: Locale }) {
           <div className="flex items-center gap-6 text-xs text-white/40">
             {t.footer.links.map((l) => (<a key={l.href} href={l.href} className="transition hover:text-white/70">{l.label}</a>))}
             <Link href="/blog" className="transition hover:text-white/70">{t.footer.blog}</Link>
-            <Link href="/privacidade" className="transition hover:text-white/70">{t.footer.privacidade}</Link>
+            <Link href={locale === "en" ? "/en/privacidade" : "/privacidade"} className="transition hover:text-white/70">{t.footer.privacidade}</Link>
             <Link href="/login" className="transition hover:text-white/70">{t.footer.entrar}</Link>
           </div>
           <span className="text-xs text-white/30">© {new Date().getFullYear()} TeamAgents · Bitzen. {t.footer.rights}</span>
