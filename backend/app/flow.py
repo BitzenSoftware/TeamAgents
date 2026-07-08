@@ -1437,14 +1437,19 @@ def get_consumo(cliente_id: str) -> dict:
     }
 
 
-def listar_planos_publicos() -> list[dict]:
-    """Planos ativos para a landing page (público — sem auth, sem ids Stripe)."""
+def listar_planos_publicos(moeda: str = "brl") -> list[dict]:
+    """Planos ativos para a landing page (público — sem auth, sem ids Stripe).
+
+    Filtra pela moeda para separar mercados (PT/BRL vs US/USD). Planos antigos
+    sem coluna 'moeda' contam como 'brl' (default da migration).
+    """
     try:
         return (
             get_db()
             .table("planos")
             .select("nome, creditos_mensais, preco, ordem")
             .eq("ativo", True)
+            .eq("moeda", moeda)
             .order("ordem")
             .execute()
             .data

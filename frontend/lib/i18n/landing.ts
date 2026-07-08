@@ -461,9 +461,9 @@ const en: LandingDict = {
     packTexto: " Buy one-off credit packs inside the app — single payment, never expire and only used after your monthly credits.",
     cancelNota: "Cancel anytime, in one click, inside the app. No lock-in.",
     planos: [
-      { nome: "Starter", preco: "49", creditos: "500", destaque: false, para: "To get started with your AI team", extras: ["≈ 500 operations/mo (chats, analyses…)", "All agents included", "Upgrade as you grow"] },
-      { nome: "Pro", preco: "99", creditos: "2,000", destaque: true, para: "For companies on a growth pace", extras: ["≈ 2,000 operations/mo", "Better cost per operation", "Unlimited project management"] },
-      { nome: "Scale", preco: "199", creditos: "8,000", destaque: false, para: "For high volume across many fronts", extras: ["≈ 8,000 operations/mo", "The lowest cost per operation", "Ideal for teams and multiple areas"] },
+      { nome: "Starter", preco: "79", creditos: "500", destaque: false, para: "To get started with your AI team", extras: ["≈ 500 operations/mo (chats, analyses…)", "All agents included", "Upgrade as you grow"] },
+      { nome: "Pro", preco: "199", creditos: "2,000", destaque: true, para: "For companies on a growth pace", extras: ["≈ 2,000 operations/mo", "Better cost per operation", "Unlimited project management"] },
+      { nome: "Scale", preco: "499", creditos: "8,000", destaque: false, para: "For high volume across many fronts", extras: ["≈ 8,000 operations/mo", "The lowest cost per operation", "Ideal for teams and multiple areas"] },
     ],
   },
   faq: {
@@ -484,7 +484,7 @@ const en: LandingDict = {
     titulo2: "starts today.",
     subtitulo: "Connect WhatsApp in 1 click, enable the agents you need and watch the team work — serving customers and running management.",
     cta: "Build my AI team",
-    nota: "From $49/mo · cancel anytime",
+    nota: "From $79/mo · cancel anytime",
   },
   footer: {
     links: [

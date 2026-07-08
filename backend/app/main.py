@@ -87,9 +87,12 @@ def health() -> dict:
 
 
 @app.get("/planos/publicos")
-def planos_publicos() -> list[dict]:
-    """Planos ativos para a landing page (público — sem dados sensíveis)."""
-    return flow.listar_planos_publicos()
+def planos_publicos(moeda: str = "brl") -> list[dict]:
+    """Planos ativos para a landing page (público — sem dados sensíveis).
+
+    ?moeda=usd → planos do mercado US; default 'brl'.
+    """
+    return flow.listar_planos_publicos(moeda=moeda)
 
 
 # ===================== Identidade do tenant autenticado =====================

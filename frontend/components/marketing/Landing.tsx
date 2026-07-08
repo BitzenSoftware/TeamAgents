@@ -60,10 +60,12 @@ export function Landing({ locale }: { locale: Locale }) {
   const [menuMobile, setMenuMobile] = useState(false);
 
   useEffect(() => {
-    // Só o PT puxa preços reais (BRL) da BD. O EN usa os preços estáticos (USD) do dicionário — Fase 2 fará o checkout USD.
-    if (locale !== "pt") return;
+    // Puxa os preços reais da BD por moeda: PT→BRL, EN→USD. Se não houver planos
+    // nessa moeda ainda, mantém os estáticos do dicionário (fallback).
+    const moeda = locale === "en" ? "usd" : "brl";
+    const bcp = locale === "en" ? "en-US" : "pt-BR";
     const copyByName = Object.fromEntries(t.precos.planos.map((p) => [p.nome, p]));
-    fetch(`${API_BASE}/planos/publicos`, { cache: "no-store" })
+    fetch(`${API_BASE}/planos/publicos?moeda=${moeda}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows: { nome: string; creditos_mensais: number; preco: number; ordem: number }[]) => {
         if (!Array.isArray(rows) || rows.length === 0) return;
@@ -71,7 +73,7 @@ export function Landing({ locale }: { locale: Locale }) {
         setPlanos(
           rows.map((p, i) => {
             const copy = copyByName[p.nome];
-            const creditos = Number(p.creditos_mensais).toLocaleString("pt-BR");
+            const creditos = Number(p.creditos_mensais).toLocaleString(bcp);
             return {
               nome: p.nome,
               preco: formatarPreco(Number(p.preco)),
