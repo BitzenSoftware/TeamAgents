@@ -3,5 +3,5 @@
 --   currency = plano.moeda or STRIPE_CURRENCY (default 'brl').
 -- Planos existentes ficam 'brl' (sem mudança de comportamento).
 
-alter table planos  add column if not exists moeda text not null default 'brl';
-alter table pacotes add column if not exists moeda text not null default 'brl';
+alter table planos           add column if not exists moeda text not null default 'brl';
+alter table pacotes_creditos add column if not exists moeda text not null default 'brl';
