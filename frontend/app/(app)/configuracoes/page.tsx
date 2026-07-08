@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, type Config, type EmailAccount, type SocialConfig } from "@/lib/api";
+import { useLocale, useT } from "@/components/i18n-context";
 
 const FB_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID ?? "";
 const FB_SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_insights,public_profile";
@@ -11,16 +12,24 @@ const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 
 type Aba = "whatsapp" | "discord" | "facebook" | "instagram" | "email";
+const ABA_IDS: Aba[] = ["whatsapp", "discord", "facebook", "instagram", "email"];
 
-const ABAS: { id: Aba; label: string; sub: string }[] = [
-  { id: "whatsapp",  label: "WhatsApp",  sub: "Evolution API / Agenda" },
-  { id: "discord",   label: "Discord",   sub: "Relatórios de BI" },
-  { id: "facebook",  label: "Facebook",  sub: "Publicação em Pages" },
-  { id: "instagram", label: "Instagram", sub: "Conta Business" },
-  { id: "email",     label: "Email",     sub: "Gmail / Agente Executivo" },
-];
+// Renderiza **negrito** e `código` inline sem markdown pesado.
+function Rich({ children }: { children: string }) {
+  const parts = children.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.startsWith("**") && p.endsWith("**")) return <strong key={i}>{p.slice(2, -2)}</strong>;
+        if (p.startsWith("`") && p.endsWith("`")) return <code key={i} className="rounded bg-black/8 px-1">{p.slice(1, -1)}</code>;
+        return <span key={i}>{p}</span>;
+      })}
+    </>
+  );
+}
 
 export default function ConfiguracoesPage() {
+  const t = useT().configuracoes;
   const [aba, setAba] = useState<Aba>("whatsapp");
   const [oauthMsg, setOauthMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [semCreditos, setSemCreditos] = useState(false);
@@ -41,10 +50,10 @@ export default function ConfiguracoesPage() {
       const redirectUri = `${window.location.origin}/configuracoes`;
       api.oauthFacebook(code, redirectUri)
         .then((res) => {
-          setOauthMsg({ ok: true, text: `Conectado à página "${res.facebook_page_name}"${res.instagram_business_account_id ? " + Instagram" : ""}!` });
+          setOauthMsg({ ok: true, text: `Facebook: "${res.facebook_page_name}"${res.instagram_business_account_id ? " + Instagram" : ""} ✓` });
         })
         .catch((e) => {
-          setOauthMsg({ ok: false, text: e.message ?? "Erro ao conectar conta Facebook." });
+          setOauthMsg({ ok: false, text: e.message ?? t.fbErro });
         })
         .finally(() => {
           router.replace("/configuracoes");
@@ -55,10 +64,10 @@ export default function ConfiguracoesPage() {
       const redirectUri = `${window.location.origin}/configuracoes`;
       api.oauthGoogle(code, redirectUri)
         .then((acc) => {
-          setOauthMsg({ ok: true, text: `Gmail conectado: ${acc.email}` });
+          setOauthMsg({ ok: true, text: `${t.gmailConectadoMsg}${acc.email}` });
         })
         .catch((e) => {
-          setOauthMsg({ ok: false, text: e.message ?? "Erro ao conectar o Gmail." });
+          setOauthMsg({ ok: false, text: e.message ?? t.gmailErro });
         })
         .finally(() => {
           router.replace("/configuracoes");
@@ -69,8 +78,8 @@ export default function ConfiguracoesPage() {
   return (
     <div className="p-6">
       <header className="mb-6">
-        <h1 className="text-xl font-semibold">Configurações</h1>
-        <p className="text-sm text-black/50">Integrações e credenciais da sua empresa</p>
+        <h1 className="text-xl font-semibold">{t.titulo}</h1>
+        <p className="text-sm text-black/50">{t.subtitulo}</p>
       </header>
 
       {/* Banner resultado OAuth */}
@@ -83,21 +92,21 @@ export default function ConfiguracoesPage() {
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-xl border border-black/10 bg-black/3 p-1">
-        {ABAS.map((a) => {
-          const ativa = aba === a.id;
+        {ABA_IDS.map((id) => {
+          const ativa = aba === id;
           return (
             <button
-              key={a.id}
+              key={id}
               type="button"
-              onClick={() => setAba(a.id)}
+              onClick={() => setAba(id)}
               className={`flex-1 rounded-lg px-3 py-2.5 text-center transition-all ${
                 ativa
                   ? "bg-brand font-medium text-white shadow-sm"
                   : "text-black/50 hover:bg-black/5 hover:text-ink"
               }`}
             >
-              <div className="text-xs font-semibold">{a.label}</div>
-              <div className={`text-[10px] ${ativa ? "text-white/70" : "text-black/40"}`}>{a.sub}</div>
+              <div className="text-xs font-semibold">{t.abas[id].label}</div>
+              <div className={`text-[10px] ${ativa ? "text-white/70" : "text-black/40"}`}>{t.abas[id].sub}</div>
             </button>
           );
         })}
@@ -106,14 +115,13 @@ export default function ConfiguracoesPage() {
       {semCreditos && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <span className="text-sm text-amber-900">
-            🔒 <strong>Assine um plano para conectar as integrações.</strong> Sem um plano ativo, as
-            conexões (WhatsApp, redes sociais, Gmail, agenda) ficam bloqueadas.
+            🔒 <strong>{t.semCreditosStrong}</strong>{t.semCreditosResto}
           </span>
           <Link
             href="/assinatura"
             className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
-            Escolher plano →
+            {t.escolherPlano}
           </Link>
         </div>
       )}
@@ -131,6 +139,8 @@ export default function ConfiguracoesPage() {
 
 /* ─── Email (Gmail / Agente Executivo) ─────────────────────────────── */
 function AbaEmail() {
+  const t = useT().configuracoes;
+  const { locale } = useLocale();
   const [contas, setContas] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -155,7 +165,7 @@ function AbaEmail() {
   }
 
   async function desligar() {
-    if (!window.confirm("Desligar a conta de Gmail?")) return;
+    if (!window.confirm(t.desligarGmailConfirm)) return;
     await api.desligarEmail("gmail");
     setMsg(null);
     carregar();
@@ -168,12 +178,12 @@ function AbaEmail() {
       setMsg({
         ok: true,
         text: res.n_emails === 0
-          ? "Sem emails novos nos últimos 7 dias."
-          : `${res.n_emails} email(s) processado(s). Veja o resultado em Agente Executivo.`,
+          ? t.semEmailsNovos
+          : `${res.n_emails} ${t.emailsProcessados}`,
       });
       carregar();
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : "Erro ao sincronizar." });
+      setMsg({ ok: false, text: e instanceof Error ? e.message : t.erroSincronizar });
     } finally {
       setSyncing(false);
     }
@@ -194,19 +204,18 @@ function AbaEmail() {
           </div>
         )}
         <div className="rounded-xl border border-black/10 bg-white p-5">
-          <p className="mb-1 text-sm font-medium">Ligar a caixa de Gmail</p>
+          <p className="mb-1 text-sm font-medium">{t.emailLigar}</p>
           <p className="mb-3 text-xs text-black/40">
-            O Agente Executivo lê os seus emails recentes (só leitura) e os resume — prioridades,
-            ações e decisões. Os tokens são salvos de forma segura, por empresa.
+            {t.emailDesc}
           </p>
 
           {gmail ? (
             <div className="space-y-3">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                ✓ Gmail conectado: <strong>{gmail.email}</strong>
+                ✓ {t.emailConectado} <strong>{gmail.email}</strong>
                 {gmail.last_sync && (
                   <span className="ml-2 text-xs text-emerald-700/70">
-                    · última sync {new Date(gmail.last_sync).toLocaleString("pt-BR")}
+                    {t.ultimaSync} {new Date(gmail.last_sync).toLocaleString(locale === "en" ? "en-US" : "pt-BR")}
                   </span>
                 )}
               </div>
@@ -217,21 +226,21 @@ function AbaEmail() {
                   disabled={syncing}
                   className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
                 >
-                  {syncing ? "Sincronizando…" : "Sincronizar agora"}
+                  {syncing ? t.sincronizando : t.sincronizarAgora}
                 </button>
                 <button
                   type="button"
                   onClick={ligarGmail}
                   className="rounded-lg border border-black/15 px-3 py-2 text-sm hover:bg-black/5"
                 >
-                  Reconectar
+                  {t.reconectar}
                 </button>
                 <button
                   type="button"
                   onClick={desligar}
                   className="rounded-lg border border-rose-200 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
                 >
-                  Desligar
+                  {t.desligar}
                 </button>
               </div>
             </div>
@@ -243,12 +252,12 @@ function AbaEmail() {
               className="flex items-center gap-2 rounded-lg border border-black/20 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-black/5 disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
-              Ligar Gmail
+              {t.ligarGmail}
             </button>
           )}
           {!GOOGLE_CLIENT_ID && (
             <p className="mt-2 text-xs text-rose-600">
-              Variável NEXT_PUBLIC_GOOGLE_CLIENT_ID não configurada no Vercel.
+              {t.googleNaoConfig}
             </p>
           )}
         </div>
@@ -258,18 +267,17 @@ function AbaEmail() {
 }
 
 function GuiaEmail() {
+  const t = useT().configuracoes;
   return (
     <div className="rounded-xl border border-black/10 bg-white p-5 text-sm">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">Como configurar</p>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">{t.comoConfigurar}</p>
       <ol className="space-y-2.5 text-black/70">
-        <li><span className="mr-1 font-semibold text-brand">1</span> Crie um projeto em <strong>console.cloud.google.com</strong> e ative a <strong>Gmail API</strong>.</li>
-        <li><span className="mr-1 font-semibold text-brand">2</span> Em <strong>OAuth consent screen</strong>, modo <strong>Testing</strong>, adicione o seu email como <strong>Test user</strong>.</li>
-        <li><span className="mr-1 font-semibold text-brand">3</span> Em <strong>Credentials</strong>, crie um <strong>OAuth client ID</strong> (Web) com o redirect <code className="rounded bg-black/8 px-1">/configuracoes</code> deste domínio.</li>
-        <li><span className="mr-1 font-semibold text-brand">4</span> Coloque o <strong>Client ID/Secret</strong> no Render e o <strong>Client ID</strong> no Vercel.</li>
-        <li><span className="mr-1 font-semibold text-brand">5</span> Clique em <strong>Ligar Gmail</strong> e autorize só-leitura. Depois use <strong>Sincronizar</strong>.</li>
+        {t.guiaEmail.map((s, i) => (
+          <li key={i}><span className="mr-1 font-semibold text-brand">{i + 1}</span> <Rich>{s}</Rich></li>
+        ))}
       </ol>
       <p className="mt-3 text-xs text-black/40">
-        O agente só <strong>lê</strong> emails — nunca envia nem apaga. O processamento aparece na página <strong>Agente Executivo</strong>.
+        <Rich>{t.guiaEmailNota}</Rich>
       </p>
     </div>
   );
@@ -277,6 +285,7 @@ function GuiaEmail() {
 
 /* ─── WhatsApp ─────────────────────────────────────────────────────── */
 function AbaWhatsApp() {
+  const t = useT().configuracoes;
   const [cfg, setCfg] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -312,7 +321,7 @@ function AbaWhatsApp() {
       }));
       setOk(true);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.salvar);
     } finally { setSaving(false); }
   }
 
@@ -321,9 +330,9 @@ function AbaWhatsApp() {
     setCalcomMsg(null);
     try {
       const r = await api.verificarCalcom();
-      setCalcomMsg(r.ok ? { ok: true, texto: "Conexão OK — o agente já consegue agendar na sua agenda." } : { ok: false, texto: r.erro ?? "Não foi possível verificar." });
+      setCalcomMsg(r.ok ? { ok: true, texto: t.calcomOk } : { ok: false, texto: r.erro ?? t.calcomFalha });
     } catch (e) {
-      setCalcomMsg({ ok: false, texto: e instanceof Error ? e.message : "Falha ao verificar." });
+      setCalcomMsg({ ok: false, texto: e instanceof Error ? e.message : t.calcomFalhaVerif });
     } finally { setCalcomBusy(false); }
   }
 
@@ -332,13 +341,7 @@ function AbaWhatsApp() {
   return (
     <div className="grid grid-cols-5 gap-6">
       <div className="col-span-2">
-        <Instrucoes steps={[
-          "Clique em “Ligar WhatsApp” — nós cuidamos do resto",
-          "Leia o QR Code com o seu celular (WhatsApp › Aparelhos conectados)",
-          "Pronto! O Agente SDR começa a responder aos seus leads",
-          "Preencha o seu número em “WhatsApp do dono” para receber os relatórios de BI",
-          "Tem a sua própria Evolution API? Use a “Configuração avançada”",
-        ]} />
+        <Instrucoes steps={t.waInstrucoes} />
       </div>
       <div className="col-span-3 space-y-4">
         {erro && <Erro msg={erro} />}
@@ -350,21 +353,21 @@ function AbaWhatsApp() {
           <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
             <details className="group rounded-lg border border-black/10 bg-paper open:bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-medium text-black/60 [&::-webkit-details-marker]:hidden">
-                Configuração avançada (instância manual)
-                <span className="text-xs text-black/35 group-open:hidden">mostrar ▾</span>
+                {t.configAvancada}
+                <span className="text-xs text-black/35 group-open:hidden">{t.mostrarSeta}</span>
               </summary>
               <div className="grid grid-cols-2 gap-4 p-3 pt-1">
-                <Campo label="Instância do WhatsApp (Evolution)">
+                <Campo label={t.waInstancia}>
                   <input className="campo" value={cfg.whatsapp_instance_name ?? ""}
-                    title="Instância do WhatsApp (Evolution)" placeholder="instancia_prod_01"
+                    title={t.waInstancia} placeholder="instancia_prod_01"
                     autoComplete="off" name="instancia-whatsapp" data-1p-ignore data-lpignore="true"
                     onChange={(e) => set("whatsapp_instance_name", e.target.value)} />
                 </Campo>
-                <Campo label="Token da instância">
+                <Campo label={t.waToken}>
                   <CampoSecreto value={cfg.whatsapp_token ?? ""}
                     onChange={(v) => set("whatsapp_token", v)} />
                 </Campo>
-                <Campo label="URL da Evolution API (opcional)" className="col-span-2">
+                <Campo label={t.waApiUrl} className="col-span-2">
                   <CampoSecreto value={cfg.whatsapp_api_url ?? ""}
                     onChange={(v) => set("whatsapp_api_url", v)}
                     placeholder="https://api.evolution..." />
@@ -372,16 +375,16 @@ function AbaWhatsApp() {
               </div>
             </details>
             <div className="grid grid-cols-2 gap-4">
-              <Campo label="Número do WhatsApp da clínica (para o link de captação)" className="col-span-2">
+              <Campo label={t.waNumero} className="col-span-2">
                 <input className="campo" value={cfg.whatsapp_numero ?? ""}
                   inputMode="numeric"
                   onChange={(e) => set("whatsapp_numero", e.target.value)}
-                  placeholder="5511999999999 (com DDI e DDD, só números)" />
+                  placeholder={t.waNumeroPh} />
                 <p className="mt-1 text-xs text-black/40">
-                  Preenchido sozinho quando você liga o WhatsApp pelo QR. É o número usado nos links/QR de captação das campanhas.
+                  {t.waNumeroNota}
                 </p>
               </Campo>
-              <Campo label="Link de calendário" className="col-span-2">
+              <Campo label={t.linkCalendario} className="col-span-2">
                 <input className="campo" value={cfg.calendario_link ?? ""}
                   onChange={(e) => set("calendario_link", e.target.value)}
                   placeholder="https://cal.com/voce/15min" />
@@ -389,33 +392,31 @@ function AbaWhatsApp() {
 
               {/* Agendamento automático via Cal.com (conta da própria clínica) */}
               <div className="col-span-2 rounded-lg border border-brand/20 bg-brand/[0.03] p-3">
-                <div className="mb-1 text-sm font-semibold text-ink">📅 Agendamento automático (Cal.com)</div>
+                <div className="mb-1 text-sm font-semibold text-ink">{t.calcomTitulo}</div>
                 <p className="mb-3 text-xs leading-relaxed text-black/50">
-                  Conecte a <strong>sua</strong> conta Cal.com e o Agente SDR passa a <strong>marcar a avaliação sozinho</strong> nos
-                  horários livres da sua agenda — sem você mexer. A conta é sua (plano Free serve);
-                  o TeamAgents só lê os horários e cria a reserva. Deixe em branco para o agente apenas enviar o link acima.
+                  {t.calcomDescA}<strong>{t.calcomDescSua}</strong>{t.calcomDescB}<strong>{t.calcomDescMarcar}</strong>{t.calcomDescC}
                 </p>
                 <div className="grid grid-cols-2 gap-3">
-                  <Campo label="Cal.com API key" className="col-span-2">
+                  <Campo label={t.calcomApiKey} className="col-span-2">
                     <CampoSecreto value={cfg.calcom_api_key ?? ""}
                       onChange={(v) => set("calcom_api_key", v)}
                       placeholder="cal_live_..." />
                   </Campo>
-                  <Campo label="Event Type ID">
+                  <Campo label={t.calcomEventType}>
                     <input type="number" className="campo" value={cfg.calcom_event_type_id ?? ""}
                       onChange={(e) => set("calcom_event_type_id", e.target.value ? Number(e.target.value) : null)}
-                      placeholder="ex: 123456" />
+                      placeholder={t.calcomEventTypePh} />
                   </Campo>
                   <div className="flex items-end">
                     <button type="button" onClick={verificarCalcom} disabled={calcomBusy}
                       className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40">
-                      {calcomBusy ? "Verificando…" : "Verificar conexão"}
+                      {calcomBusy ? t.verificando : t.verificarConexao}
                     </button>
                   </div>
                 </div>
                 <p className="mt-2 text-[11px] text-black/40">
-                  O Event Type é o tipo de agendamento (ex.: “Avaliação 30 min”). O ID aparece no painel do Cal.com.
-                  <strong> Salve antes de verificar.</strong>
+                  {t.calcomNotaA}
+                  <strong>{t.calcomNotaSalve}</strong>
                 </p>
                 {calcomMsg && (
                   <p className={`mt-2 text-xs ${calcomMsg.ok ? "text-emerald-700" : "text-rose-700"}`}>
@@ -423,12 +424,12 @@ function AbaWhatsApp() {
                   </p>
                 )}
               </div>
-              <Campo label="WhatsApp do dono (recebe relatórios)">
+              <Campo label={t.waDono}>
                 <input className="campo" value={cfg.whatsapp_dono ?? ""}
                   onChange={(e) => set("whatsapp_dono", e.target.value)}
                   placeholder="+5511999999999" />
               </Campo>
-              <Campo label="Limite mensal de leads">
+              <Campo label={t.limiteLeads}>
                 <input type="number" className="campo" value={cfg.limite_mensal_leads}
                   onChange={(e) => set("limite_mensal_leads", Number(e.target.value))} />
               </Campo>
@@ -443,6 +444,7 @@ function AbaWhatsApp() {
 
 /* ─── WhatsApp gerido (QR Code, 1 clique) ──────────────────────────── */
 function WhatsAppGerido() {
+  const t = useT().configuracoes;
   const [estado, setEstado] = useState<{ gerido: boolean; ligado: boolean; estado: string | null } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [conectando, setConectando] = useState(false);
@@ -473,7 +475,7 @@ function WhatsAppGerido() {
       if (tentativas >= 36) { // ~90s
         setAguardando(false);
         clearInterval(id);
-        setErro("O QR Code demorou demais para gerar. Tente novamente — se persistir, recarregue a página.");
+        setErro(t.qrDemorou);
       }
     }, 2500);
     return () => clearInterval(id);
@@ -488,14 +490,14 @@ function WhatsAppGerido() {
       if (r.qr) setQr(r.qr);
       setAguardando(true); // começa o polling do QR/estado
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível iniciar a conexão.");
+      setErro(e instanceof Error ? e.message : t.erroIniciarConexao);
     } finally {
       setConectando(false);
     }
   }
 
   async function desligar() {
-    if (!window.confirm("Desligar o WhatsApp? Os agentes deixam de responder até você ligar de novo.")) return;
+    if (!window.confirm(t.desligarWaConfirm)) return;
     setQr(null);
     setAguardando(false);
     await api.whatsappDesligar().catch(() => {});
@@ -512,8 +514,8 @@ function WhatsAppGerido() {
   return (
     <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
       <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-white">
-        <span className="text-sm font-semibold">Ligar o seu WhatsApp</span>
-        {estado.ligado && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">● Ligado</span>}
+        <span className="text-sm font-semibold">{t.ligarSeuWa}</span>
+        {estado.ligado && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">{t.ligado}</span>}
       </div>
 
       <div className="p-5">
@@ -523,29 +525,29 @@ function WhatsAppGerido() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm text-emerald-700">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-base">✓</span>
-              <span><strong>WhatsApp ligado.</strong> O Agente SDR já responde aos seus leads.</span>
+              <span><strong>{t.waLigadoStrong}</strong>{t.waLigadoResto}</span>
             </div>
             <button type="button" onClick={desligar} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
-              Desligar
+              {t.desligar}
             </button>
           </div>
         ) : qrSrc ? (
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrSrc} alt="QR Code para ligar o WhatsApp" className="h-44 w-44 shrink-0 rounded-lg border border-black/10" />
+            <img src={qrSrc} alt={t.qrAlt} className="h-44 w-44 shrink-0 rounded-lg border border-black/10" />
             <div className="text-sm text-black/60">
-              <p className="mb-2 font-medium text-ink">Leia este QR Code com o seu celular:</p>
+              <p className="mb-2 font-medium text-ink">{t.lerQr}</p>
               <ol className="space-y-1.5 text-[13px]">
-                <li>1. Abra o <strong>WhatsApp</strong> no celular</li>
-                <li>2. <strong>Configurações</strong> → <strong>Aparelhos conectados</strong></li>
-                <li>3. <strong>Conectar um aparelho</strong> e aponte a câmera aqui</li>
+                <li><Rich>{t.qrPasso1}</Rich></li>
+                <li><Rich>{t.qrPasso2}</Rich></li>
+                <li><Rich>{t.qrPasso3}</Rich></li>
               </ol>
               <p className="mt-3 flex items-center gap-2 text-xs text-black/40">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                Aguardando a leitura… (atualiza sozinho quando conectar)
+                {t.aguardandoLeitura}
               </p>
               <button type="button" onClick={conectar} disabled={conectando} className="mt-2 text-xs font-medium text-brand hover:underline disabled:opacity-50">
-                Gerar novo QR Code
+                {t.gerarNovoQr}
               </button>
             </div>
           </div>
@@ -553,14 +555,14 @@ function WhatsAppGerido() {
           <div className="flex items-center gap-3 py-2">
             <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
             <div className="text-sm text-black/60">
-              <p className="font-medium text-ink">Gerando o QR Code…</p>
-              <p className="text-xs text-black/40">Pode demorar até ~40 segundos. Não feche esta página.</p>
+              <p className="font-medium text-ink">{t.gerandoQr}</p>
+              <p className="text-xs text-black/40">{t.gerandoQrNota}</p>
             </div>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-black/55">
-              Conecte a sua conta de WhatsApp em segundos — sem instalar nada. Clique e leia um QR Code.
+              {t.conecteWaDesc}
             </p>
             <button
               type="button"
@@ -568,7 +570,7 @@ function WhatsAppGerido() {
               disabled={conectando}
               className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {conectando ? "Preparando…" : "Ligar WhatsApp"}
+              {conectando ? t.preparando : t.ligarWa}
             </button>
           </div>
         )}
@@ -580,6 +582,7 @@ function WhatsAppGerido() {
 
 /* ─── Discord ──────────────────────────────────────────────────────── */
 function AbaDiscord() {
+  const t = useT().configuracoes;
   const [cfg, setCfg] = useState<SocialConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -601,7 +604,7 @@ function AbaDiscord() {
       setCfg(await api.updateSocialConfig({ discord_webhook_url: cfg.discord_webhook_url ?? "" }));
       setOk(true);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.salvar);
     } finally { setSaving(false); }
   }
 
@@ -611,7 +614,7 @@ function AbaDiscord() {
       await api.testarDiscord();
       setTesteOk(true);
     } catch (err) {
-      setErroTeste(err instanceof Error ? err.message : "Erro no teste");
+      setErroTeste(err instanceof Error ? err.message : t.erroTeste);
     } finally { setTestando(false); }
   }
 
@@ -620,17 +623,12 @@ function AbaDiscord() {
   return (
     <div className="grid grid-cols-5 gap-6">
       <div className="col-span-2">
-        <Instrucoes steps={[
-          "Abra o seu servidor Discord",
-          "Vá em Configurações do Canal → Integrações → Webhooks",
-          "Clique em 'Novo Webhook' e copie o URL",
-          "Cole o URL abaixo e salve",
-        ]} />
+        <Instrucoes steps={t.discordInstrucoes} />
       </div>
       <div className="col-span-3">
         {erro && <Erro msg={erro} />}
         <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
-          <Campo label="Webhook URL do Discord">
+          <Campo label={t.discordWebhook}>
             <CampoSecreto
               value={cfg?.discord_webhook_url ?? ""}
               onChange={(v) => setCfg((c) => c ? { ...c, discord_webhook_url: v } : c)}
@@ -641,10 +639,10 @@ function AbaDiscord() {
             <BotaoGuardar saving={saving} ok={ok} />
             <button type="button" onClick={testar} disabled={testando || !cfg?.discord_webhook_url}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-              {testando ? "Testando…" : "Testar conexão"}
+              {testando ? t.testando : t.testarConexao}
             </button>
           </div>
-          {testeOk && <p className="text-sm text-emerald-700">✓ Mensagem de teste enviada ao canal!</p>}
+          {testeOk && <p className="text-sm text-emerald-700">{t.discordTesteOk}</p>}
           {erroTeste && <Erro msg={erroTeste} />}
         </form>
       </div>
@@ -654,6 +652,7 @@ function AbaDiscord() {
 
 /* ─── Facebook ─────────────────────────────────────────────────────── */
 function AbaFacebook() {
+  const t = useT().configuracoes;
   const [cfg, setCfg] = useState<SocialConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -696,7 +695,7 @@ function AbaFacebook() {
       }));
       setOk(true);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.salvar);
     } finally { setSaving(false); }
   }
 
@@ -705,17 +704,17 @@ function AbaFacebook() {
     try {
       setPaginaInfo(await api.verificarFacebook());
     } catch (err) {
-      setErroVerif(err instanceof Error ? err.message : "Token inválido ou Page ID incorreto");
+      setErroVerif(err instanceof Error ? err.message : t.fbTokenInvalido);
     } finally { setVerificando(false); }
   }
 
   async function publicarTeste() {
     setPublicando(true); setErroPublicacao(null); setPublicacaoOk(false);
     try {
-      await api.postarFacebook("🤖 TeamAgents conectado com sucesso! Esta é uma publicação de teste automática.");
+      await api.postarFacebook(t.fbTestePost);
       setPublicacaoOk(true);
     } catch (err) {
-      setErroPublicacao(err instanceof Error ? err.message : "Erro ao publicar");
+      setErroPublicacao(err instanceof Error ? err.message : t.erroPublicar);
     } finally { setPublicando(false); }
   }
 
@@ -729,7 +728,7 @@ function AbaFacebook() {
       const novo = await api.getSocialConfig();
       setCfg(novo);
     } catch (err) {
-      setErroTroca(err instanceof Error ? err.message : "Erro ao trocar token");
+      setErroTroca(err instanceof Error ? err.message : t.erroTrocarToken);
     } finally { setTrocando(false); }
   }
 
@@ -743,11 +742,11 @@ function AbaFacebook() {
       <div className="col-span-3">
         {/* Botão OAuth — ligação automática */}
         <div className="mb-4 rounded-xl border border-black/10 bg-white p-5">
-          <p className="text-sm font-medium mb-1">Ligar Facebook & Instagram automaticamente</p>
-          <p className="text-xs text-black/40 mb-3">Clique no botão abaixo e autorize o TeamAgents a gerenciar as suas páginas. Os tokens são salvos automaticamente — sem configuração manual.</p>
+          <p className="text-sm font-medium mb-1">{t.fbLigarAuto}</p>
+          <p className="text-xs text-black/40 mb-3">{t.fbLigarAutoDesc}</p>
           {cfg?.facebook_page_id && (
             <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-800">
-              ✓ Conta já conectada (Page ID: {cfg.facebook_page_id}). Clique para reconectar se necessário.
+              {t.fbJaConectadoA}{cfg.facebook_page_id}{t.fbJaConectadoB}
             </div>
           )}
           <button
@@ -757,57 +756,57 @@ function AbaFacebook() {
             className="flex items-center gap-2 rounded-lg bg-[#1877F2] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#166fe5] disabled:opacity-40 transition-colors"
           >
             <svg className="h-4 w-4 fill-white" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            Ligar com Facebook
+            {t.fbLigarBtn}
           </button>
-          {!FB_APP_ID && <p className="mt-1 text-xs text-rose-600">Variável NEXT_PUBLIC_FACEBOOK_APP_ID não configurada no Vercel.</p>}
+          {!FB_APP_ID && <p className="mt-1 text-xs text-rose-600">{t.fbNaoConfig}</p>}
         </div>
 
         {/* Separador */}
         <div className="mb-4 flex items-center gap-3 text-xs text-black/30">
           <div className="h-px flex-1 bg-black/10" />
-          <span>ou configuração manual</span>
+          <span>{t.ouConfigManual}</span>
           <div className="h-px flex-1 bg-black/10" />
         </div>
 
         {erro && <Erro msg={erro} />}
         <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
-          <Campo label="Facebook Page ID">
+          <Campo label={t.fbPageId}>
             <CampoSecreto
               value={cfg?.facebook_page_id ?? ""}
               onChange={(v) => set("facebook_page_id", v)}
               placeholder="123456789012345"
             />
           </Campo>
-          <Campo label="Page Access Token">
+          <Campo label={t.fbPageToken}>
             <CampoSecreto
               value={cfg?.facebook_page_access_token ?? ""}
               onChange={(v) => set("facebook_page_access_token", v)}
               placeholder="EAAb..."
             />
-            <p className="mt-1 text-xs text-black/40">Token de longa duração (60 dias). Renove antes do prazo expirar.</p>
+            <p className="mt-1 text-xs text-black/40">{t.fbPageTokenNota}</p>
           </Campo>
           <div className="flex flex-wrap items-center gap-3">
             <BotaoGuardar saving={saving} ok={ok} />
             <button type="button" onClick={verificar}
               disabled={verificando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-              {verificando ? "Verificando…" : "Verificar credenciais"}
+              {verificando ? t.verificando : t.verificarCredenciais}
             </button>
             <button type="button" onClick={publicarTeste}
               disabled={publicando || !cfg?.facebook_page_id || !cfg?.facebook_page_access_token}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-              {publicando ? "Publicando…" : "Publicação de teste"}
+              {publicando ? t.publicando : t.publicacaoTeste}
             </button>
           </div>
           {paginaInfo && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              ✓ Conectado à página <strong>{paginaInfo.name}</strong>
+              {t.fbConectadoPagina} <strong>{paginaInfo.name}</strong>
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
           {publicacaoOk && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              ✓ Publicação de teste criada na página! Verifique o seu Facebook.
+              {t.fbPubTesteOk}
             </div>
           )}
           {erroPublicacao && <Erro msg={erroPublicacao} />}
@@ -816,18 +815,18 @@ function AbaFacebook() {
         {/* Renovação de token */}
         <div className="mt-4 rounded-xl border border-black/10 bg-white p-5 space-y-3">
           <div>
-            <p className="text-sm font-medium">Renovar token (60 dias)</p>
-            <p className="text-xs text-black/40 mt-0.5">Cole aqui o User Access Token do Graph API Explorer para gerar um Page Token de longa duração que não expira.</p>
+            <p className="text-sm font-medium">{t.renovarToken}</p>
+            <p className="text-xs text-black/40 mt-0.5">{t.renovarTokenDesc}</p>
           </div>
-          <CampoSecreto value={userToken} onChange={setUserToken} placeholder="EAAb... (User Token do Graph API Explorer)" />
+          <CampoSecreto value={userToken} onChange={setUserToken} placeholder={t.userTokenPh} />
           <div className="flex items-center gap-3">
             <button type="button" onClick={trocarToken}
               disabled={trocando || !userToken.trim()}
               className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-              {trocando ? "Trocando…" : "Converter para 60 dias"}
+              {trocando ? t.trocando : t.converter60}
             </button>
           </div>
-          {trocaOk && <p className="text-sm text-emerald-700">✓ Token de longa duração salvo para a página <strong>{trocaOk}</strong>!</p>}
+          {trocaOk && <p className="text-sm text-emerald-700">{t.tokenLongoSalvoA}<strong>{trocaOk}</strong>{t.tokenLongoSalvoB}</p>}
           {erroTroca && <Erro msg={erroTroca} />}
         </div>
       </div>
@@ -837,6 +836,8 @@ function AbaFacebook() {
 
 /* ─── Instagram ────────────────────────────────────────────────────── */
 function AbaInstagram() {
+  const t = useT().configuracoes;
+  const { locale } = useLocale();
   const [cfg, setCfg] = useState<SocialConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -864,7 +865,7 @@ function AbaInstagram() {
       }));
       setOk(true);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao salvar");
+      setErro(err instanceof Error ? err.message : t.salvar);
     } finally { setSaving(false); }
   }
 
@@ -873,7 +874,7 @@ function AbaInstagram() {
     try {
       setIgInfo(await api.verificarInstagram());
     } catch (err) {
-      setErroVerif(err instanceof Error ? err.message : "ID incorreto ou token sem permissão");
+      setErroVerif(err instanceof Error ? err.message : t.igIdIncorreto);
     } finally { setVerificando(false); }
   }
 
@@ -881,12 +882,12 @@ function AbaInstagram() {
     setPublicando(true); setErroPublicacao(null); setPublicacaoOk(false);
     try {
       await api.postarInstagram(
-        "🤖 TeamAgents conectado ao Instagram com sucesso! Esta é uma publicação de teste automática.",
+        t.igTestePost,
         imageUrl.trim() || undefined,
       );
       setPublicacaoOk(true);
     } catch (err) {
-      setErroPublicacao(err instanceof Error ? err.message : "Erro ao publicar");
+      setErroPublicacao(err instanceof Error ? err.message : t.erroPublicar);
     } finally { setPublicando(false); }
   }
 
@@ -902,24 +903,23 @@ function AbaInstagram() {
       <div className="col-span-3">
         {!temFbToken && (
           <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-            ⚠️ Configure primeiro o <strong>Facebook Page Access Token</strong> — o Instagram usa o mesmo token.
+            {t.igAvisoFbA}<strong>{t.igAvisoFbStrong}</strong>{t.igAvisoFbB}
           </div>
         )}
         {erro && <Erro msg={erro} />}
         <form onSubmit={salvar} className="space-y-4 rounded-xl border border-black/10 bg-white p-5">
-          <Campo label="Instagram Business Account ID">
+          <Campo label={t.igAccountId}>
             <input className="campo" value={cfg?.instagram_business_account_id ?? ""}
               onChange={(e) => setCfg((c) => c ? { ...c, instagram_business_account_id: e.target.value } : c)}
               placeholder="17841400000000000" />
-            <p className="mt-1 text-xs text-black/40">Requer conta Instagram Business conectada a uma Facebook Page.</p>
+            <p className="mt-1 text-xs text-black/40">{t.igAccountIdNota}</p>
           </Campo>
-          <Campo label="URL da imagem (para publicação de teste)">
+          <Campo label={t.igImageUrl}>
             <input className="campo" value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               placeholder="https://exemplo.com/imagem.jpg" />
             <p className="mt-1 text-xs text-black/40">
-              O Instagram exige sempre uma imagem. Cole o URL público de um JPEG/PNG acessível.
-              Se deixar vazio, é usada uma imagem genérica.
+              {t.igImageUrlNota}
             </p>
           </Campo>
           <div className="flex flex-wrap items-center gap-3">
@@ -927,24 +927,24 @@ function AbaInstagram() {
             <button type="button" onClick={verificar}
               disabled={verificando || !cfg?.instagram_business_account_id || !temFbToken}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-              {verificando ? "Verificando…" : "Verificar conta"}
+              {verificando ? t.verificando : t.verificarConta}
             </button>
             <button type="button" onClick={publicarTeste}
               disabled={publicando || !cfg?.instagram_business_account_id || !temFbToken}
               className="rounded-lg border border-black/15 px-4 py-2 text-sm hover:bg-black/3 disabled:opacity-40 transition-colors">
-              {publicando ? "Publicando…" : "Publicação de teste"}
+              {publicando ? t.publicando : t.publicacaoTeste}
             </button>
           </div>
           {igInfo && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              ✓ Conectado a <strong>@{igInfo.username}</strong> · {igInfo.name}
-              {igInfo.followers_count !== undefined && ` · ${igInfo.followers_count.toLocaleString("pt-BR")} seguidores`}
+              {t.igConectadoA} <strong>@{igInfo.username}</strong> · {igInfo.name}
+              {igInfo.followers_count !== undefined && ` · ${igInfo.followers_count.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} ${t.igSeguidoresSuf}`}
             </div>
           )}
           {erroVerif && <Erro msg={erroVerif} />}
           {publicacaoOk && (
             <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              ✓ Publicação de teste criada no Instagram! Verifique o seu perfil @{igInfo?.username ?? "bitzensoftware"}.
+              {t.igPubTesteOk}{igInfo?.username ?? "bitzensoftware"}.
             </div>
           )}
           {erroPublicacao && <Erro msg={erroPublicacao} />}
@@ -954,137 +954,44 @@ function AbaInstagram() {
   );
 }
 
-/* ─── Guia Facebook ────────────────────────────────────────────────── */
+/* ─── Guias Meta (Facebook / Instagram) — conteúdo no dicionário ────── */
+function GuiaMeta({ passos }: { passos: { t: string; linhas: string[] }[] }) {
+  const t = useT().configuracoes;
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-xl border border-black/8 bg-black/2 p-4 text-xs text-black/60">
+      <button type="button" onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between font-semibold uppercase tracking-wide text-black/40 hover:text-black/60 transition-colors">
+        <span>{t.guiaConfig}</span>
+        <span>{aberto ? "▲" : "▼"}</span>
+      </button>
+      {aberto && (
+        <div className="mt-4 space-y-4">
+          {passos.map((p, i) => (
+            <div key={i} className="flex gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">{i + 1}</span>
+              <div>
+                <p className="font-semibold text-black/70 mb-1">{p.t}</p>
+                {p.linhas.map((l, j) => (
+                  <p key={j} className={j > 0 ? "mt-1" : ""}><Rich>{l}</Rich></p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GuiaFacebook() {
-  const [aberto, setAberto] = useState(false);
-  return (
-    <div className="rounded-xl border border-black/8 bg-black/2 p-4 text-xs text-black/60">
-      <button type="button" onClick={() => setAberto(v => !v)}
-        className="flex w-full items-center justify-between font-semibold uppercase tracking-wide text-black/40 hover:text-black/60 transition-colors">
-        <span>Guia de configuração</span>
-        <span>{aberto ? "▲" : "▼"}</span>
-      </button>
-      {aberto && (
-        <div className="mt-4 space-y-4">
-          <Passo n={1} titulo="Criar a App no Facebook">
-            <p>Acesse <strong>developers.facebook.com</strong> → clique em <strong>My Apps</strong> → <strong>Create App</strong>.</p>
-            <p className="mt-1">Preencha os campos:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li><strong>App name:</strong> Bitzen Social (ou o nome da sua empresa)</li>
-              <li><strong>App contact email:</strong> o seu email</li>
-            </ul>
-            <p className="mt-1">Clique em <strong>Next</strong>.</p>
-          </Passo>
-
-          <Passo n={2} titulo="Selecionar casos de uso">
-            <p>No filtro lateral, clique em <strong>Content management</strong>.</p>
-            <p className="mt-1">Selecione <strong>os dois</strong> casos:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li>Manage messaging &amp; content on Instagram</li>
-              <li>Manage everything on your Page</li>
-            </ul>
-            <p className="mt-1">Clique em <strong>Next</strong> → <strong>Next</strong> → <strong>Next</strong> → <strong>Create App</strong>.</p>
-          </Passo>
-
-          <Passo n={3} titulo="Adicionar permissões à app">
-            <p>No dashboard da app, clique em:</p>
-            <p className="mt-1 font-medium text-black/70">"Customize the Manage everything on your Page use case"</p>
-            <p className="mt-1">Vá em <strong>Permissions and features</strong> e clique <strong>+ Add</strong> em:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li><code className="bg-black/8 px-1 rounded">pages_manage_posts</code></li>
-              <li><code className="bg-black/8 px-1 rounded">pages_read_engagement</code></li>
-            </ul>
-          </Passo>
-
-          <Passo n={4} titulo="Gerar o Page Access Token">
-            <p>Vá em <strong>Tools</strong> (menu superior) → <strong>Graph API Explorer</strong>.</p>
-            <p className="mt-1">No painel direito:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li>Em <strong>Meta App</strong>, selecione a sua app</li>
-              <li>Em <strong>Permissions</strong>, adicione: <code className="bg-black/8 px-1 rounded">pages_show_list</code>, <code className="bg-black/8 px-1 rounded">pages_read_engagement</code>, <code className="bg-black/8 px-1 rounded">pages_manage_posts</code></li>
-              <li>Clique em <strong>Generate Access Token</strong> e autorize o popup</li>
-            </ul>
-          </Passo>
-
-          <Passo n={5} titulo="Obter o Page ID e o Token">
-            <p>No campo de query, escreva:</p>
-            <code className="mt-1 block bg-black/8 px-2 py-1 rounded font-mono">me/accounts</code>
-            <p className="mt-2">Clique em <strong>Submit</strong>. Na resposta JSON, dentro de <code className="bg-black/8 px-1 rounded">data[0]</code>, copie:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li><code className="bg-black/8 px-1 rounded">"access_token"</code> → cole em <strong>Page Access Token</strong></li>
-              <li><code className="bg-black/8 px-1 rounded">"id"</code> → cole em <strong>Facebook Page ID</strong></li>
-            </ul>
-            <div className="mt-2 rounded bg-amber-50 border border-amber-200 p-2 text-amber-800">
-              ⚠️ Copie o token do <strong>JSON da resposta</strong>, NÃO o token do painel direito. São tokens diferentes!
-            </div>
-          </Passo>
-        </div>
-      )}
-    </div>
-  );
+  const t = useT().configuracoes;
+  return <GuiaMeta passos={t.passosGuiaFb} />;
 }
 
-/* ─── Guia Instagram ───────────────────────────────────────────────── */
 function GuiaInstagram() {
-  const [aberto, setAberto] = useState(false);
-  return (
-    <div className="rounded-xl border border-black/8 bg-black/2 p-4 text-xs text-black/60">
-      <button type="button" onClick={() => setAberto(v => !v)}
-        className="flex w-full items-center justify-between font-semibold uppercase tracking-wide text-black/40 hover:text-black/60 transition-colors">
-        <span>Guia de configuração</span>
-        <span>{aberto ? "▲" : "▼"}</span>
-      </button>
-      {aberto && (
-        <div className="mt-4 space-y-4">
-          <Passo n={1} titulo="Pré-requisito: aba Facebook">
-            <p>O Instagram usa o <strong>mesmo Page Access Token</strong> do Facebook.</p>
-            <p className="mt-1">Configure primeiro a aba <strong>Facebook</strong> antes de continuar aqui.</p>
-          </Passo>
-
-          <Passo n={2} titulo="Ligar o Instagram à Página">
-            <p>Na sua Página do Facebook, clique em <strong>Configurações</strong>.</p>
-            <p className="mt-1">No menu lateral, procure <strong>Contas associadas</strong> → <strong>Instagram</strong>.</p>
-            <p className="mt-1">Clique em Instagram → <strong>Ligar conta</strong> e entre com as credenciais da sua conta <strong>Instagram Business ou Creator</strong>.</p>
-            <div className="mt-2 rounded bg-blue-50 border border-blue-200 p-2 text-blue-800">
-              ℹ️ O Instagram tem de ser uma conta <strong>Business</strong> ou <strong>Creator</strong>, não pessoal.
-            </div>
-          </Passo>
-
-          <Passo n={3} titulo="Obter o Instagram Business Account ID">
-            <p>Volte ao <strong>Graph API Explorer</strong> (Tools → Graph API Explorer).</p>
-            <p className="mt-1">No campo de query, escreva (substitua pelo seu Page ID):</p>
-            <code className="mt-1 block bg-black/8 px-2 py-1 rounded font-mono break-all">{'<PAGE_ID>?fields=instagram_business_account'}</code>
-            <p className="mt-2">Clique em <strong>Submit</strong>. Na resposta, copie o valor de <code className="bg-black/8 px-1 rounded">"id"</code> dentro de <code className="bg-black/8 px-1 rounded">instagram_business_account</code>.</p>
-            <p className="mt-1">É um número com ~17 dígitos. Cole-o em <strong>Instagram Business Account ID</strong> acima.</p>
-          </Passo>
-
-          <Passo n={4} titulo="Renovar o token (a cada 60 dias)">
-            <p>O Page Access Token expira em <strong>60 dias</strong>. Quando expirar:</p>
-            <ul className="mt-1 list-disc pl-4 space-y-0.5">
-              <li>Vá ao Graph API Explorer → Generate Access Token</li>
-              <li>Rode <code className="bg-black/8 px-1 rounded">me/accounts</code></li>
-              <li>Copie o novo <code className="bg-black/8 px-1 rounded">access_token</code> do JSON</li>
-              <li>Atualize na aba <strong>Facebook</strong> (o Instagram atualiza automaticamente)</li>
-            </ul>
-          </Passo>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Passo({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
-        {n}
-      </span>
-      <div>
-        <p className="font-semibold text-black/70 mb-1">{titulo}</p>
-        {children}
-      </div>
-    </div>
-  );
+  const t = useT().configuracoes;
+  return <GuiaMeta passos={t.passosGuiaIg} />;
 }
 
 /* ─── Componentes partilhados ──────────────────────────────────────── */
@@ -1102,6 +1009,7 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const t = useT().configuracoes;
   const [visivel, setVisivel] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
@@ -1120,7 +1028,7 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        title="Valor secreto da integração"
+        title={t.valorSecreto}
         // Impede o gerenciador de senhas do navegador de preencher isto com o
         // login do usuário (não é um campo de senha de conta).
         autoComplete="new-password"
@@ -1134,9 +1042,9 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
           onClick={copiar}
           disabled={!value}
           className="rounded px-2 py-1 text-xs text-black/40 hover:bg-black/5 hover:text-ink disabled:opacity-30 transition-colors"
-          title="Copiar"
+          title={t.copiar}
         >
-          {copiado ? "✓" : "Copiar"}
+          {copiado ? "✓" : t.copiar}
         </button>
         <span className="text-black/15">|</span>
         <button
@@ -1144,7 +1052,7 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
           onClick={() => setVisivel((v) => !v)}
           className="rounded px-2 py-1 text-xs text-black/40 hover:bg-black/5 hover:text-ink transition-colors"
         >
-          {visivel ? "Ocultar" : "Mostrar"}
+          {visivel ? t.ocultar : t.mostrar}
         </button>
       </div>
     </div>
@@ -1152,13 +1060,14 @@ function CampoSecreto({ value, onChange, placeholder = "" }: {
 }
 
 function BotaoGuardar({ saving, ok }: { saving: boolean; ok: boolean }) {
+  const t = useT().configuracoes;
   return (
     <div className="flex items-center gap-3">
       <button type="submit" disabled={saving}
         className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40">
-        {saving ? "Salvando…" : "Salvar"}
+        {saving ? t.salvando : t.salvar}
       </button>
-      {ok && <span className="text-sm text-emerald-700">✓ Salvo</span>}
+      {ok && <span className="text-sm text-emerald-700">{t.salvo}</span>}
     </div>
   );
 }
@@ -1168,13 +1077,15 @@ function Erro({ msg }: { msg: string }) {
 }
 
 function Carregando() {
-  return <p className="text-sm text-black/40">Carregando…</p>;
+  const t = useT().configuracoes;
+  return <p className="text-sm text-black/40">{t.carregando}</p>;
 }
 
 function Instrucoes({ steps }: { steps: string[] }) {
+  const t = useT().configuracoes;
   return (
     <div className="rounded-xl border border-black/8 bg-black/2 p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">Como configurar</p>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-black/40">{t.comoConfigurar}</p>
       <ol className="space-y-2">
         {steps.map((s, i) => (
           <li key={i} className="flex gap-2.5 text-xs text-black/60 leading-relaxed">
