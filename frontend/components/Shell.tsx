@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Inbox,
+  BookOpen, Bot, Building2, CalendarClock, CreditCard, Gauge, Globe, Inbox,
   Layers, LifeBuoy, LogOut, Mail, Megaphone, Menu, MessageCircle, Network, Newspaper,
   Package, Scissors, Settings, Sparkles, UserCog, Users, X, type LucideIcon,
 } from "lucide-react";
@@ -161,14 +161,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Rodapé: idioma + conta + sair */}
+        {/* Rodapé: conta + sair */}
         <div className="mt-auto border-t border-black/5 pt-3">
-          <div className="mb-2 flex items-center gap-1 px-1" aria-label={t.shell.idioma}>
-            <button type="button" onClick={() => setLocale("pt")} aria-pressed={locale === "pt"}
-              className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${locale === "pt" ? "bg-brand text-white" : "text-black/50 hover:bg-black/[0.04]"}`}>PT</button>
-            <button type="button" onClick={() => setLocale("en")} aria-pressed={locale === "en"}
-              className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${locale === "en" ? "bg-brand text-white" : "text-black/50 hover:bg-black/[0.04]"}`}>EN</button>
-          </div>
           <div className="flex items-center gap-2.5 px-1">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">{inicial}</span>
             <div className="min-w-0 flex-1">
@@ -189,22 +183,32 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Barra de topo (só mobile) com o botão do menu */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-black/10 bg-white px-4 lg:hidden">
+        {/* Barra de topo: menu+logo só no mobile, seletor de idioma à direita (sempre) */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-black/10 bg-white px-4 lg:px-6">
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
             aria-label={t.shell.abrirMenu}
-            className="grid h-9 w-9 place-items-center rounded-lg text-ink hover:bg-black/[0.04]"
+            className="grid h-9 w-9 place-items-center rounded-lg text-ink hover:bg-black/[0.04] lg:hidden"
           >
             <Menu size={20} />
           </button>
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-2 lg:hidden">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-dark text-white">
               <Logo size={16} />
             </span>
             <span className="text-sm font-bold tracking-tight">TeamAgents</span>
           </span>
+
+          <div className="ml-auto flex items-center gap-2" aria-label={t.shell.idioma}>
+            <Globe size={15} className="text-black/40" aria-hidden />
+            <div className="flex items-center rounded-lg bg-black/[0.04] p-0.5">
+              <button type="button" onClick={() => setLocale("pt")} aria-pressed={locale === "pt" ? "true" : "false"}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${locale === "pt" ? "bg-white text-brand shadow-sm" : "text-black/45 hover:text-black/70"}`}>PT</button>
+              <button type="button" onClick={() => setLocale("en")} aria-pressed={locale === "en" ? "true" : "false"}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${locale === "en" ? "bg-white text-brand shadow-sm" : "text-black/45 hover:text-black/70"}`}>EN</button>
+            </div>
+          </div>
         </header>
 
         <main className="flex-1 overflow-auto bg-paper">
