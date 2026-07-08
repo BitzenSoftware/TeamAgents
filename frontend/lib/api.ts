@@ -166,6 +166,7 @@ export type Pacote = {
   stripe_product_id?: string | null;
   ativo: boolean;
   ordem: number;
+  moeda?: string;
 };
 
 export type PacoteAtivo = {
