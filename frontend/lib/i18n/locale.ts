@@ -22,6 +22,30 @@ export function localeFromCountry(country: string | undefined | null): Locale {
   return DEFAULT_LOCALE;
 }
 
+// ===================== Moeda (por PAÍS, independente do idioma) =====================
+// Regra de negócio: só o Brasil paga em BRL; qualquer outro país identificado paga
+// em USD. É separado do idioma — ex.: Portugal fala PT mas paga em USD.
+export const CURRENCY_COOKIE = "ta_moeda";
+export type Currency = "brl" | "usd";
+
+export function isCurrency(v: string | undefined | null): v is Currency {
+  return v === "brl" || v === "usd";
+}
+
+export function currencyFromCountry(country: string | undefined | null): Currency {
+  // País desconhecido (dev local, geo indisponível) → assume mercado de origem (BRL),
+  // para nunca empurrar um brasileiro para USD por falha de geo.
+  if (!country || country.toUpperCase() === "BR") return "brl";
+  return "usd";
+}
+
+// Lê a moeda do cookie no browser (fallback BRL). Só use em componentes client.
+export function readCurrencyClient(): Currency {
+  if (typeof document === "undefined") return "brl";
+  const m = document.cookie.match(/(?:^|;\s*)ta_moeda=(brl|usd)/);
+  return isCurrency(m?.[1]) ? (m![1] as Currency) : "brl";
+}
+
 // Deriva o locale a partir do pathname (ex.: "/en", "/en/blog" → "en"; resto → "pt").
 export function localeFromPath(pathname: string): Locale {
   return pathname === "/en" || pathname.startsWith("/en/") ? "en" : "pt";

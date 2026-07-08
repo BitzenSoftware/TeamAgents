@@ -1458,17 +1458,30 @@ def listar_planos_publicos(moeda: str = "brl") -> list[dict]:
         return []
 
 
-def listar_planos_ativos() -> list[dict]:
-    """Planos ativos (para o cliente escolher/assinar)."""
-    return (
-        get_db()
-        .table("planos")
-        .select("id, nome, creditos_mensais, preco, stripe_price_id, ordem")
-        .eq("ativo", True)
-        .order("ordem")
-        .execute()
-        .data
-    )
+def listar_planos_ativos(moeda: str = "brl") -> list[dict]:
+    """Planos ativos (para o cliente escolher/assinar), filtrados pela moeda do país."""
+    try:
+        return (
+            get_db()
+            .table("planos")
+            .select("id, nome, creditos_mensais, preco, stripe_price_id, ordem, moeda")
+            .eq("ativo", True)
+            .eq("moeda", moeda)
+            .order("ordem")
+            .execute()
+            .data
+        )
+    except Exception:
+        # Coluna 'moeda' ainda não existe (migration 043 por correr) → sem filtro.
+        return (
+            get_db()
+            .table("planos")
+            .select("id, nome, creditos_mensais, preco, stripe_price_id, ordem")
+            .eq("ativo", True)
+            .order("ordem")
+            .execute()
+            .data
+        )
 
 
 def saldo_avulso(cliente_id: str) -> int:
@@ -1485,17 +1498,30 @@ def listar_pacotes() -> list[dict]:
     return get_db().table("pacotes_creditos").select("*").order("ordem").execute().data
 
 
-def listar_pacotes_ativos() -> list[dict]:
-    """Pacotes ativos (para o cliente comprar)."""
-    return (
-        get_db()
-        .table("pacotes_creditos")
-        .select("id, nome, creditos, preco, stripe_price_id, ordem")
-        .eq("ativo", True)
-        .order("ordem")
-        .execute()
-        .data
-    )
+def listar_pacotes_ativos(moeda: str = "brl") -> list[dict]:
+    """Pacotes ativos (para o cliente comprar), filtrados pela moeda do país."""
+    try:
+        return (
+            get_db()
+            .table("pacotes_creditos")
+            .select("id, nome, creditos, preco, stripe_price_id, ordem, moeda")
+            .eq("ativo", True)
+            .eq("moeda", moeda)
+            .order("ordem")
+            .execute()
+            .data
+        )
+    except Exception:
+        # Coluna 'moeda' ainda não existe (migration 043 por correr) → sem filtro.
+        return (
+            get_db()
+            .table("pacotes_creditos")
+            .select("id, nome, creditos, preco, stripe_price_id, ordem")
+            .eq("ativo", True)
+            .order("ordem")
+            .execute()
+            .data
+        )
 
 
 def criar_pacote(fields: dict) -> dict:

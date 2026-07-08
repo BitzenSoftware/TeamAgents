@@ -323,9 +323,9 @@ def reativar_assinatura(cliente_id: str = Depends(auth.current_cliente_id)) -> d
 
 
 @app.get("/me/pacotes")
-def listar_pacotes_ativos(_: str = Depends(auth.current_cliente_id)) -> list[dict]:
-    """Pacotes de créditos avulsos disponíveis para compra."""
-    return flow.listar_pacotes_ativos()
+def listar_pacotes_ativos(moeda: str = "brl", _: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Pacotes de créditos avulsos disponíveis para compra (filtrados por moeda)."""
+    return flow.listar_pacotes_ativos(moeda)
 
 
 @app.post("/me/comprar-creditos")
@@ -528,9 +528,9 @@ def get_consumo(cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
 
 
 @app.get("/me/planos")
-def listar_planos_ativos(_: str = Depends(auth.current_cliente_id)) -> list[dict]:
-    """Planos ativos disponíveis para o cliente assinar."""
-    return flow.listar_planos_ativos()
+def listar_planos_ativos(moeda: str = "brl", _: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    """Planos ativos disponíveis para o cliente assinar (filtrados por moeda)."""
+    return flow.listar_planos_ativos(moeda)
 
 
 @app.get("/me/consumo/dashboard")

@@ -11,7 +11,7 @@ import {
 import { Logo } from "@/components/Logo";
 import { LangSwitcher } from "@/components/marketing/LangSwitcher";
 import { landingCopy } from "@/lib/i18n/landing";
-import type { Locale } from "@/lib/i18n/locale";
+import { readCurrencyClient, type Locale } from "@/lib/i18n/locale";
 
 /* ===== Mapas de ícones/cores (não vão no dicionário; alinham por índice/id) ===== */
 
@@ -58,11 +58,14 @@ export function Landing({ locale }: { locale: Locale }) {
   const t = landingCopy[locale];
   const [planos, setPlanos] = useState<PlanoLanding[]>(t.precos.planos);
   const [menuMobile, setMenuMobile] = useState(false);
+  // Moeda por PAÍS (cookie do middleware), não por idioma: Portugal fala PT mas paga USD.
+  const [simbolo, setSimbolo] = useState<string>(t.precos.moeda);
 
   useEffect(() => {
-    // Puxa os preços reais da BD por moeda: PT→BRL, EN→USD. Se não houver planos
-    // nessa moeda ainda, mantém os estáticos do dicionário (fallback).
-    const moeda = locale === "en" ? "usd" : "brl";
+    // Puxa os preços reais da BD pela moeda do país: BR→BRL, resto→USD. Se não houver
+    // planos nessa moeda ainda, mantém os estáticos do dicionário (fallback).
+    const moeda = readCurrencyClient();
+    setSimbolo(moeda === "usd" ? "$" : "R$");
     const bcp = locale === "en" ? "en-US" : "pt-BR";
     const copyByName = Object.fromEntries(t.precos.planos.map((p) => [p.nome, p]));
     fetch(`${API_BASE}/planos/publicos?moeda=${moeda}`, { cache: "no-store" })
@@ -372,7 +375,7 @@ export function Landing({ locale }: { locale: Locale }) {
               <div key={p.nome} className={`relative flex flex-col rounded-2xl border p-7 ${p.destaque ? "border-brand bg-gradient-to-b from-brand/[0.06] to-transparent shadow-xl shadow-brand/10" : "border-black/10 bg-white"}`}>
                 {p.destaque && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-brand to-brand-dark px-3 py-1 text-[11px] font-bold text-white shadow">{t.precos.popular}</span>}
                 <div className="mb-1 text-sm font-semibold text-black/60">{p.nome}</div>
-                <div className="mb-1 flex items-baseline gap-1"><span className="text-sm font-medium text-black/40">{t.precos.moeda}</span><span className="text-5xl font-bold tracking-tight">{p.preco}</span><span className="text-sm text-black/40">{t.precos.por}</span></div>
+                <div className="mb-1 flex items-baseline gap-1"><span className="text-sm font-medium text-black/40">{simbolo}</span><span className="text-5xl font-bold tracking-tight">{p.preco}</span><span className="text-sm text-black/40">{t.precos.por}</span></div>
                 <div className="mb-5 text-xs text-black/45">{p.para}</div>
                 <div className={`mb-5 rounded-xl px-4 py-3 text-center ${p.destaque ? "bg-brand/10" : "bg-paper"}`}><span className="text-lg font-bold">{p.creditos}</span><span className="text-sm text-black/55"> {t.precos.creditosLabel}</span></div>
                 <ul className="mb-7 space-y-2.5 text-sm">

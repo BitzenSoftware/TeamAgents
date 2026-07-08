@@ -110,6 +110,7 @@ export type PlanoAtivo = {
   preco: number;
   stripe_price_id: string | null;
   ordem: number;
+  moeda?: string;
 };
 
 export type Empresa = {
@@ -176,6 +177,7 @@ export type PacoteAtivo = {
   preco: number;
   stripe_price_id: string | null;
   ordem: number;
+  moeda?: string;
 };
 
 export type ConsumoDashboard = {
@@ -925,7 +927,7 @@ export const api = {
     req<Plano>(`/admin/planos/${id}/stripe`, { method: "POST" }),
 
   // --- Stripe: assinaturas do cliente ---
-  planosAtivos: () => req<PlanoAtivo[]>("/me/planos"),
+  planosAtivos: (moeda?: string) => req<PlanoAtivo[]>(`/me/planos${moeda ? `?moeda=${moeda}` : ""}`),
   checkout: (planoId: string) =>
     req<{ url: string }>("/me/checkout", { method: "POST", body: JSON.stringify({ plano_id: planoId }) }),
   mudarPlano: (planoId: string) =>
@@ -955,7 +957,7 @@ export const api = {
     req<EmpresaConsumo[]>(`/admin/empresas/consumo?de=${de}&ate=${ate}`),
   adminDashboards: (de: string, ate: string, gran: "semana" | "mes" | "trimestre" | "ano") =>
     req<AdminDashboard>(`/admin/dashboards?de=${de}&ate=${ate}&gran=${gran}`),
-  pacotesAtivos: () => req<PacoteAtivo[]>("/me/pacotes"),
+  pacotesAtivos: (moeda?: string) => req<PacoteAtivo[]>(`/me/pacotes${moeda ? `?moeda=${moeda}` : ""}`),
   comprarCreditos: (pacoteId: string) =>
     req<{ url: string }>("/me/comprar-creditos", { method: "POST", body: JSON.stringify({ pacote_id: pacoteId }) }),
 };

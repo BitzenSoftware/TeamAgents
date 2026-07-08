@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Consumo, type PacoteAtivo, type PlanoAtivo } from "@/lib/api";
 import { useLocale, useT } from "@/components/i18n-context";
+import { readCurrencyClient } from "@/lib/i18n/locale";
 
 export default function AssinaturaPage() {
   const t = useT().assinatura;
@@ -13,15 +14,19 @@ export default function AssinaturaPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Moeda por país (cookie definido pelo middleware): BR→BRL, resto→USD.
+  const [simbolo, setSimbolo] = useState("R$");
 
   const recarregarConsumo = useCallback(() => {
     api.consumo().then(setConsumo).catch(() => {});
   }, []);
 
   useEffect(() => {
+    const moeda = readCurrencyClient();
+    setSimbolo(moeda === "usd" ? "$" : "R$");
     recarregarConsumo();
-    api.planosAtivos().then(setPlanos).catch(() => {});
-    api.pacotesAtivos().then(setPacotes).catch(() => {});
+    api.planosAtivos(moeda).then(setPlanos).catch(() => {});
+    api.pacotesAtivos(moeda).then(setPacotes).catch(() => {});
     // Banner de retorno do Checkout/compra
     const q = new URLSearchParams(window.location.search);
     if (q.get("assinatura") === "sucesso") setAviso(t.avisoAssinaturaSucesso);
@@ -220,7 +225,7 @@ export default function AssinaturaPage() {
                       )}
                     </div>
                     <div className="mt-1 text-2xl font-semibold">
-                      {t.moeda} {Number(p.preco).toFixed(2)}
+                      {simbolo} {Number(p.preco).toFixed(2)}
                       <span className="text-sm font-normal text-black/40"> {t.porMes}</span>
                     </div>
                     <div className="mt-0.5 text-xs text-black/50">
@@ -262,7 +267,7 @@ export default function AssinaturaPage() {
                   <div key={p.id} className="flex flex-col rounded-xl border border-black/10 p-4">
                     <span className="font-semibold">{p.nome}</span>
                     <div className="mt-1 text-2xl font-semibold">
-                      {t.moeda} {Number(p.preco).toFixed(2)}
+                      {simbolo} {Number(p.preco).toFixed(2)}
                       <span className="text-sm font-normal text-black/40"> {t.unica}</span>
                     </div>
                     <div className="mt-0.5 text-xs text-black/50">+{p.creditos.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditos}</div>
