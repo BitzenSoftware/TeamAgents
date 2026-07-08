@@ -157,6 +157,7 @@ class PlanoCreate(BaseModel):
     stripe_price_id: str | None = None
     ativo: bool = True
     ordem: int = 0
+    moeda: str = "brl"  # moeda do preço na Stripe (ex.: 'usd' para planos US)
 
 
 class PlanoUpdate(BaseModel):
@@ -166,6 +167,7 @@ class PlanoUpdate(BaseModel):
     stripe_price_id: str | None = None
     ativo: bool | None = None
     ordem: int | None = None
+    moeda: str | None = None
 
 
 class CheckoutRequest(BaseModel):
@@ -180,6 +182,7 @@ class PacoteCreate(BaseModel):
     stripe_price_id: str | None = None
     ativo: bool = True
     ordem: int = 0
+    moeda: str = "brl"
 
 
 class PacoteUpdate(BaseModel):
@@ -189,6 +192,7 @@ class PacoteUpdate(BaseModel):
     stripe_price_id: str | None = None
     ativo: bool | None = None
     ordem: int | None = None
+    moeda: str | None = None
 
 
 class CompraPacoteRequest(BaseModel):

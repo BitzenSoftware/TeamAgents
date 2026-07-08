@@ -65,7 +65,8 @@ def criar_preco_para_plano(plano: dict) -> dict:
 
     preco = stripe.Price.create(
         product=product_id,
-        currency=s.stripe_currency,
+        # Moeda por plano (ex.: 'usd' para o mercado US); fallback à moeda global.
+        currency=(plano.get("moeda") or s.stripe_currency),
         unit_amount=int(round(float(plano["preco"]) * 100)),
         recurring={"interval": "month"},
         metadata={"plano_id": plano["id"], "creditos_mensais": plano["creditos_mensais"]},
@@ -99,7 +100,7 @@ def criar_preco_para_pacote(pacote: dict) -> dict:
 
     preco = stripe.Price.create(
         product=product_id,
-        currency=s.stripe_currency,
+        currency=(pacote.get("moeda") or s.stripe_currency),
         unit_amount=int(round(float(pacote["preco"]) * 100)),
         metadata={"pacote_id": pacote["id"], "creditos": pacote["creditos"]},
     )  # sem 'recurring' => preço de compra única

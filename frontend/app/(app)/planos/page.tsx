@@ -107,7 +107,7 @@ export default function PlanosPage() {
                       </span>
                     </div>
                     <div className="mt-0.5 break-words text-[11px] text-black/40">
-                      {p.creditos_mensais.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditosMes} · {t.moeda} {Number(p.preco).toFixed(2)}
+                      {p.creditos_mensais.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditosMes} · {(p.moeda === "usd" ? "$" : "R$")} {Number(p.preco).toFixed(2)}
                     </div>
                   </button>
                 );
@@ -174,7 +174,8 @@ function PlanoEditor({ plano, onChanged }: { plano: Plano; onChanged: () => void
         stripe_price_id: p.stripe_price_id || null,
         ativo: p.ativo,
         ordem: Number(p.ordem),
-      });
+        moeda: p.moeda || "brl",
+      } as Partial<Plano>);
       setOk(true);
       onChanged();
     } finally {
@@ -194,7 +195,7 @@ function PlanoEditor({ plano, onChanged }: { plano: Plano; onChanged: () => void
         <div>
           <div className="text-sm font-semibold">{p.nome || t.planoDefault}</div>
           <div className="text-xs text-white/70">
-            {Number(p.creditos_mensais).toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditosMes} · {t.moeda} {Number(p.preco).toFixed(2)}
+            {Number(p.creditos_mensais).toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {t.creditosMes} · {(p.moeda === "usd" ? "$" : "R$")} {Number(p.preco).toFixed(2)}
           </div>
         </div>
         <span
@@ -216,6 +217,12 @@ function PlanoEditor({ plano, onChanged }: { plano: Plano; onChanged: () => void
           </Campo>
           <Campo label={t.precoLabel}>
             <input className="ip" title={t.precoLabel} type="number" step="0.01" value={p.preco} onChange={(e) => set("preco", Number(e.target.value))} />
+          </Campo>
+          <Campo label={t.moedaLabel}>
+            <select className="ip" title={t.moedaLabel} value={p.moeda ?? "brl"} onChange={(e) => set("moeda", e.target.value)}>
+              <option value="brl">BRL (R$)</option>
+              <option value="usd">USD ($)</option>
+            </select>
           </Campo>
           <Campo label={t.ordem}>
             <input className="ip" title={t.ordem} type="number" value={p.ordem} onChange={(e) => set("ordem", Number(e.target.value))} />

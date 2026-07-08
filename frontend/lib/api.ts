@@ -409,6 +409,7 @@ export type Plano = {
   stripe_product_id?: string | null;
   ativo: boolean;
   ordem: number;
+  moeda?: string; // 'brl' | 'usd' — moeda do preço na Stripe
 };
 
 export type AgenteSkill =
