@@ -517,6 +517,7 @@ class ProjetoChatRequest(BaseModel):
 class ProjetoPapeisUpdate(BaseModel):
     """Papel de cada agente no projeto: gerente | executor | revisor."""
     papeis: dict[str, str] = Field(default_factory=dict)
+    revisao_ativa: bool | None = None  # liga/desliga o quality gate do projeto
 
 
 class FluxoIniciarRequest(BaseModel):

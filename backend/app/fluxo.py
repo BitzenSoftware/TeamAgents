@@ -72,16 +72,21 @@ def playbooks_listar() -> list[dict]:
 
 
 # ===================== Papéis por projeto =====================
-def papeis_get(cliente_id: str, proj_id: str) -> dict[str, str] | None:
-    if not flow._proj_do_cliente(cliente_id, proj_id):
+def papeis_get(cliente_id: str, proj_id: str) -> dict | None:
+    proj = flow._proj_do_cliente(cliente_id, proj_id)
+    if not proj:
         return None
     rows = get_db().table("projeto_papeis").select("agente_id, papel").eq("projeto_id", proj_id).execute().data or []
-    return {r["agente_id"]: r["papel"] for r in rows if r["agente_id"] in ASSISTENTES}
+    return {"papeis": {r["agente_id"]: r["papel"] for r in rows if r["agente_id"] in ASSISTENTES},
+            "revisao_ativa": bool(proj.get("revisao_ativa", True))}
 
 
-def papeis_set(cliente_id: str, proj_id: str, papeis: dict[str, str]) -> dict[str, str] | None:
+def papeis_set(cliente_id: str, proj_id: str, papeis: dict[str, str],
+               revisao_ativa: bool | None = None) -> dict | None:
     if not flow._proj_do_cliente(cliente_id, proj_id):
         return None
+    if revisao_ativa is not None:
+        get_db().table("projetos").update({"revisao_ativa": revisao_ativa}).eq("id", proj_id).execute()
     agentes = set(flow._link_agentes("projeto_agentes", "projeto_id", proj_id))
     limpos = {a: p for a, p in papeis.items()
               if a in agentes and p in ("gerente", "executor", "revisor")}
@@ -99,7 +104,7 @@ def papeis_set(cliente_id: str, proj_id: str, papeis: dict[str, str]) -> dict[st
         db.table("projeto_papeis").insert(
             [{"projeto_id": proj_id, "agente_id": a, "papel": p} for a, p in finais.items()]
         ).execute()
-    return finais
+    return papeis_get(cliente_id, proj_id)
 
 
 def _resolver_papeis(agentes: list[str], papeis: dict[str, str]) -> tuple[str, str | None]:
@@ -252,8 +257,10 @@ def executar(exec_id: str) -> None:
         return
 
     agentes = flow._link_agentes("projeto_agentes", "projeto_id", proj_id)
-    papeis = papeis_get(cliente_id, proj_id) or {}
-    gerente, revisor = _resolver_papeis(agentes, papeis)
+    cfg = papeis_get(cliente_id, proj_id) or {}
+    gerente, revisor = _resolver_papeis(agentes, cfg.get("papeis") or {})
+    if not cfg.get("revisao_ativa", True):
+        revisor = None  # quality gate desligado neste projeto
     contexto_proj = flow._projeto_contexto(proj)
     s = get_settings()
     usos: list[pricing.UsoLLM] = []

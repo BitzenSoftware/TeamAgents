@@ -928,15 +928,15 @@ def projeto_papeis_get(proj_id: str, cliente_id: str = Depends(auth.current_clie
     res = fluxo.papeis_get(cliente_id, proj_id)
     if res is None:
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
-    return {"papeis": res}
+    return res
 
 
 @app.put("/me/gestao/projetos/{proj_id}/papeis")
 def projeto_papeis_set(proj_id: str, payload: ProjetoPapeisUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
-    res = fluxo.papeis_set(cliente_id, proj_id, payload.papeis)
+    res = fluxo.papeis_set(cliente_id, proj_id, payload.papeis, payload.revisao_ativa)
     if res is None:
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
-    return {"papeis": res}
+    return res
 
 
 @app.post("/me/gestao/projetos/{proj_id}/fluxos", status_code=201)

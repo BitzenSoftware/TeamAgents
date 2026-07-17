@@ -790,9 +790,11 @@ export const api = {
     req<void>(`/me/gestao/projetos/${projId}/relatorios/${relId}`, { method: "DELETE" }),
   // Fluxos multi-agente (Organograma Vivo)
   playbooks: () => req<Playbook[]>("/me/gestao/playbooks"),
-  projetoPapeis: (projId: string) => req<{ papeis: Record<string, PapelAgente> }>(`/me/gestao/projetos/${projId}/papeis`),
-  projetoSetPapeis: (projId: string, papeis: Record<string, PapelAgente>) =>
-    req<{ papeis: Record<string, PapelAgente> }>(`/me/gestao/projetos/${projId}/papeis`, { method: "PUT", body: JSON.stringify({ papeis }) }),
+  projetoPapeis: (projId: string) =>
+    req<{ papeis: Record<string, PapelAgente>; revisao_ativa: boolean }>(`/me/gestao/projetos/${projId}/papeis`),
+  projetoSetPapeis: (projId: string, papeis: Record<string, PapelAgente>, revisao_ativa?: boolean) =>
+    req<{ papeis: Record<string, PapelAgente>; revisao_ativa: boolean }>(
+      `/me/gestao/projetos/${projId}/papeis`, { method: "PUT", body: JSON.stringify({ papeis, revisao_ativa }) }),
   fluxoIniciar: (projId: string, body: { playbook?: string; comando?: string }) =>
     req<FluxoExecucao>(`/me/gestao/projetos/${projId}/fluxos`, { method: "POST", body: JSON.stringify(body) }),
   fluxos: (projId: string) => req<FluxoExecucao[]>(`/me/gestao/projetos/${projId}/fluxos`),

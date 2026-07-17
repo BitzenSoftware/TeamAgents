@@ -260,6 +260,7 @@ const PAPEL_LABEL: Record<PapelAgente, string> = { gerente: "Gerente", executor:
 function AbaFluxo({ proj }: { proj: Projeto }) {
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [papeis, setPapeis] = useState<Record<string, PapelAgente>>({});
+  const [revisaoAtiva, setRevisaoAtiva] = useState(true);
   const [salvandoPapeis, setSalvandoPapeis] = useState(false);
   const [papeisAberto, setPapeisAberto] = useState(false);
   const [execs, setExecs] = useState<FluxoExecucao[]>([]);
@@ -281,7 +282,9 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
   }, [papeis, proj.agente_ids, gerenteEfetivo]);
 
   useEffect(() => { api.playbooks().then(setPlaybooks).catch(() => {}); }, []);
-  useEffect(() => { api.projetoPapeis(proj.id).then((r) => setPapeis(r.papeis)).catch(() => {}); }, [proj.id]);
+  useEffect(() => {
+    api.projetoPapeis(proj.id).then((r) => { setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa); }).catch(() => {});
+  }, [proj.id]);
   const carregarExecs = useCallback(() => {
     api.fluxos(proj.id).then((l) => { setExecs(l); setSelId((cur) => cur ?? l[0]?.id ?? null); }).catch(() => {});
   }, [proj.id]);
@@ -314,8 +317,10 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
 
   async function salvarPapeis() {
     setSalvandoPapeis(true);
-    try { const r = await api.projetoSetPapeis(proj.id, papeis); setPapeis(r.papeis); }
-    finally { setSalvandoPapeis(false); }
+    try {
+      const r = await api.projetoSetPapeis(proj.id, papeis, revisaoAtiva);
+      setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa);
+    } finally { setSalvandoPapeis(false); }
   }
 
   const etapas = det?.etapas ?? [];
@@ -382,7 +387,9 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
           </button>
           <p className="mt-1 text-[11px] text-black/45">
             Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
-            {revisorEfetivo && <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>}
+            {revisaoAtiva && revisorEfetivo
+              ? <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>
+              : <> · <span className="text-amber-600">Revisão desativada</span></>}
           </p>
           {papeisAberto && (
             <div className="mt-2 space-y-1.5">
@@ -400,6 +407,16 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
                   </div>
                 );
               })}
+              <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-2">
+                <input type="checkbox" checked={revisaoAtiva} onChange={(e) => setRevisaoAtiva(e.target.checked)}
+                  className="mt-0.5 accent-brand" />
+                <span className="min-w-0 text-xs">
+                  <span className="font-medium">Revisão de qualidade (quality gate)</span>
+                  <span className="block text-[11px] leading-snug text-black/45">
+                    O Revisor confere cada entrega e devolve o que não passar. Desativar torna o fluxo mais rápido e barato, sem conferência.
+                  </span>
+                </span>
+              </label>
               <button type="button" onClick={salvarPapeis} disabled={salvandoPapeis}
                 className="mt-1 w-full rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/[0.03] disabled:opacity-40">
                 {salvandoPapeis ? "Salvando…" : "Salvar papéis"}
