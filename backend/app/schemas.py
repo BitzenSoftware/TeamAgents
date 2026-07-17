@@ -514,6 +514,17 @@ class ProjetoChatRequest(BaseModel):
     mensagem: str = Field(min_length=1)
 
 
+class ProjetoPapeisUpdate(BaseModel):
+    """Papel de cada agente no projeto: gerente | executor | revisor."""
+    papeis: dict[str, str] = Field(default_factory=dict)
+
+
+class FluxoIniciarRequest(BaseModel):
+    """Inicia um fluxo multi-agente: um playbook OU um comando livre."""
+    playbook: str | None = None
+    comando: str | None = None
+
+
 # ===================== Utilizadores (membros da empresa) =====================
 class MembroCreate(BaseModel):
     nome: str = ""

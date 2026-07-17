@@ -10,7 +10,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPE
 from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
 
-from . import anexos, auth, billing, evolution, flow
+from . import anexos, auth, billing, evolution, flow, fluxo
 from .config import get_settings
 from .schemas import (
     AgendamentoConfigUpdate,
@@ -23,7 +23,9 @@ from .schemas import (
     DepartamentoCreate,
     DepartamentoUpdate,
     EmpresaAgentesUpdate,
+    FluxoIniciarRequest,
     ProjetoChatRequest,
+    ProjetoPapeisUpdate,
     ProjetoCreate,
     ProjetoRelatorioCreate,
     ProjetoRelatorioUpdate,
@@ -913,6 +915,56 @@ def projeto_relatorio_atualizar(proj_id: str, rel_id: str, payload: ProjetoRelat
 @app.delete("/me/gestao/projetos/{proj_id}/relatorios/{rel_id}", status_code=204)
 def projeto_relatorio_apagar(proj_id: str, rel_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> None:
     flow.projeto_relatorio_apagar(cliente_id, proj_id, rel_id)
+
+
+# --- Fluxos multi-agente (Organograma Vivo) ---
+@app.get("/me/gestao/playbooks")
+def playbooks_listar(cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return fluxo.playbooks_listar()
+
+
+@app.get("/me/gestao/projetos/{proj_id}/papeis")
+def projeto_papeis_get(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = fluxo.papeis_get(cliente_id, proj_id)
+    if res is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return {"papeis": res}
+
+
+@app.put("/me/gestao/projetos/{proj_id}/papeis")
+def projeto_papeis_set(proj_id: str, payload: ProjetoPapeisUpdate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = fluxo.papeis_set(cliente_id, proj_id, payload.papeis)
+    if res is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    return {"papeis": res}
+
+
+@app.post("/me/gestao/projetos/{proj_id}/fluxos", status_code=201)
+def fluxo_iniciar(proj_id: str, payload: FluxoIniciarRequest, bg: BackgroundTasks,
+                  cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    try:
+        ex = fluxo.iniciar(cliente_id, proj_id, payload.playbook, payload.comando)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ex:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    bg.add_task(fluxo.executar, ex["id"])
+    return ex
+
+
+@app.get("/me/gestao/projetos/{proj_id}/fluxos")
+def fluxos_listar(proj_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> list[dict]:
+    return fluxo.execucoes_listar(cliente_id, proj_id)
+
+
+@app.get("/me/gestao/fluxos/{exec_id}")
+def fluxo_obter(exec_id: str, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    res = fluxo.execucao_obter(cliente_id, exec_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Fluxo não encontrado.")
+    return res
 
 
 # ===================== Utilizadores (membros da empresa) — só o dono =====================

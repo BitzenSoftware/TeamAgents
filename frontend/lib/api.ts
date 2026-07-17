@@ -328,6 +328,35 @@ export type Projeto = {
 export type ProjetoDocumento = { id: string; nome: string; conteudo: string; created_at: string };
 export type ProjetoRelatorio = { id: string; titulo: string; conteudo: string; agente_id: string | null; created_at: string; updated_at: string };
 
+// --- Fluxos multi-agente (Organograma Vivo) ---
+export type PapelAgente = "gerente" | "executor" | "revisor";
+export type Playbook = { id: string; nome: string; descricao: string; agente_ids: string[] };
+export type FluxoEtapa = {
+  id: string;
+  ordem: number;
+  agente_id: string;
+  tarefa: string;
+  status: "pendente" | "rodando" | "revisao" | "refazendo" | "concluida" | "erro";
+  resultado: string;
+  revisao: string;
+  updated_at: string;
+};
+export type FluxoExecucao = {
+  id: string;
+  projeto_id: string;
+  titulo: string;
+  comando: string;
+  playbook: string | null;
+  status: "planejando" | "rodando" | "concluida" | "erro" | "sem_creditos";
+  resumo: string;
+  erro: string;
+  creditos: number;
+  custo_usd: number;
+  created_at: string;
+  updated_at: string;
+  etapas?: FluxoEtapa[];
+};
+
 // --- Profissionais, Serviços e Agenda ---
 export type Servico = {
   id: string;
@@ -759,6 +788,15 @@ export const api = {
     req<ProjetoRelatorio>(`/me/gestao/projetos/${projId}/relatorios/${relId}`, { method: "PATCH", body: JSON.stringify(body) }),
   projetoApagarRelatorio: (projId: string, relId: string) =>
     req<void>(`/me/gestao/projetos/${projId}/relatorios/${relId}`, { method: "DELETE" }),
+  // Fluxos multi-agente (Organograma Vivo)
+  playbooks: () => req<Playbook[]>("/me/gestao/playbooks"),
+  projetoPapeis: (projId: string) => req<{ papeis: Record<string, PapelAgente> }>(`/me/gestao/projetos/${projId}/papeis`),
+  projetoSetPapeis: (projId: string, papeis: Record<string, PapelAgente>) =>
+    req<{ papeis: Record<string, PapelAgente> }>(`/me/gestao/projetos/${projId}/papeis`, { method: "PUT", body: JSON.stringify({ papeis }) }),
+  fluxoIniciar: (projId: string, body: { playbook?: string; comando?: string }) =>
+    req<FluxoExecucao>(`/me/gestao/projetos/${projId}/fluxos`, { method: "POST", body: JSON.stringify(body) }),
+  fluxos: (projId: string) => req<FluxoExecucao[]>(`/me/gestao/projetos/${projId}/fluxos`),
+  fluxo: (execId: string) => req<FluxoExecucao>(`/me/gestao/fluxos/${execId}`),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

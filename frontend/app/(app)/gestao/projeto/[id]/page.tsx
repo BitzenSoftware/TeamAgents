@@ -4,14 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, FolderKanban, Send, Loader2, Paperclip, Trash2, FileDown, Bot, FileText,
-  ClipboardList, Save, Plus,
+  ClipboardList, Save, Plus, Play, Crown, ShieldCheck, ChevronDown,
 } from "lucide-react";
 import { marked } from "marked";
 import {
-  ReactFlow, Background, Controls, type Node, type Edge, MarkerType,
+  ReactFlow, Background, type Node, type Edge, MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { api, type GrowthMensagem, type Projeto, type ProjetoDocumento, type ProjetoRelatorio } from "@/lib/api";
+import {
+  api, type FluxoExecucao, type GrowthMensagem, type PapelAgente, type Playbook,
+  type Projeto, type ProjetoDocumento, type ProjetoRelatorio,
+} from "@/lib/api";
 import { agenteInfo } from "@/lib/agentes";
 
 const renderMd = (c: string) => marked.parse(c, { async: false }) as string;
@@ -236,55 +239,291 @@ function AbaContexto({ proj, onChange }: { proj: Projeto; onChange: () => void }
   );
 }
 
-/* ============================ Aba Fluxo (React Flow) ============================ */
+/* ============ Aba Fluxo — orquestração multi-agente (Organograma Vivo) ============ */
+const ST_ETAPA: Record<string, { label: string; cor: string; bg: string }> = {
+  pendente: { label: "pendente", cor: "#a1a1aa", bg: "#fafafa" },
+  rodando: { label: "trabalhando…", cor: "#4f46e5", bg: "#eef0ff" },
+  revisao: { label: "em revisão…", cor: "#d97706", bg: "#fffbeb" },
+  refazendo: { label: "refazendo…", cor: "#d97706", bg: "#fffbeb" },
+  concluida: { label: "concluída", cor: "#059669", bg: "#ecfdf5" },
+  erro: { label: "erro", cor: "#e11d48", bg: "#fff1f2" },
+};
+const ST_EXEC: Record<FluxoExecucao["status"], string> = {
+  planejando: "🧠 Gerente planejando…",
+  rodando: "⚙️ Equipe trabalhando…",
+  concluida: "✅ Concluída",
+  erro: "⚠️ Erro",
+  sem_creditos: "💳 Sem créditos",
+};
+const PAPEL_LABEL: Record<PapelAgente, string> = { gerente: "Gerente", executor: "Executor", revisor: "Revisor" };
+
 function AbaFluxo({ proj }: { proj: Projeto }) {
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [papeis, setPapeis] = useState<Record<string, PapelAgente>>({});
+  const [salvandoPapeis, setSalvandoPapeis] = useState(false);
+  const [papeisAberto, setPapeisAberto] = useState(false);
+  const [execs, setExecs] = useState<FluxoExecucao[]>([]);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [det, setDet] = useState<FluxoExecucao | null>(null);
+  const [comando, setComando] = useState("");
+  const [iniciando, setIniciando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
+
+  // Papéis efetivos (defaults do backend: Projetos gerencia, Auditoria revisa).
+  const gerenteEfetivo = useMemo(() => {
+    const g = Object.entries(papeis).find(([, p]) => p === "gerente")?.[0];
+    return g ?? (proj.agente_ids.includes("projetos") ? "projetos" : proj.agente_ids[0]);
+  }, [papeis, proj.agente_ids]);
+  const revisorEfetivo = useMemo(() => {
+    const r = Object.entries(papeis).find(([a, p]) => p === "revisor" && a !== gerenteEfetivo)?.[0];
+    return r ?? (proj.agente_ids.includes("auditoria") && gerenteEfetivo !== "auditoria" ? "auditoria" : null);
+  }, [papeis, proj.agente_ids, gerenteEfetivo]);
+
+  useEffect(() => { api.playbooks().then(setPlaybooks).catch(() => {}); }, []);
+  useEffect(() => { api.projetoPapeis(proj.id).then((r) => setPapeis(r.papeis)).catch(() => {}); }, [proj.id]);
+  const carregarExecs = useCallback(() => {
+    api.fluxos(proj.id).then((l) => { setExecs(l); setSelId((cur) => cur ?? l[0]?.id ?? null); }).catch(() => {});
+  }, [proj.id]);
+  useEffect(() => { carregarExecs(); }, [carregarExecs]);
+
+  // Carrega o detalhe ao selecionar; enquanto ativo, repete a cada 2.5s.
+  useEffect(() => {
+    if (!selId) { setDet(null); return; }
+    api.fluxo(selId).then(setDet).catch(() => setDet(null));
+  }, [selId]);
+  useEffect(() => {
+    if (!selId || !det || (det.status !== "planejando" && det.status !== "rodando")) return;
+    const t = setTimeout(() => {
+      api.fluxo(selId).then(setDet).catch(() => {});
+      api.fluxos(proj.id).then(setExecs).catch(() => {});
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [selId, det, proj.id]);
+
+  async function iniciar(playbook?: string) {
+    if (iniciando) return;
+    setIniciando(true); setErro(null);
+    try {
+      const ex = await api.fluxoIniciar(proj.id, playbook ? { playbook } : { comando: comando.trim() });
+      setComando("");
+      setExecs((l) => [ex, ...l]); setSelId(ex.id); setDet(ex);
+    } catch (e) { setErro(e instanceof Error ? e.message : String(e)); }
+    finally { setIniciando(false); }
+  }
+
+  async function salvarPapeis() {
+    setSalvandoPapeis(true);
+    try { const r = await api.projetoSetPapeis(proj.id, papeis); setPapeis(r.papeis); }
+    finally { setSalvandoPapeis(false); }
+  }
+
+  const etapas = det?.etapas ?? [];
   const { nodes, edges } = useMemo(() => {
     const ns: Node[] = [];
     const es: Edge[] = [];
-    // Centro: contexto do projeto
+    if (!det) return { nodes: ns, edges: es };
     ns.push({
-      id: "contexto", position: { x: 0, y: 0 },
-      data: { label: `📁 ${proj.nome}\n(contexto compartilhado)` },
-      style: { width: 200, padding: 10, borderRadius: 12, border: "2px solid #4f46e5", background: "#eef0ff", fontWeight: 600, whiteSpace: "pre-line", textAlign: "center" },
+      id: "gerente", position: { x: 0, y: 0 },
+      data: { label: `👑 ${agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}\n(Gerente)` },
+      style: { width: 170, padding: 8, borderRadius: 12, border: "2px solid #4f46e5", background: "#eef0ff", fontSize: 12, fontWeight: 600, whiteSpace: "pre-line", textAlign: "center" },
     });
-    // Maestro: cliente
-    ns.push({
-      id: "cliente", position: { x: 0, y: -160 },
-      data: { label: "🧑‍💼 Você (maestro)" },
-      style: { width: 160, padding: 8, borderRadius: 999, border: "1px solid #ccc", background: "#fff", textAlign: "center" },
-    });
-    es.push({ id: "e-cliente", source: "cliente", target: "contexto", markerEnd: { type: MarkerType.ArrowClosed }, label: "consulta" });
-    // Agentes em volta
-    const n = proj.agente_ids.length || 1;
-    const R = 260;
-    proj.agente_ids.forEach((aid, i) => {
-      const info = agenteInfo(aid);
-      const ang = (Math.PI * 2 * i) / n + Math.PI / 2;
+    etapas.forEach((e, i) => {
+      const st = ST_ETAPA[e.status] ?? ST_ETAPA.pendente;
+      const ativo = e.status === "rodando" || e.status === "revisao" || e.status === "refazendo";
       ns.push({
-        id: aid, position: { x: Math.round(Math.cos(ang) * R), y: Math.round(Math.sin(ang) * R) + 60 },
-        data: { label: info?.nome ?? aid },
-        style: { width: 150, padding: 8, borderRadius: 10, border: "1px solid #d4d4d8", background: "#fff", fontSize: 12, textAlign: "center" },
+        id: e.id, position: { x: (i + 1) * 200, y: (i % 2) * 70 },
+        data: { label: `${agenteInfo(e.agente_id)?.nome ?? e.agente_id}\n${st.label}` },
+        style: { width: 165, padding: 8, borderRadius: 10, border: `2px solid ${st.cor}`, background: st.bg, fontSize: 12, whiteSpace: "pre-line", textAlign: "center" },
       });
-      es.push({ id: `e-${aid}`, source: aid, target: "contexto", animated: true, label: "lê o contexto", style: { stroke: "#a5b4fc" } });
+      es.push({
+        id: `e-${e.id}`, source: i === 0 ? "gerente" : etapas[i - 1].id, target: e.id,
+        animated: ativo, markerEnd: { type: MarkerType.ArrowClosed },
+        style: { stroke: ativo ? "#4f46e5" : "#d4d4d8" },
+      });
     });
     return { nodes: ns, edges: es };
-  }, [proj]);
+  }, [det, etapas, gerenteEfetivo]);
 
   if (proj.agente_ids.length === 0) {
-    return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Adicione agentes ao projeto para ver o fluxo.</p>;
+    return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Adicione agentes ao projeto para montar a equipe.</p>;
   }
 
   return (
-    <div className="h-full overflow-hidden rounded-xl border border-black/10 bg-white">
-      <div className="border-b border-black/10 px-4 py-2 text-xs text-black/50">
-        Os agentes são especialistas <strong>independentes</strong> que compartilham o contexto do projeto. Você é o maestro — eles não se chamam entre si.
-      </div>
-      <div className="h-[calc(100%-37px)]">
-        <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }}>
-          <Background />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
+    <div className="grid h-full grid-cols-1 gap-4 overflow-auto lg:grid-cols-12 lg:overflow-hidden">
+      {/* Coluna esquerda: nova execução + papéis + histórico */}
+      <aside className="flex min-h-0 flex-col gap-3 lg:col-span-4 lg:overflow-auto">
+        <div className="rounded-xl border border-black/10 bg-white p-3">
+          <div className="mb-2 text-sm font-semibold">Nova execução</div>
+          <div className="space-y-1.5">
+            {playbooks.map((p) => (
+              <button key={p.id} type="button" onClick={() => iniciar(p.id)} disabled={iniciando}
+                className="w-full rounded-lg border border-black/10 px-3 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5 disabled:opacity-40">
+                <span className="flex items-center gap-1.5 text-sm font-medium"><Play size={13} className="text-brand" /> {p.nome}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-black/45">{p.descricao}</span>
+              </button>
+            ))}
+          </div>
+          <div className="my-2 flex items-center gap-2 text-[11px] text-black/35"><span className="h-px flex-1 bg-black/10" />ou comando livre ao Gerente<span className="h-px flex-1 bg-black/10" /></div>
+          <textarea value={comando} onChange={(e) => setComando(e.target.value)} rows={2}
+            placeholder={`Ex.: criar o cronograma completo do projeto e um mapa de riscos com base em análise SWOT`}
+            className="w-full resize-y rounded-lg border border-black/15 p-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+          <button type="button" onClick={() => iniciar()} disabled={iniciando || !comando.trim()}
+            className="mt-1.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+            {iniciando ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />} Executar com a equipe
+          </button>
+          {erro && <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
+        </div>
+
+        <div className="rounded-xl border border-black/10 bg-white p-3">
+          <button type="button" onClick={() => setPapeisAberto((v) => !v)} className="flex w-full items-center justify-between text-sm font-semibold">
+            <span className="inline-flex items-center gap-1.5"><Crown size={14} className="text-amber-500" /> Papéis da equipe</span>
+            <ChevronDown size={15} className={`text-black/40 transition ${papeisAberto ? "rotate-180" : ""}`} />
+          </button>
+          <p className="mt-1 text-[11px] text-black/45">
+            Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
+            {revisorEfetivo && <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>}
+          </p>
+          {papeisAberto && (
+            <div className="mt-2 space-y-1.5">
+              {proj.agente_ids.map((aid) => {
+                const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
+                return (
+                  <div key={aid} className="flex items-center gap-2 text-sm">
+                    <Ico size={14} className={info?.cor} />
+                    <span className="min-w-0 flex-1 truncate">{info?.nome ?? aid}</span>
+                    <select value={papeis[aid] ?? "executor"} aria-label={`Papel de ${info?.nome ?? aid}`}
+                      onChange={(e) => setPapeis((p) => ({ ...p, [aid]: e.target.value as PapelAgente }))}
+                      className="rounded-lg border border-black/15 px-2 py-1 text-xs outline-none focus:border-brand">
+                      {(Object.keys(PAPEL_LABEL) as PapelAgente[]).map((p) => <option key={p} value={p}>{PAPEL_LABEL[p]}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+              <button type="button" onClick={salvarPapeis} disabled={salvandoPapeis}
+                className="mt-1 w-full rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/[0.03] disabled:opacity-40">
+                {salvandoPapeis ? "Salvando…" : "Salvar papéis"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-1.5">
+          {execs.length === 0 && (
+            <p className="rounded-lg border border-dashed border-black/15 p-4 text-center text-xs text-black/40">
+              Nenhuma execução ainda. Escolha um playbook ou dê um comando — a equipe trabalha em cadeia e o Revisor confere cada entrega.
+            </p>
+          )}
+          {execs.map((ex) => {
+            const on = ex.id === selId;
+            return (
+              <button key={ex.id} type="button" onClick={() => setSelId(ex.id)}
+                className={`w-full rounded-lg border px-3 py-2 text-left transition ${on ? "border-brand/40 bg-brand/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}>
+                <span className={`block truncate text-sm ${on ? "font-semibold text-brand" : "font-medium"}`}>{ex.titulo || "Fluxo"}</span>
+                <span className="block text-[11px] text-black/45">{ST_EXEC[ex.status]} · {new Date(ex.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* Coluna direita: execução ao vivo */}
+      <section className="min-h-0 lg:col-span-8">
+        {!det ? (
+          <div className="grid h-full min-h-[300px] place-items-center rounded-xl border border-black/10 bg-white p-6 text-center text-sm text-black/40">
+            Escolha um playbook ou dê um comando livre.<br />O Gerente decompõe em tarefas, os especialistas produzem em cadeia e o Revisor aprova cada entrega.
+          </div>
+        ) : (
+          <div className="flex h-full flex-col overflow-hidden rounded-xl border border-black/10 bg-white">
+            <div className="flex items-center justify-between gap-2 border-b border-black/10 px-4 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{det.titulo || "Fluxo"}</div>
+                <div className="text-[11px] text-black/45">
+                  {ST_EXEC[det.status]}{det.creditos > 0 && ` · ${det.creditos} créditos`}
+                </div>
+              </div>
+              {det.status === "concluida" && det.resumo && (
+                <button type="button" onClick={() => exportarPdf(renderMd(det.resumo), `${proj.nome} — ${det.titulo}`)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-medium text-black/60 hover:bg-black/[0.03]">
+                  <FileDown size={13} /> PDF
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {etapas.length > 0 && (
+                <div className="h-44 border-b border-black/10">
+                  <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }}
+                    nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
+                    <Background />
+                  </ReactFlow>
+                </div>
+              )}
+
+              <div className="space-y-2 p-4">
+                {det.status === "planejando" && (
+                  <p className="flex items-center gap-2 text-sm text-black/50"><Loader2 size={15} className="animate-spin" /> O Gerente está decompondo o comando em tarefas para a equipe…</p>
+                )}
+                {(det.status === "erro" || det.status === "sem_creditos") && det.erro && (
+                  <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{det.erro}</p>
+                )}
+
+                {etapas.map((e) => {
+                  const st = ST_ETAPA[e.status] ?? ST_ETAPA.pendente;
+                  const info = agenteInfo(e.agente_id); const Ico = info?.icon ?? Bot;
+                  const aberto = aberta === e.id;
+                  return (
+                    <div key={e.id} className="overflow-hidden rounded-lg border border-black/10">
+                      <button type="button" onClick={() => setAberta(aberto ? null : e.id)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-black/[0.02]">
+                        <Ico size={15} className={info?.cor} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{info?.nome ?? e.agente_id}</span>
+                          <span className="block truncate text-[11px] text-black/45">{e.tarefa}</span>
+                        </span>
+                        <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: st.cor, background: st.bg }}>
+                          {(e.status === "rodando" || e.status === "revisao" || e.status === "refazendo") && <Loader2 size={10} className="mr-1 inline animate-spin" />}
+                          {st.label}
+                        </span>
+                        <ChevronDown size={14} className={`shrink-0 text-black/30 transition ${aberto ? "rotate-180" : ""}`} />
+                      </button>
+                      {aberto && (
+                        <div className="border-t border-black/10 px-3 py-2.5">
+                          {e.revisao && (
+                            <p className="mb-2 flex items-start gap-1.5 rounded-lg bg-amber-50/60 p-2 text-xs text-amber-800">
+                              <ShieldCheck size={13} className="mt-0.5 shrink-0" /> <span className="whitespace-pre-wrap">{e.revisao}</span>
+                            </p>
+                          )}
+                          {e.resultado ? (
+                            <>
+                              <div className="md text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(e.resultado) }} />
+                              <button type="button" onClick={() => exportarPdf(renderMd(e.resultado), `${proj.nome} — ${info?.nome ?? e.agente_id}`)}
+                                className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-brand"><FileDown size={12} /> Baixar PDF</button>
+                            </>
+                          ) : (
+                            <p className="text-xs text-black/40">Sem entrega ainda.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {det.resumo && (
+                  <div className="rounded-lg border-2 border-brand/30 bg-brand/[0.04] p-3">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-brand">
+                      <Crown size={14} /> Síntese do Gerente
+                    </div>
+                    <div className="md text-sm leading-relaxed text-black/80" dangerouslySetInnerHTML={{ __html: renderMd(det.resumo) }} />
+                    <p className="mt-2 text-[11px] text-black/40">Salva automaticamente em Relatórios — todos os agentes do projeto passam a conhecer este resultado.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+      <style>{`.md p{margin:.35rem 0}.md ul,.md ol{margin:.35rem 0;padding-left:1.15rem;list-style:revert}.md li{margin:.15rem 0}.md strong{font-weight:600}.md h1,.md h2,.md h3{font-weight:700;margin:.5rem 0 .25rem}.md table{border-collapse:collapse;margin:.4rem 0;font-size:.9em}.md th,.md td{border:1px solid rgba(0,0,0,.15);padding:.2rem .45rem}`}</style>
     </div>
   );
 }

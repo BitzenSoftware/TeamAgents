@@ -3132,6 +3132,14 @@ def projeto_chat(cliente_id: str, proj_id: str, agente: str, mensagem: str) -> d
     extra = _habilidades_texto(cliente_id, agente=agente)
     contexto = _projeto_contexto(proj)
     extra = (extra + "\n\n" + contexto) if (extra and contexto) else (contexto or extra)
+    # Honestidade sobre capacidades: neste chat o agente NÃO aciona outros agentes.
+    # Trabalho multi-agente acontece na aba Fluxo (playbooks/comando ao Gerente).
+    extra = (extra + "\n\n" if extra else "") + (
+        "## Limite de capacidade (não prometa o que não pode)\n"
+        "Neste chat você responde sozinho: você NÃO consegue acionar, delegar ou aguardar "
+        "outros agentes. Se a tarefa exigir vários especialistas em cadeia, oriente o usuário "
+        "a usar a aba **Fluxo** do projeto (playbooks ou comando livre ao Gerente)."
+    )
     sys_blocks = llm._system_blocks(agente, extra=extra)
     max_out = 4096  # relatórios/planos longos precisam de espaço para não truncar
 
