@@ -28,7 +28,7 @@ function exportarPdf(html: string, titulo: string) {
   w.document.close();
 }
 
-type Aba = "agentes" | "contexto" | "relatorios" | "fluxo";
+type Aba = "agentes" | "contexto" | "relatorios" | "papeis" | "fluxo";
 
 export default function ProjetoPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +59,7 @@ export default function ProjetoPage() {
       </header>
 
       <div className="mb-4 flex gap-1 border-b border-black/10">
-        {([["agentes", "Agentes"], ["contexto", "Contexto"], ["relatorios", "Relatórios"], ["fluxo", "Fluxo"]] as const).map(([k, label]) => (
+        {([["agentes", "Agentes"], ["contexto", "Contexto"], ["relatorios", "Relatórios"], ["papeis", "Papéis"], ["fluxo", "Fluxo"]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setAba(k)}
             className={`-mb-px border-b-2 px-3.5 py-2 text-sm font-medium transition ${aba === k ? "border-brand text-brand" : "border-transparent text-black/50 hover:text-ink"}`}>
             {label}
@@ -71,6 +71,7 @@ export default function ProjetoPage() {
         {aba === "agentes" && <AbaAgentes proj={proj} />}
         {aba === "contexto" && <AbaContexto proj={proj} onChange={carregar} />}
         {aba === "relatorios" && <AbaRelatorios proj={proj} />}
+        {aba === "papeis" && <AbaPapeis proj={proj} />}
         {aba === "fluxo" && <AbaFluxo proj={proj} />}
       </div>
     </div>
@@ -260,9 +261,6 @@ const PAPEL_LABEL: Record<PapelAgente, string> = { gerente: "Gerente", executor:
 function AbaFluxo({ proj }: { proj: Projeto }) {
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [papeis, setPapeis] = useState<Record<string, PapelAgente>>({});
-  const [revisaoAtiva, setRevisaoAtiva] = useState(true);
-  const [salvandoPapeis, setSalvandoPapeis] = useState(false);
-  const [papeisAberto, setPapeisAberto] = useState(false);
   const [execs, setExecs] = useState<FluxoExecucao[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
   const [det, setDet] = useState<FluxoExecucao | null>(null);
@@ -273,19 +271,15 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
   const [continuando, setContinuando] = useState(false);
   const [contErro, setContErro] = useState<string | null>(null);
 
-  // Papéis efetivos (defaults do backend: Projetos gerencia, Auditoria revisa).
+  // Gerente efetivo (default do backend: Projetos gerencia) — só p/ rotular o nó no grafo.
   const gerenteEfetivo = useMemo(() => {
     const g = Object.entries(papeis).find(([, p]) => p === "gerente")?.[0];
     return g ?? (proj.agente_ids.includes("projetos") ? "projetos" : proj.agente_ids[0]);
   }, [papeis, proj.agente_ids]);
-  const revisorEfetivo = useMemo(() => {
-    const r = Object.entries(papeis).find(([a, p]) => p === "revisor" && a !== gerenteEfetivo)?.[0];
-    return r ?? (proj.agente_ids.includes("auditoria") && gerenteEfetivo !== "auditoria" ? "auditoria" : null);
-  }, [papeis, proj.agente_ids, gerenteEfetivo]);
 
   useEffect(() => { api.playbooks().then(setPlaybooks).catch(() => {}); }, []);
   useEffect(() => {
-    api.projetoPapeis(proj.id).then((r) => { setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa); }).catch(() => {});
+    api.projetoPapeis(proj.id).then((r) => setPapeis(r.papeis)).catch(() => {});
   }, [proj.id]);
   const carregarExecs = useCallback(() => {
     api.fluxos(proj.id).then((l) => { setExecs(l); setSelId((cur) => cur ?? l[0]?.id ?? null); }).catch(() => {});
@@ -326,14 +320,6 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
       setExecs((l) => l.map((e) => (e.id === ex.id ? ex : e)));
     } catch (e) { setContErro(e instanceof Error ? e.message : String(e)); }
     finally { setContinuando(false); }
-  }
-
-  async function salvarPapeis() {
-    setSalvandoPapeis(true);
-    try {
-      const r = await api.projetoSetPapeis(proj.id, papeis, revisaoAtiva);
-      setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa);
-    } finally { setSalvandoPapeis(false); }
   }
 
   const etapas = det?.etapas ?? [];
@@ -391,51 +377,6 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
             {iniciando ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />} Executar com a equipe
           </button>
           {erro && <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
-        </div>
-
-        <div className="rounded-xl border border-black/10 bg-white p-3">
-          <button type="button" onClick={() => setPapeisAberto((v) => !v)} className="flex w-full items-center justify-between text-sm font-semibold">
-            <span className="inline-flex items-center gap-1.5"><Crown size={14} className="text-amber-500" /> Papéis da equipe</span>
-            <ChevronDown size={15} className={`text-black/40 transition ${papeisAberto ? "rotate-180" : ""}`} />
-          </button>
-          <p className="mt-1 text-[11px] text-black/45">
-            Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
-            {revisaoAtiva && revisorEfetivo
-              ? <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>
-              : <> · <span className="text-amber-600">Revisão desativada</span></>}
-          </p>
-          {papeisAberto && (
-            <div className="mt-2 space-y-1.5">
-              {proj.agente_ids.map((aid) => {
-                const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
-                return (
-                  <div key={aid} className="flex items-center gap-2 text-sm">
-                    <Ico size={14} className={info?.cor} />
-                    <span className="min-w-0 flex-1 truncate">{info?.nome ?? aid}</span>
-                    <select value={papeis[aid] ?? "executor"} aria-label={`Papel de ${info?.nome ?? aid}`}
-                      onChange={(e) => setPapeis((p) => ({ ...p, [aid]: e.target.value as PapelAgente }))}
-                      className="rounded-lg border border-black/15 px-2 py-1 text-xs outline-none focus:border-brand">
-                      {(Object.keys(PAPEL_LABEL) as PapelAgente[]).map((p) => <option key={p} value={p}>{PAPEL_LABEL[p]}</option>)}
-                    </select>
-                  </div>
-                );
-              })}
-              <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-2">
-                <input type="checkbox" checked={revisaoAtiva} onChange={(e) => setRevisaoAtiva(e.target.checked)}
-                  className="mt-0.5 accent-brand" />
-                <span className="min-w-0 text-xs">
-                  <span className="font-medium">Revisão de qualidade (quality gate)</span>
-                  <span className="block text-[11px] leading-snug text-black/45">
-                    O Revisor confere cada entrega e devolve o que não passar. Desativar torna o fluxo mais rápido e barato, sem conferência.
-                  </span>
-                </span>
-              </label>
-              <button type="button" onClick={salvarPapeis} disabled={salvandoPapeis}
-                className="mt-1 w-full rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/[0.03] disabled:opacity-40">
-                {salvandoPapeis ? "Salvando…" : "Salvar papéis"}
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="min-h-0 flex-1 space-y-1.5">
@@ -565,6 +506,86 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
         )}
       </section>
       <style>{`.md p{margin:.35rem 0}.md ul,.md ol{margin:.35rem 0;padding-left:1.15rem;list-style:revert}.md li{margin:.15rem 0}.md strong{font-weight:600}.md h1,.md h2,.md h3{font-weight:700;margin:.5rem 0 .25rem}.md table{border-collapse:collapse;margin:.4rem 0;font-size:.9em}.md th,.md td{border:1px solid rgba(0,0,0,.15);padding:.2rem .45rem}`}</style>
+    </div>
+  );
+}
+
+/* ============================ Aba Papéis da equipe ============================ */
+function AbaPapeis({ proj }: { proj: Projeto }) {
+  const [papeis, setPapeis] = useState<Record<string, PapelAgente>>({});
+  const [revisaoAtiva, setRevisaoAtiva] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+
+  useEffect(() => {
+    api.projetoPapeis(proj.id).then((r) => { setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa); }).catch(() => {});
+  }, [proj.id]);
+
+  const gerenteEfetivo = useMemo(() => {
+    const g = Object.entries(papeis).find(([, p]) => p === "gerente")?.[0];
+    return g ?? (proj.agente_ids.includes("projetos") ? "projetos" : proj.agente_ids[0]);
+  }, [papeis, proj.agente_ids]);
+  const revisorEfetivo = useMemo(() => {
+    const r = Object.entries(papeis).find(([a, p]) => p === "revisor" && a !== gerenteEfetivo)?.[0];
+    return r ?? (proj.agente_ids.includes("auditoria") && gerenteEfetivo !== "auditoria" ? "auditoria" : null);
+  }, [papeis, proj.agente_ids, gerenteEfetivo]);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const r = await api.projetoSetPapeis(proj.id, papeis, revisaoAtiva);
+      setPapeis(r.papeis); setRevisaoAtiva(r.revisao_ativa);
+      setSalvo(true); setTimeout(() => setSalvo(false), 2000);
+    } finally { setSalvando(false); }
+  }
+
+  if (proj.agente_ids.length === 0) {
+    return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Adicione agentes ao projeto para configurar os papéis.</p>;
+  }
+
+  return (
+    <div className="max-w-xl">
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+          <Crown size={15} className="text-amber-500" /> Papéis da equipe
+        </div>
+        <p className="mb-3 text-xs text-black/45">
+          Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
+          {revisaoAtiva && revisorEfetivo
+            ? <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>
+            : <> · <span className="text-amber-600">Revisão desativada</span></>}
+        </p>
+        <div className="space-y-1.5">
+          {proj.agente_ids.map((aid) => {
+            const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
+            return (
+              <div key={aid} className="flex items-center gap-2 text-sm">
+                <Ico size={14} className={info?.cor} />
+                <span className="min-w-0 flex-1 truncate">{info?.nome ?? aid}</span>
+                <select value={papeis[aid] ?? "executor"} aria-label={`Papel de ${info?.nome ?? aid}`}
+                  onChange={(e) => setPapeis((p) => ({ ...p, [aid]: e.target.value as PapelAgente }))}
+                  className="rounded-lg border border-black/15 px-2 py-1 text-xs outline-none focus:border-brand">
+                  {(Object.keys(PAPEL_LABEL) as PapelAgente[]).map((p) => <option key={p} value={p}>{PAPEL_LABEL[p]}</option>)}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-2">
+          <input type="checkbox" checked={revisaoAtiva} onChange={(e) => setRevisaoAtiva(e.target.checked)}
+            className="mt-0.5 accent-brand" />
+          <span className="min-w-0 text-xs">
+            <span className="font-medium">Revisão de qualidade (quality gate)</span>
+            <span className="block text-[11px] leading-snug text-black/45">
+              O Revisor confere cada entrega e devolve o que não passar. Desativar torna o fluxo mais rápido e barato, sem conferência.
+            </span>
+          </span>
+        </label>
+        <button type="button" onClick={salvar} disabled={salvando}
+          className="mt-3 w-full rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+          {salvando ? "Salvando…" : salvo ? "Salvo ✓" : "Salvar papéis"}
+        </button>
+      </div>
     </div>
   );
 }
