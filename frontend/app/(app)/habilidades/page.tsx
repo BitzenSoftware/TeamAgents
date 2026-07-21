@@ -1,13 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Sparkles, PenTool, Phone, BarChart3, Bot, type LucideIcon } from "lucide-react";
 import { useT } from "@/components/i18n-context";
+import { agenteInfo } from "@/lib/agentes";
 import { api, type AgenteSkill, type Habilidade } from "@/lib/api";
 
 const AGENTE_VALORES: AgenteSkill[] = [
   "global", "copywriting", "sdr", "bi", "assistente", "financeiro", "juridico", "suporte",
   "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes",
 ];
+
+// Ícone + cor por agente — reaproveita o catálogo dos 10 assistentes e
+// completa com os agentes de captação (copywriting/sdr/bi/assistente/global).
+const SKILL_EXTRA: Record<string, { icon: LucideIcon; text: string; bg: string }> = {
+  global: { icon: Sparkles, text: "text-brand", bg: "bg-brand/10" },
+  copywriting: { icon: PenTool, text: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+  sdr: { icon: Phone, text: "text-orange-600", bg: "bg-orange-50" },
+  bi: { icon: BarChart3, text: "text-purple-600", bg: "bg-purple-50" },
+  assistente: { icon: Bot, text: "text-slate-600", bg: "bg-slate-50" },
+};
+
+function skillVisual(agente: AgenteSkill): { Icon: LucideIcon; text: string; bg: string } {
+  const info = agenteInfo(agente);
+  if (info) return { Icon: info.icon, text: info.cor, bg: info.cor.replace("text-", "bg-").replace(/-\d+$/, "-50") };
+  const extra = SKILL_EXTRA[agente] ?? { icon: Sparkles, text: "text-black/60", bg: "bg-black/5" };
+  return { Icon: extra.icon, text: extra.text, bg: extra.bg };
+}
 
 export default function HabilidadesPage() {
   const t = useT().habilidades;
@@ -144,6 +163,7 @@ export default function HabilidadesPage() {
               <div className="space-y-1.5">
                 {listaFiltrada.map((h) => {
                   const sel = h.id === selId;
+                  const { Icon, text, bg } = skillVisual(h.agente);
                   return (
                     <button
                       key={h.id}
@@ -159,7 +179,8 @@ export default function HabilidadesPage() {
                         <span className={`block break-words ${sel ? "font-semibold text-brand" : "font-medium"}`}>
                           {h.titulo}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-black/40">
+                        <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${bg} ${text}`}>
+                          <Icon size={11} />
                           {AGENTE_LABEL[h.agente]}
                         </span>
                       </span>
