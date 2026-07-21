@@ -539,52 +539,109 @@ function AbaPapeis({ proj }: { proj: Projeto }) {
     } finally { setSalvando(false); }
   }
 
+  // Organograma ao vivo — atualiza a cada mudança de papel, antes mesmo de salvar.
+  const revisorNoGrafo = revisaoAtiva ? revisorEfetivo : null;
+  const { nodes, edges } = useMemo(() => {
+    const executores = proj.agente_ids.filter((a) => a !== gerenteEfetivo && a !== revisorNoGrafo);
+    const largura = Math.max(executores.length, 1);
+    const centroX = ((largura - 1) * 190) / 2;
+    const rotulo = (icon: React.ReactNode, texto: string) => (
+      <span className="flex items-center justify-center gap-1.5">{icon}<span>{texto}</span></span>
+    );
+
+    const ns: Node[] = [];
+    const es: Edge[] = [];
+    const gInfo = agenteInfo(gerenteEfetivo);
+    ns.push({
+      id: "gerente", position: { x: centroX, y: 0 },
+      data: { label: rotulo(<Crown size={14} className="text-amber-500" />, gInfo?.nome ?? gerenteEfetivo) },
+      style: { width: 195, padding: 10, borderRadius: 12, border: "2px solid #4f46e5", background: "#eef0ff", fontWeight: 600, textAlign: "center", fontSize: 12.5 },
+    });
+    executores.forEach((aid, i) => {
+      const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
+      ns.push({
+        id: aid, position: { x: i * 190, y: 130 },
+        data: { label: rotulo(<Ico size={13} className={info?.cor} />, info?.nome ?? aid) },
+        style: { width: 175, padding: 8, borderRadius: 10, border: "1px solid #d4d4d8", background: "#fff", fontSize: 12, textAlign: "center" },
+      });
+      es.push({ id: `e-g-${aid}`, source: "gerente", target: aid, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: "#a5b4fc" } });
+    });
+    if (revisorNoGrafo) {
+      const rInfo = agenteInfo(revisorNoGrafo);
+      ns.push({
+        id: "revisor", position: { x: centroX, y: 260 },
+        data: { label: rotulo(<ShieldCheck size={14} className="text-teal-600" />, rInfo?.nome ?? revisorNoGrafo) },
+        style: { width: 195, padding: 10, borderRadius: 12, border: "2px solid #0d9488", background: "#f0fdfa", fontWeight: 600, textAlign: "center", fontSize: 12.5 },
+      });
+      executores.forEach((aid) => {
+        es.push({ id: `e-${aid}-r`, source: aid, target: "revisor", markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: "#5eead4" } });
+      });
+    }
+    return { nodes: ns, edges: es };
+  }, [proj.agente_ids, gerenteEfetivo, revisorNoGrafo]);
+
   if (proj.agente_ids.length === 0) {
     return <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Adicione agentes ao projeto para configurar os papéis.</p>;
   }
 
   return (
-    <div className="max-w-xl">
-      <div className="rounded-xl border border-black/10 bg-white p-4">
-        <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-          <Crown size={15} className="text-amber-500" /> Papéis da equipe
-        </div>
-        <p className="mb-3 text-xs text-black/45">
-          Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
-          {revisaoAtiva && revisorEfetivo
-            ? <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>
-            : <> · <span className="text-amber-600">Revisão desativada</span></>}
-        </p>
-        <div className="space-y-1.5">
-          {proj.agente_ids.map((aid) => {
-            const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
-            return (
-              <div key={aid} className="flex items-center gap-2 text-sm">
-                <Ico size={14} className={info?.cor} />
-                <span className="min-w-0 flex-1 truncate">{info?.nome ?? aid}</span>
-                <select value={papeis[aid] ?? "executor"} aria-label={`Papel de ${info?.nome ?? aid}`}
-                  onChange={(e) => setPapeis((p) => ({ ...p, [aid]: e.target.value as PapelAgente }))}
-                  className="rounded-lg border border-black/15 px-2 py-1 text-xs outline-none focus:border-brand">
-                  {(Object.keys(PAPEL_LABEL) as PapelAgente[]).map((p) => <option key={p} value={p}>{PAPEL_LABEL[p]}</option>)}
-                </select>
-              </div>
-            );
-          })}
-        </div>
-        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-2">
-          <input type="checkbox" checked={revisaoAtiva} onChange={(e) => setRevisaoAtiva(e.target.checked)}
-            className="mt-0.5 accent-brand" />
-          <span className="min-w-0 text-xs">
-            <span className="font-medium">Revisão de qualidade (quality gate)</span>
-            <span className="block text-[11px] leading-snug text-black/45">
-              O Revisor confere cada entrega e devolve o que não passar. Desativar torna o fluxo mais rápido e barato, sem conferência.
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <div className="lg:col-span-5">
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+            <Crown size={15} className="text-amber-500" /> Papéis da equipe
+          </div>
+          <p className="mb-3 text-xs text-black/45">
+            Gerente: <strong>{agenteInfo(gerenteEfetivo)?.nome ?? gerenteEfetivo}</strong>
+            {revisaoAtiva && revisorEfetivo
+              ? <> · Revisor: <strong>{agenteInfo(revisorEfetivo)?.nome ?? revisorEfetivo}</strong></>
+              : <> · <span className="text-amber-600">Revisão desativada</span></>}
+          </p>
+          <div className="space-y-1.5">
+            {proj.agente_ids.map((aid) => {
+              const info = agenteInfo(aid); const Ico = info?.icon ?? Bot;
+              return (
+                <div key={aid} className="flex items-center gap-2 text-sm">
+                  <Ico size={14} className={info?.cor} />
+                  <span className="min-w-0 flex-1 truncate">{info?.nome ?? aid}</span>
+                  <select value={papeis[aid] ?? "executor"} aria-label={`Papel de ${info?.nome ?? aid}`}
+                    onChange={(e) => setPapeis((p) => ({ ...p, [aid]: e.target.value as PapelAgente }))}
+                    className="rounded-lg border border-black/15 px-2 py-1 text-xs outline-none focus:border-brand">
+                    {(Object.keys(PAPEL_LABEL) as PapelAgente[]).map((p) => <option key={p} value={p}>{PAPEL_LABEL[p]}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-black/10 bg-black/[0.02] p-2">
+            <input type="checkbox" checked={revisaoAtiva} onChange={(e) => setRevisaoAtiva(e.target.checked)}
+              className="mt-0.5 accent-brand" />
+            <span className="min-w-0 text-xs">
+              <span className="font-medium">Revisão de qualidade (quality gate)</span>
+              <span className="block text-[11px] leading-snug text-black/45">
+                O Revisor confere cada entrega e devolve o que não passar. Desativar torna o fluxo mais rápido e barato, sem conferência.
+              </span>
             </span>
-          </span>
-        </label>
-        <button type="button" onClick={salvar} disabled={salvando}
-          className="mt-3 w-full rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-          {salvando ? "Salvando…" : salvo ? "Salvo ✓" : "Salvar papéis"}
-        </button>
+          </label>
+          <button type="button" onClick={salvar} disabled={salvando}
+            className="mt-3 w-full rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+            {salvando ? "Salvando…" : salvo ? "Salvo ✓" : "Salvar papéis"}
+          </button>
+        </div>
+      </div>
+
+      <div className="lg:col-span-7">
+        <div className="h-[420px] overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="border-b border-black/10 px-4 py-2 text-xs text-black/50">
+            Organograma do fluxo — o Gerente distribui as tarefas aos executores{revisorNoGrafo ? " e o Revisor confere cada entrega antes de fechar." : "."}
+          </div>
+          <div className="h-[calc(100%-33px)]">
+            <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }}
+              nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
+              <Background />
+            </ReactFlow>
+          </div>
+        </div>
       </div>
     </div>
   );
