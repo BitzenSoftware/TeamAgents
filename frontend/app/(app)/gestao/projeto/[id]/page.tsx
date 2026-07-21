@@ -270,6 +270,8 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
   const [iniciando, setIniciando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [continuando, setContinuando] = useState(false);
+  const [contErro, setContErro] = useState<string | null>(null);
 
   // Papéis efetivos (defaults do backend: Projetos gerencia, Auditoria revisa).
   const gerenteEfetivo = useMemo(() => {
@@ -313,6 +315,17 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
       setExecs((l) => [ex, ...l]); setSelId(ex.id); setDet(ex);
     } catch (e) { setErro(e instanceof Error ? e.message : String(e)); }
     finally { setIniciando(false); }
+  }
+
+  async function continuarFluxo() {
+    if (!det || continuando) return;
+    setContinuando(true); setContErro(null);
+    try {
+      const ex = await api.fluxoContinuar(det.id);
+      setDet(ex);
+      setExecs((l) => l.map((e) => (e.id === ex.id ? ex : e)));
+    } catch (e) { setContErro(e instanceof Error ? e.message : String(e)); }
+    finally { setContinuando(false); }
   }
 
   async function salvarPapeis() {
@@ -482,7 +495,18 @@ function AbaFluxo({ proj }: { proj: Projeto }) {
                   <p className="flex items-center gap-2 text-sm text-black/50"><Loader2 size={15} className="animate-spin" /> O Gerente está decompondo o comando em tarefas para a equipe…</p>
                 )}
                 {(det.status === "erro" || det.status === "sem_creditos") && det.erro && (
-                  <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{det.erro}</p>
+                  <div className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
+                    <p>{det.erro}</p>
+                    <p className="mt-1 text-xs text-rose-600/80">
+                      As etapas já concluídas ficam salvas — ao continuar, só o que falta é (re)executado.
+                    </p>
+                    {contErro && <p className="mt-1 text-xs font-medium">{contErro}</p>}
+                    <button type="button" onClick={continuarFluxo} disabled={continuando}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40">
+                      {continuando ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                      {continuando ? "Continuando…" : "Continuar"}
+                    </button>
+                  </div>
                 )}
 
                 {etapas.map((e) => {

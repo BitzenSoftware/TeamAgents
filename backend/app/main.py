@@ -973,6 +973,20 @@ def fluxo_obter(exec_id: str, cliente_id: str = Depends(auth.current_cliente_id)
     return res
 
 
+@app.post("/me/gestao/fluxos/{exec_id}/continuar")
+def fluxo_continuar(exec_id: str, bg: BackgroundTasks, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
+    """Retoma um fluxo parado por falta de créditos (ou erro) sem repetir as
+    etapas já concluídas — não cobra de novo o que já rodou."""
+    try:
+        res = fluxo.continuar(cliente_id, exec_id)
+    except flow.LimiteCreditosError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    bg.add_task(fluxo.executar, exec_id)
+    return res
+
+
 # ===================== Utilizadores (membros da empresa) — só o dono =====================
 @app.get("/me/membros")
 def membros_listar(cliente_id: str = Depends(auth.owner_cliente_id)) -> list[dict]:

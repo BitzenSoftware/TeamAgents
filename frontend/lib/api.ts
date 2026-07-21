@@ -799,6 +799,7 @@ export const api = {
     req<FluxoExecucao>(`/me/gestao/projetos/${projId}/fluxos`, { method: "POST", body: JSON.stringify(body) }),
   fluxos: (projId: string) => req<FluxoExecucao[]>(`/me/gestao/projetos/${projId}/fluxos`),
   fluxo: (execId: string) => req<FluxoExecucao>(`/me/gestao/fluxos/${execId}`),
+  fluxoContinuar: (execId: string) => req<FluxoExecucao>(`/me/gestao/fluxos/${execId}/continuar`, { method: "POST" }),
 
   // --- Serviços ---
   servicos: () => req<Servico[]>("/me/servicos"),

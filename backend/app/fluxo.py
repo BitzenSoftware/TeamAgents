@@ -242,15 +242,35 @@ def iniciar(cliente_id: str, proj_id: str, playbook: str | None, comando: str | 
     return ex
 
 
+def continuar(cliente_id: str, exec_id: str) -> dict:
+    """Reabre uma execução parada (sem_creditos ou erro) para ser retomada por
+    `executar` — que detecta etapas já existentes e não repete o que já foi
+    concluído (não recobra créditos do que já rodou)."""
+    rows = (get_db().table("fluxo_execucoes").select("id, status")
+            .eq("id", exec_id).eq("cliente_id", cliente_id).limit(1).execute().data)
+    if not rows:
+        raise ValueError("Execução não encontrada.")
+    if rows[0]["status"] not in ("sem_creditos", "erro"):
+        raise ValueError("Esta execução não está parada — nada para continuar.")
+    flow.verificar_limite(cliente_id, 2)  # não adianta reabrir sem nenhum crédito
+    _upd_exec(exec_id, {"status": "rodando", "erro": ""})
+    return execucao_obter(cliente_id, exec_id)
+
+
 def executar(exec_id: str) -> None:
     """Motor do fluxo (corre em background): planeja → executa etapas em cadeia
-    → quality gate do Revisor → síntese final do Gerente vira relatório."""
+    → quality gate do Revisor → síntese final do Gerente vira relatório.
+
+    Se já existirem etapas para esta execução (retomada após 'Continuar'), NÃO
+    replaneja nem reinsere — aproveita as já concluídas como contexto e só
+    (re)executa as que faltam, preservando o crédito já gasto."""
     db = get_db()
     rows = db.table("fluxo_execucoes").select("*").eq("id", exec_id).limit(1).execute().data
     if not rows:
         return
     ex = rows[0]
     cliente_id, proj_id = ex["cliente_id"], ex["projeto_id"]
+    custo_previo = float(ex.get("custo_usd") or 0)
     proj = flow._proj_do_cliente(cliente_id, proj_id)
     if not proj:
         _upd_exec(exec_id, {"status": "erro", "erro": "Projeto não encontrado."})
@@ -269,30 +289,45 @@ def executar(exec_id: str) -> None:
         usos.append(uso)
         flow.consumir_creditos(cliente_id, pricing.creditos_de_custo(uso.custo_usd, minimo=1), "assistente", uso=uso)
 
-    try:
-        # --- 1) Etapas: do playbook (reatribuindo ausentes ao Gerente) ou planejadas ---
-        if ex.get("playbook"):
-            plano = [(a if a in agentes else gerente, t) for a, t in PLAYBOOKS[ex["playbook"]]["etapas"]]
-        else:
-            flow.verificar_limite(cliente_id, 2)
-            p, uso_p = _planejar(gerente, agentes, ex.get("comando") or "", contexto_proj)
-            _consumir(uso_p)
-            if p.titulo:
-                _upd_exec(exec_id, {"titulo": p.titulo[:80]})
-            plano = [(e.agente_id, e.tarefa) for e in p.etapas]
-        if not plano:
-            _upd_exec(exec_id, {"status": "erro", "erro": "O Gerente não conseguiu montar um plano. Detalhe melhor o comando."})
-            return
+    def _custo_total() -> float:
+        return custo_previo + float(pricing.soma(usos).custo_usd if usos else 0)
 
-        etapas = db.table("fluxo_etapas").insert([
-            {"execucao_id": exec_id, "ordem": i, "agente_id": a, "tarefa": t}
-            for i, (a, t) in enumerate(plano)
-        ]).execute().data
-        etapas.sort(key=lambda e: e["ordem"])
+    try:
+        etapas_existentes = (db.table("fluxo_etapas").select(_ETAPA_COLS)
+                              .eq("execucao_id", exec_id).order("ordem").execute().data or [])
+
+        if etapas_existentes:
+            # --- Retomada: reaproveita o que já foi planejado e concluído ---
+            etapas = etapas_existentes
+            entregas: list[tuple[str, str, str]] = [
+                (e["agente_id"], e["tarefa"], e["resultado"]) for e in etapas
+                if e["status"] == "concluida" and e["resultado"]
+            ]
+        else:
+            # --- 1) Etapas: do playbook (reatribuindo ausentes ao Gerente) ou planejadas ---
+            if ex.get("playbook"):
+                plano = [(a if a in agentes else gerente, t) for a, t in PLAYBOOKS[ex["playbook"]]["etapas"]]
+            else:
+                flow.verificar_limite(cliente_id, 2)
+                p, uso_p = _planejar(gerente, agentes, ex.get("comando") or "", contexto_proj)
+                _consumir(uso_p)
+                if p.titulo:
+                    _upd_exec(exec_id, {"titulo": p.titulo[:80]})
+                plano = [(e.agente_id, e.tarefa) for e in p.etapas]
+            if not plano:
+                _upd_exec(exec_id, {"status": "erro", "erro": "O Gerente não conseguiu montar um plano. Detalhe melhor o comando."})
+                return
+
+            etapas = db.table("fluxo_etapas").insert([
+                {"execucao_id": exec_id, "ordem": i, "agente_id": a, "tarefa": t}
+                for i, (a, t) in enumerate(plano)
+            ]).execute().data
+            etapas.sort(key=lambda e: e["ordem"])
+            entregas = []
+
         _upd_exec(exec_id, {"status": "rodando"})
 
         # --- 2) Executa em cadeia; cada etapa lê as entregas anteriores ---
-        entregas: list[tuple[str, str, str]] = []  # (agente, tarefa, resultado)
 
         def _executar_etapa(agente: str, tarefa: str, feedback: str = "") -> str:
             flow.verificar_limite(cliente_id, 2)
@@ -317,6 +352,8 @@ def executar(exec_id: str) -> None:
             return "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
 
         for et in etapas:
+            if et["status"] == "concluida":
+                continue  # já rodou numa tentativa anterior (retomada)
             _upd_etapa(et["id"], {"status": "rodando"})
             resultado = _executar_etapa(et["agente_id"], et["tarefa"])
 
@@ -342,17 +379,15 @@ def executar(exec_id: str) -> None:
             "Sintetize as entregas deste fluxo num resumo executivo: o que foi produzido, "
             "decisões recomendadas, riscos em aberto e próximos passos. Seja direto.",
         )
-        total = pricing.soma(usos)
+        custo_total = _custo_total()
         _upd_exec(exec_id, {"status": "concluida", "resumo": sintese[:_MAX_RESULTADO],
-                            "creditos": pricing.creditos_de_custo(total.custo_usd, minimo=1),
-                            "custo_usd": float(total.custo_usd)})
+                            "creditos": pricing.creditos_de_custo(custo_total, minimo=1),
+                            "custo_usd": custo_total})
         titulo_rel = (db.table("fluxo_execucoes").select("titulo").eq("id", exec_id).limit(1).execute().data or [{}])[0].get("titulo") or "Fluxo"
         flow.projeto_relatorio_add(cliente_id, proj_id, {
             "titulo": f"[Fluxo] {titulo_rel}", "conteudo": sintese, "agente_id": gerente,
         })
     except flow.LimiteCreditosError as e:
-        total = pricing.soma(usos) if usos else None
-        _upd_exec(exec_id, {"status": "sem_creditos", "erro": str(e),
-                            **({"custo_usd": float(total.custo_usd)} if total else {})})
+        _upd_exec(exec_id, {"status": "sem_creditos", "erro": str(e), "custo_usd": _custo_total()})
     except Exception as e:  # noqa: BLE001 — estado do job precisa refletir qualquer falha
-        _upd_exec(exec_id, {"status": "erro", "erro": str(e)[:500]})
+        _upd_exec(exec_id, {"status": "erro", "erro": str(e)[:500], "custo_usd": _custo_total()})
