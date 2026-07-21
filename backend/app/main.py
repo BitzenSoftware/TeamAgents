@@ -385,14 +385,20 @@ def listar_habilidades(cliente_id: str = Depends(auth.current_cliente_id)) -> li
 
 @app.post("/me/habilidades", status_code=201)
 def criar_habilidade(payload: HabilidadeCreate, cliente_id: str = Depends(auth.current_cliente_id)) -> dict:
-    return flow.criar_habilidade(cliente_id, payload.titulo, payload.conteudo, payload.agente.value)
+    try:
+        return flow.criar_habilidade(cliente_id, payload.titulo, payload.conteudo, payload.agente.value)
+    except APIError as e:
+        raise HTTPException(status_code=400, detail=f"Não foi possível salvar a habilidade: {e.message}")
 
 
 @app.patch("/me/habilidades/{hid}")
 def atualizar_habilidade(
     hid: str, payload: HabilidadeUpdate, cliente_id: str = Depends(auth.current_cliente_id)
 ) -> dict:
-    updated = flow.atualizar_habilidade(cliente_id, hid, payload.model_dump(exclude_none=True, mode="json"))
+    try:
+        updated = flow.atualizar_habilidade(cliente_id, hid, payload.model_dump(exclude_none=True, mode="json"))
+    except APIError as e:
+        raise HTTPException(status_code=400, detail=f"Não foi possível salvar a habilidade: {e.message}")
     if not updated:
         raise HTTPException(status_code=404, detail="Habilidade não encontrada.")
     return updated
