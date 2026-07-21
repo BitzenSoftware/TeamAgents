@@ -382,14 +382,14 @@ function ModalAdicionar({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
+      <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand to-brand-dark px-5 py-3">
           <span className="text-sm font-semibold text-white">{t.modalNovaTitulo}</span>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white">
             ×
           </button>
         </div>
-        <form onSubmit={adicionar} className="space-y-3 p-5">
+        <form onSubmit={adicionar} className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-5">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-black/50">{t.agente}</span>
             <select
@@ -414,7 +414,7 @@ function ModalAdicionar({
             value={conteudo}
             onChange={(e) => setConteudo(e.target.value)}
             placeholder={t.novoConteudoPh}
-            className="h-36 w-full resize-none rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
+            className="h-[50vh] min-h-[16rem] w-full resize-y rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"
           />
           {erro && <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">{erro}</p>}
           <div className="flex justify-end gap-2 pt-1">
