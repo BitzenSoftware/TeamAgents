@@ -11,21 +11,48 @@ const AGENTE_VALORES: AgenteSkill[] = [
   "produto", "rh", "auditoria", "projetos", "estrategia", "crescimento", "operacoes",
 ];
 
-// Ícone + cor por agente — reaproveita o catálogo dos 10 assistentes e
-// completa com os agentes de captação (copywriting/sdr/bi/assistente/global).
-const SKILL_EXTRA: Record<string, { icon: LucideIcon; text: string; bg: string }> = {
-  global: { icon: Sparkles, text: "text-brand", bg: "bg-brand/10" },
-  copywriting: { icon: PenTool, text: "text-fuchsia-600", bg: "bg-fuchsia-50" },
-  sdr: { icon: Phone, text: "text-orange-600", bg: "bg-orange-50" },
-  bi: { icon: BarChart3, text: "text-purple-600", bg: "bg-purple-50" },
-  assistente: { icon: Bot, text: "text-slate-600", bg: "bg-slate-50" },
+// Cor única por agente (nenhuma repetida entre os 15) — classes escritas por
+// extenso, não montadas em runtime, porque o Tailwind só compila o CSS de
+// classes que aparecem literalmente no código.
+const SKILL_COR: Record<AgenteSkill, { text: string; bg: string }> = {
+  global: { text: "text-brand", bg: "bg-brand/10" },
+  copywriting: { text: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+  sdr: { text: "text-orange-600", bg: "bg-orange-50" },
+  bi: { text: "text-purple-600", bg: "bg-purple-50" },
+  assistente: { text: "text-pink-600", bg: "bg-pink-50" },
+  financeiro: { text: "text-emerald-600", bg: "bg-emerald-50" },
+  juridico: { text: "text-blue-600", bg: "bg-blue-50" },
+  suporte: { text: "text-sky-600", bg: "bg-sky-50" },
+  produto: { text: "text-amber-600", bg: "bg-amber-50" },
+  rh: { text: "text-rose-600", bg: "bg-rose-50" },
+  auditoria: { text: "text-teal-600", bg: "bg-teal-50" },
+  projetos: { text: "text-cyan-600", bg: "bg-cyan-50" },
+  estrategia: { text: "text-violet-600", bg: "bg-violet-50" },
+  crescimento: { text: "text-lime-600", bg: "bg-lime-50" },
+  operacoes: { text: "text-slate-600", bg: "bg-slate-50" },
+};
+
+const SKILL_ICON: Record<AgenteSkill, LucideIcon> = {
+  global: Sparkles,
+  copywriting: PenTool,
+  sdr: Phone,
+  bi: BarChart3,
+  assistente: Bot,
+  financeiro: agenteInfo("financeiro")!.icon,
+  juridico: agenteInfo("juridico")!.icon,
+  suporte: agenteInfo("suporte")!.icon,
+  produto: agenteInfo("produto")!.icon,
+  rh: agenteInfo("rh")!.icon,
+  auditoria: agenteInfo("auditoria")!.icon,
+  projetos: agenteInfo("projetos")!.icon,
+  estrategia: agenteInfo("estrategia")!.icon,
+  crescimento: agenteInfo("crescimento")!.icon,
+  operacoes: agenteInfo("operacoes")!.icon,
 };
 
 function skillVisual(agente: AgenteSkill): { Icon: LucideIcon; text: string; bg: string } {
-  const info = agenteInfo(agente);
-  if (info) return { Icon: info.icon, text: info.cor, bg: info.cor.replace("text-", "bg-").replace(/-\d+$/, "-50") };
-  const extra = SKILL_EXTRA[agente] ?? { icon: Sparkles, text: "text-black/60", bg: "bg-black/5" };
-  return { Icon: extra.icon, text: extra.text, bg: extra.bg };
+  const cor = SKILL_COR[agente];
+  return { Icon: SKILL_ICON[agente], text: cor.text, bg: cor.bg };
 }
 
 export default function HabilidadesPage() {
